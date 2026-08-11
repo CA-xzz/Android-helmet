@@ -19,6 +19,7 @@ import com.example.helmet.core.model.MediaTransferState
 import com.example.helmet.core.model.SafetyAlertRecord
 import com.example.helmet.data.local.CallStore
 import com.example.helmet.data.local.DeviceIdentityStore
+import com.example.helmet.data.local.EventStore
 import com.example.helmet.data.local.HelmetDatabase
 import com.example.helmet.data.local.MediaStore
 import com.example.helmet.data.local.RuntimeConfigStore
@@ -28,6 +29,7 @@ import com.example.helmet.service.runtime.HelmetService
 import com.example.helmet.service.runtime.RuntimeStatus
 import java.io.File
 import java.net.HttpURLConnection
+import java.net.URLEncoder
 import java.net.URL
 import java.security.MessageDigest
 import java.util.UUID
@@ -78,6 +80,7 @@ class AutomaticStartupQueueRecoveryInstrumentedTest {
             mqttBrokerUri = "",
             mqttClientCertificateAlias = "",
         )
+        clearStaleStartupMediaFiles()
         val database = HelmetDatabase.get(context)
         val tracks = TrackStore(database)
         val media = MediaStore(database)
@@ -120,30 +123,30 @@ class AutomaticStartupQueueRecoveryInstrumentedTest {
         val mediaDirectory = File(context.filesDir, "media/photo").apply { mkdirs() }
         val mediaFile = File(mediaDirectory, "$mediaId.jpg")
         mediaFile.writeBytes(ByteArray(MEDIA_BYTES) { index -> (index * 31 + nonce.length).toByte() })
-        assertTrue(
-            media.add(
-                MediaAsset(
-                    assetId = mediaId,
-                    kind = MediaKind.PHOTO,
-                    filePath = mediaFile.absolutePath,
-                    mimeType = "image/jpeg",
-                    byteSize = mediaFile.length(),
-                    sha256 = sha256(mediaFile),
-                    width = 640,
-                    height = 480,
-                    durationMillis = null,
-                    createdAtEpochMillis = now,
-                    deviceId = deviceId,
-                    relatedEventId = alertId,
-                    transferState = MediaTransferState.PENDING,
-                    attemptCount = 0,
-                    latitude = 31.2304,
-                    longitude = 121.4737,
-                    horizontalAccuracyMeters = 2.0f,
-                    locationFixType = "STANDARD",
-                ),
-            ),
+        val mediaAsset = MediaAsset(
+            assetId = mediaId,
+            kind = MediaKind.PHOTO,
+            filePath = mediaFile.absolutePath,
+            mimeType = "image/jpeg",
+            byteSize = mediaFile.length(),
+            sha256 = sha256(mediaFile),
+            width = 640,
+            height = 480,
+            durationMillis = null,
+            createdAtEpochMillis = now,
+            deviceId = deviceId,
+            relatedEventId = alertId,
+            transferState = MediaTransferState.PENDING,
+            attemptCount = 0,
+            latitude = 31.2304,
+            longitude = 121.4737,
+            horizontalAccuracyMeters = 2.0f,
+            locationFixType = "STANDARD",
         )
+        assertTrue(
+            media.add(mediaAsset),
+        )
+        primeMediaUpload(mediaAsset, mediaFile)
         assertTrue(
             alerts.recordAlert(
                 SafetyAlertRecord(
@@ -256,6 +259,24 @@ class AutomaticStartupQueueRecoveryInstrumentedTest {
             assertTrue(requireNotNull(media.find(mediaId)).attemptCount >= 1)
             assertTrue(requireNotNull(alerts.findAlert(alertMessageId)).attemptCount >= 1)
             assertTrue(requireNotNull(calls.find(callId)).attemptCount >= 1)
+            val uploadEvents = withTimeout(RECOVERY_TIMEOUT_MILLIS) {
+                EventStore(database).observeRecent(EVENT_SEARCH_LIMIT).first { events ->
+                    events.any { event ->
+                        event.eventType == "MEDIA_UPLOAD_COMPLETED" &&
+                            JSONObject(event.payloadJson).optString("assetId") == mediaId
+                    }
+                }
+            }
+            val uploadEvent = requireNotNull(
+                uploadEvents.firstOrNull { event ->
+                    event.eventType == "MEDIA_UPLOAD_COMPLETED" &&
+                        JSONObject(event.payloadJson).optString("assetId") == mediaId
+                },
+            )
+            assertEquals(
+                (MEDIA_BYTES - PRELOADED_MEDIA_BYTES).toLong(),
+                JSONObject(uploadEvent.payloadJson).getLong("bytesUploaded"),
+            )
             val trackPoints = getJson("/v1/tracks?deviceId=$deviceId&afterSequence=0&limit=100")
                 .getJSONArray("points")
             assertTrue(
@@ -288,6 +309,91 @@ class AutomaticStartupQueueRecoveryInstrumentedTest {
         }
     }
 
+    private fun clearStaleStartupMediaFiles() {
+        File(context.filesDir, "media/photo").listFiles()
+            ?.filter { file -> file.name.startsWith("startup-media-") && file.name.endsWith(".jpg") }
+            ?.forEach { file -> check(file.delete()) { "failed to delete stale test media ${file.name}" } }
+    }
+
+    private suspend fun primeMediaUpload(asset: MediaAsset, file: File) = withContext(Dispatchers.IO) {
+        val metadata = JSONObject()
+            .put("mediaId", asset.assetId)
+            .put("deviceId", asset.deviceId)
+            .put("kind", asset.kind.name)
+            .put("mimeType", asset.mimeType)
+            .put("byteSize", asset.byteSize)
+            .put("sha256", asset.sha256)
+            .put("createdAtEpochMillis", asset.createdAtEpochMillis)
+            .put("relatedEventId", asset.relatedEventId ?: JSONObject.NULL)
+            .put("width", asset.width)
+            .put("height", asset.height)
+            .put("durationMillis", asset.durationMillis ?: JSONObject.NULL)
+            .put("personId", asset.personId ?: JSONObject.NULL)
+            .put(
+                "location",
+                JSONObject()
+                    .put("latitude", asset.latitude ?: JSONObject.NULL)
+                    .put("longitude", asset.longitude ?: JSONObject.NULL)
+                    .put(
+                        "horizontalAccuracyMeters",
+                        asset.horizontalAccuracyMeters ?: JSONObject.NULL,
+                    )
+                    .put("fixType", asset.locationFixType),
+            )
+        val session = requestJson(
+            method = "POST",
+            path = "/v1/media/sessions",
+            body = metadata.toString().toByteArray(Charsets.UTF_8),
+            contentType = "application/json; charset=utf-8",
+        )
+        assertEquals(0L, session.getLong("nextOffset"))
+        assertEquals(PRELOADED_MEDIA_BYTES, session.getInt("chunkSize"))
+        val firstChunk = file.readBytes().copyOfRange(0, PRELOADED_MEDIA_BYTES)
+        assertEquals(PRELOADED_MEDIA_BYTES, firstChunk.size)
+        val sessionId = URLEncoder.encode(session.getString("sessionId"), Charsets.UTF_8.name())
+            .replace("+", "%20")
+        val response = requestJson(
+            method = "PUT",
+            path = "/v1/media/sessions/$sessionId/chunks",
+            body = firstChunk,
+            contentType = "application/octet-stream",
+            headers = mapOf(
+                "Content-Range" to "bytes 0-${PRELOADED_MEDIA_BYTES - 1}/${asset.byteSize}",
+                "X-Chunk-SHA256" to sha256(firstChunk),
+            ),
+        )
+        assertEquals(PRELOADED_MEDIA_BYTES.toLong(), response.getLong("nextOffset"))
+    }
+
+    private fun requestJson(
+        method: String,
+        path: String,
+        body: ByteArray,
+        contentType: String,
+        headers: Map<String, String> = emptyMap(),
+    ): JSONObject {
+        val connection = (URL(TEST_ENDPOINT + path).openConnection() as HttpURLConnection).apply {
+            requestMethod = method
+            connectTimeout = 5_000
+            readTimeout = 10_000
+            doOutput = true
+            setFixedLengthStreamingMode(body.size)
+            setRequestProperty("Authorization", "Bearer $TEST_TOKEN")
+            setRequestProperty("Content-Type", contentType)
+            headers.forEach(::setRequestProperty)
+        }
+        return try {
+            connection.outputStream.use { output -> output.write(body) }
+            val status = connection.responseCode
+            val text = (if (status in 200..299) connection.inputStream else connection.errorStream)
+                .bufferedReader().use { reader -> reader.readText() }
+            check(status in 200..299) { "backend HTTP $status: $text" }
+            JSONObject(text)
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     private suspend fun getJson(path: String): JSONObject = withContext(Dispatchers.IO) {
         val connection = (URL(TEST_ENDPOINT + path).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
@@ -309,8 +415,11 @@ class AutomaticStartupQueueRecoveryInstrumentedTest {
     }
 
     private fun sha256(file: File): String =
+        sha256(file.readBytes())
+
+    private fun sha256(bytes: ByteArray): String =
         MessageDigest.getInstance("SHA-256")
-            .digest(file.readBytes())
+            .digest(bytes)
             .joinToString("") { byte -> "%02x".format(byte) }
 
     private fun requireEvidence(preferences: android.content.SharedPreferences, key: String): String =
@@ -339,7 +448,9 @@ class AutomaticStartupQueueRecoveryInstrumentedTest {
         private const val KEY_ORIGINAL_MQTT_ALIAS = "original_mqtt_alias"
         private const val TEST_ENDPOINT = "http://127.0.0.1:18084"
         private const val TEST_TOKEN = "startup-recovery-board-token"
-        private const val MEDIA_BYTES = 64 * 1024
+        private const val PRELOADED_MEDIA_BYTES = 64 * 1024
+        private const val MEDIA_BYTES = 4 * PRELOADED_MEDIA_BYTES
+        private const val EVENT_SEARCH_LIMIT = 200
         private const val SERVICE_STOP_DELAY_MILLIS = 750L
         private const val RECOVERY_TIMEOUT_MILLIS = 45_000L
         private const val POLL_INTERVAL_MILLIS = 200L

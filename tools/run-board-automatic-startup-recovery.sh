@@ -77,15 +77,13 @@ adb -s "$ADB_SERIAL" uninstall "$TEST_PACKAGE" >/dev/null 2>&1 || true
 adb -s "$ADB_SERIAL" install -r "$APP_APK"
 adb -s "$ADB_SERIAL" install -r -t "$TEST_APK"
 
-run_phase seed
-adb -s "$ADB_SERIAL" shell am force-stop "$APP_PACKAGE"
-
 mkdir -p "$TEST_ROOT/backend"
 HELMET_MEDIA_TOKEN=$TEST_TOKEN \
     python3 "$PROJECT_ROOT/backend/media_service.py" \
     --data-dir "$TEST_ROOT/backend" \
     --host 127.0.0.1 \
     --port 18084 \
+    --chunk-size 65536 \
     >"$TEST_ROOT/backend.log" 2>&1 &
 BACKEND_PID=$!
 
@@ -104,22 +102,28 @@ done
 }
 
 adb -s "$ADB_SERIAL" reverse tcp:18084 tcp:18084
+run_phase seed
+adb -s "$ADB_SERIAL" shell am force-stop "$APP_PACKAGE"
 run_phase recover
 
 TRACK_POSTS=$(rg -c 'POST /v1/tracks:batch HTTP/1.1" 200' "$TEST_ROOT/backend.log" || true)
+MEDIA_CHUNKS=$(rg -c 'PUT /v1/media/sessions/.+/chunks HTTP/1.1" 200' "$TEST_ROOT/backend.log" || true)
 MEDIA_COMPLETES=$(rg -c 'POST /v1/media/sessions/.+/complete HTTP/1.1" 200' "$TEST_ROOT/backend.log" || true)
 ALERT_POSTS=$(rg -c 'POST /v1/alerts HTTP/1.1" 200' "$TEST_ROOT/backend.log" || true)
 CALL_POSTS=$(rg -c 'POST /v1/calls HTTP/1.1" 200' "$TEST_ROOT/backend.log" || true)
 : "${TRACK_POSTS:=0}"
+: "${MEDIA_CHUNKS:=0}"
 : "${MEDIA_COMPLETES:=0}"
 : "${ALERT_POSTS:=0}"
 : "${CALL_POSTS:=0}"
-[ "$TRACK_POSTS" -ge 1 ] && [ "$MEDIA_COMPLETES" -ge 1 ] && \
+[ "$TRACK_POSTS" -ge 1 ] && [ "$MEDIA_CHUNKS" -eq 4 ] && [ "$MEDIA_COMPLETES" -ge 1 ] && \
     [ "$ALERT_POSTS" -ge 1 ] && [ "$CALL_POSTS" -ge 1 ] || {
     echo "ERROR: backend did not observe every automatically recovered queue"
     exit 1
 }
 
 printf 'PASS: application startup recovered track, media, safety, and communication queues\n'
+printf 'media_preloaded_bytes=65536 media_resumed_bytes=196608 backend_media_chunks=%s\n' \
+    "$MEDIA_CHUNKS"
 printf 'backend_track_posts=%s backend_media_completes=%s backend_alert_posts=%s backend_call_posts=%s\n' \
     "$TRACK_POSTS" "$MEDIA_COMPLETES" "$ALERT_POSTS" "$CALL_POSTS"
