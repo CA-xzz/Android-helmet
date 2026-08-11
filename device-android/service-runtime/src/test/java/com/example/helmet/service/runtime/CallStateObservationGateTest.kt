@@ -24,9 +24,19 @@ class CallStateObservationGateTest {
     fun activeInitialStateIsRecoveredWithoutReplayingInitialTerminalState() {
         assertTrue(CallStateObservationGate().shouldHandle(call(CallState.ACCEPTED, 2)))
         assertTrue(CallStateObservationGate().shouldHandle(call(CallState.CONNECTING, 3)))
-        assertFalse(CallStateObservationGate().shouldHandle(call(CallState.CONNECTED, 4)))
+        assertTrue(CallStateObservationGate().shouldHandle(call(CallState.CONNECTED, 4)))
         assertFalse(CallStateObservationGate().shouldHandle(call(CallState.ENDED, 4)))
         assertFalse(CallStateObservationGate().shouldHandle(null))
+    }
+
+    @Test
+    fun mediaStartStatesIncludeConnectedRecoveryOnly() {
+        assertTrue(isCallMediaStartState(CallState.ACCEPTED))
+        assertTrue(isCallMediaStartState(CallState.CONNECTING))
+        assertTrue(isCallMediaStartState(CallState.CONNECTED))
+        assertFalse(isCallMediaStartState(CallState.REQUESTED))
+        assertFalse(isCallMediaStartState(CallState.ENDED))
+        assertFalse(isCallMediaStartState(CallState.FAILED))
     }
 
     private fun call(state: CallState, sequence: Long) = CallSession(

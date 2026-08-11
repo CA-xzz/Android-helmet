@@ -36,6 +36,12 @@ internal fun shouldUseCallLowBandwidthMode(snapshot: ConnectivitySnapshot): Bool
         snapshot.downstreamKbps?.let { it in 1 until 1_000 } == true ||
         snapshot.upstreamKbps?.let { it in 1 until 500 } == true
 
+internal fun isCallMediaStartState(state: CallState): Boolean = state in setOf(
+    CallState.ACCEPTED,
+    CallState.CONNECTING,
+    CallState.CONNECTED,
+)
+
 internal class CallBandwidthPolicy {
     @Volatile
     private var lowBandwidth = false
@@ -69,7 +75,7 @@ class CallMediaCoordinator(
         if (activeCallId == callId && activeJob?.isActive == true) return
         stopLocked("REPLACED_BY_NEW_CALL")
         val call = requireNotNull(calls.find(callId)) { "call session not found" }
-        require(call.state == CallState.ACCEPTED || call.state == CallState.CONNECTING) {
+        require(isCallMediaStartState(call.state)) {
             "call must be accepted before WebRTC starts"
         }
         require(runtimeConfig.backendBaseUrl.isNotBlank() && runtimeConfig.backendBearerToken.isNotBlank()) {
@@ -124,11 +130,12 @@ class CallMediaCoordinator(
                     .put("videoEnabled", offer.videoEnabled)
                     .put("degradedReason", offer.degradedReason ?: JSONObject.NULL),
             )
-            signalingMutex.withLock {
-                client.sendCallSignal(offerSignal)
+            val offerSequence = signalingMutex.withLock {
+                val storedOffer = client.sendCallSignal(offerSignal)
                 offerSent = true
                 pendingCandidates.forEach { client.sendCallSignal(it) }
                 pendingCandidates.clear()
+                requireNotNull(storedOffer.serverSequence) { "stored WebRTC offer has no sequence" }
             }
             if (calls.find(call.callId)?.state == CallState.ACCEPTED) {
                 val connecting = calls.transition(call.callId, CallState.CONNECTING)
@@ -143,11 +150,12 @@ class CallMediaCoordinator(
                     "audioEnabled" to offer.audioEnabled,
                     "videoEnabled" to offer.videoEnabled,
                     "degradedReason" to offer.degradedReason,
+                    "recovery" to (call.state == CallState.CONNECTED),
                     "bandwidthModeApplied" to bandwidthModeApplied,
                     "iceExpiresAtEpochMillis" to ice.expiresAtEpochMillis,
                 ),
             )
-            val answered = pollRemoteSignals(call, client, engine)
+            val answered = pollRemoteSignals(call, client, engine, offerSequence)
             if (!answered) failCall(call.callId, client, "WEBRTC_ANSWER_TIMEOUT")
         } catch (error: CancellationException) {
             throw error
@@ -165,8 +173,9 @@ class CallMediaCoordinator(
         call: CallSession,
         client: HttpCommunicationClient,
         engine: WebRtcCallEngine,
+        offerSequence: Long,
     ): Boolean {
-        var afterSequence = 0L
+        var afterSequence = offerSequence
         var answerApplied = false
         val queuedCandidates = mutableListOf<CallSignal>()
         val deadline = monotonicClock() + ANSWER_TIMEOUT_MILLIS

@@ -113,7 +113,7 @@ internal class CallStateObservationGate {
         if (key == lastKey) return false
         lastKey = key
         if (call.state == CallState.REQUESTED) return false
-        return !initial || call.state == CallState.ACCEPTED || call.state == CallState.CONNECTING
+        return !initial || isCallMediaStartState(call.state)
     }
 }
 
@@ -1430,7 +1430,7 @@ class HelmetService : LifecycleService() {
             }
             recordCallStatePromptRequest(callId, state)
             when (state) {
-                CallState.ACCEPTED, CallState.CONNECTING -> runCatching {
+                CallState.ACCEPTED, CallState.CONNECTING, CallState.CONNECTED -> runCatching {
                     callMediaCoordinator.start(callId, RuntimeConfigStore(this).load())
                 }.onFailure { error ->
                     eventStore.record(

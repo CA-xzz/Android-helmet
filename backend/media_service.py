@@ -2492,12 +2492,13 @@ class MediaRepository:
             (device_id, *terminal_states),
         ).fetchone()
         call = None if call_row is None else self._call_response(database, call_row["call_id"])
-        has_offer = False
+        latest_offer_sequence = None
         if call is not None:
-            has_offer = database.execute(
-                "SELECT 1 FROM call_signals WHERE call_id = ? AND signal_type = 'OFFER' LIMIT 1",
+            latest_offer_sequence = database.execute(
+                "SELECT MAX(sequence) FROM call_signals "
+                "WHERE call_id = ? AND signal_type = 'OFFER'",
                 (call["callId"],),
-            ).fetchone() is not None
+            ).fetchone()[0]
         media_row = database.execute(
             "SELECT metadata_json FROM media_archives "
             "WHERE json_extract(metadata_json, '$.deviceId') = ? "
@@ -2637,7 +2638,8 @@ class MediaRepository:
             "liveVideo": None if call is None or call["mediaMode"] != "VIDEO_UPLINK" else {
                 "callId": call["callId"],
                 "state": call["state"],
-                "hasOffer": has_offer,
+                "hasOffer": latest_offer_sequence is not None,
+                "latestOfferSequence": latest_offer_sequence,
             },
             "latestMedia": None if media is None else {
                 "mediaId": media["mediaId"],

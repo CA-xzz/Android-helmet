@@ -1334,17 +1334,23 @@ async function connectLiveVideo(device, button) {
   closeLiveVideo();
   const callId = device.liveVideo.callId;
   const actorId = elements["actor-id"].value.trim();
+  const offerSequence = device.liveVideo.latestOfferSequence;
   elements["video-title"].textContent = `实时视频 · ${device.deviceId}`;
   elements["video-state"].textContent = "正在获取信令";
   elements["video-dialog"].showModal();
   try {
+    if (!Number.isSafeInteger(offerSequence) || offerSequence <= 0) {
+      throw new Error("设备最新 OFFER 序号无效");
+    }
     const [ice, signalBody] = await Promise.all([
       request(`/v1/calls/${encodeURIComponent(callId)}/ice-config?requesterId=${encodeURIComponent(actorId)}`),
-      request(`/v1/calls/${encodeURIComponent(callId)}/signals?afterSequence=0&limit=${CALL_SIGNAL_PAGE_LIMIT}`),
+      request(`/v1/calls/${encodeURIComponent(callId)}/signals?afterSequence=${offerSequence - 1}&limit=${CALL_SIGNAL_PAGE_LIMIT}`),
     ]);
-    const offer = [...signalBody.signals].reverse().find(signal => signal.type === "OFFER" && signal.senderId !== actorId);
+    const offer = signalBody.signals.find(signal =>
+      signal.sequence === offerSequence && signal.type === "OFFER" && signal.senderId !== actorId
+    );
     if (!offer) throw new Error("设备尚未提交视频 OFFER");
-    state.signalSequence = Math.max(0, ...signalBody.signals.map(signal => signal.sequence));
+    state.signalSequence = Math.max(offerSequence, ...signalBody.signals.map(signal => signal.sequence));
     const connection = new RTCPeerConnection({ iceServers: ice.iceServers });
     state.peerConnection = connection;
     connection.addEventListener("track", event => {

@@ -422,6 +422,8 @@ class MediaServiceTest(unittest.TestCase):
         self.assertIn(b"/v1/access-profile", script)
         self.assertIn(b"AUTO_REFRESH_INTERVAL_MILLIS = 5_000", script)
         self.assertIn(b"CALL_SIGNAL_PAGE_LIMIT = 100", script)
+        self.assertIn(b"latestOfferSequence", script)
+        self.assertIn(b"offerSequence - 1", script)
         self.assertNotIn(b"/signals?afterSequence=0&limit=500", script)
         self.assertIn(b"scheduleAutoRefresh()", script)
         self.assertIn(b'addEventListener("visibilitychange"', script)
@@ -544,6 +546,19 @@ class MediaServiceTest(unittest.TestCase):
                 },
             )[0],
         )
+        self.assertEqual(
+            200,
+            self.post_json(
+                "/v1/calls/overview-video-call/signals",
+                {
+                    "signalId": "overview-recovery-offer",
+                    "senderId": "device-1",
+                    "type": "OFFER",
+                    "payload": {"sdp": "v=0\r\na=recovery\r\n"},
+                    "createdAtEpochMillis": 1_786_000_000_012,
+                },
+            )[0],
+        )
         actor_headers = {"X-Actor-Id": "viewer-overview", "X-Actor-Role": "VIEWER"}
         response_status, body, _ = self.request(
             "GET", "/v1/devices/overview", headers=actor_headers,
@@ -575,6 +590,7 @@ class MediaServiceTest(unittest.TestCase):
         self.assertEqual(1, overview["activeAlertCount"])
         self.assertEqual("overview-video-call", overview["liveVideo"]["callId"])
         self.assertTrue(overview["liveVideo"]["hasOffer"])
+        self.assertEqual(2, overview["liveVideo"]["latestOfferSequence"])
         self.assertEqual(1, len(overview["track"]))
 
         invalid_intercom = self.device_status("status-message-invalid-intercom", occurred_at=1_786_000_000_100)
