@@ -42,7 +42,7 @@
 - H618 上使用合成输入验证了原始安全样本、Android 检测、稳定告警周期、SET_OUTPUT 命令和样本去重运行路径，记录见 `docs/verification/stage-6/android-safety-runtime-board-test.txt`。该记录不替代真实传感器和执行器测试。
 - H618 已验证模拟近电样本和 `NEAR_ELECTRIC` 告警由生产前台服务自动持久化并上传。开发板 Room 和后台保存相同的样本引用、920 毫伏电场值、`CRITICAL` 级别和模拟来源，记录见 `docs/verification/stage-6/near-electric-alert-board-e2e.txt`。模拟网关直接产生告警且不执行物理本地动作，该记录不替代真实工频电场传感器、标定、连续检测、阈值和累积暴露、本地执行器或移动网络测试。
 - H618 已验证模拟高度样本和 `HEIGHT_LIMIT` 告警由生产前台服务自动持久化并上传。后台保留 2200 毫米高度、101325 帕气压、等级和位置质量，完成只读角色拒绝、确认、处理中、关闭和重启持久化。记录见 `docs/verification/stage-6/height-alert-board-e2e.txt`。模拟网关直接产生告警，该记录不替代真实高度传感器、连续检测、阈值、本地执行器和移动网络测试。
-- H618 已验证外部 HSL RTK_NMEA 经用户态串口服务、定位服务和电子围栏引擎自动生成退出与返回事件，由 Room 和 WorkManager 上传后台。记录见 `docs/verification/stage-4/geofence-uart-board-e2e.txt`。输入 NMEA 和坐标由 PTY 夹具合成，该记录不替代真实 GNSS、RTK 精度、人员越界、移动网络和现场处置测试。
+- H618 已验证外部 HSL RTK_NMEA 经用户态串口服务和定位服务自动生成 6 个有序轨迹点及电子围栏退出、返回事件，由 Room 和 WorkManager 上传后台。记录见 `docs/verification/stage-4/geofence-uart-board-e2e.txt`。输入 NMEA 和坐标由 PTY 夹具合成，该记录不替代真实 GNSS、RTK 精度、移动轨迹、人员越界、移动网络和现场处置测试。
 - 后台已验证资源隔离、轨迹、媒体、呼叫、广播、语音、告警、审计、PostgreSQL 适配、S3 完整性和 MQTT 消息处理。
 - 管理端已验证权限中心、地图、媒体、呼叫、广播、语音和告警处置界面。
 

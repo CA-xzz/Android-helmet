@@ -26,7 +26,7 @@
 - 授予权限后，选择系统 `fused` provider，显示 `WAITING_FOR_FIX`；系统 `last location=null`，轨迹仍为 0。
 - 最终主应用显示 `OFFLINE_READY`、`networkState=UNAVAILABLE`、`locationHasPosition=false`、`pendingTrack=0`，没有异常退出。
 - ADB reverse 软件管线在后台保存 1 个媒体归档和 2 个轨迹点，轨迹序号为 1、2。重复 Worker 不重新尝试已送达点。
-- `geofence-uart-board-e2e.txt` 验证外部 HSL RTK_NMEA 经用户态串口服务、定位服务、电子围栏、Room 和 WorkManager 自动形成退出与返回后台事件。测试没有直接写入告警或调用 Worker。
+- `geofence-uart-board-e2e.txt` 验证外部 HSL RTK_NMEA 经用户态串口服务、定位服务、轨迹与电子围栏、Room 和 WorkManager 自动形成 6 个有序后台轨迹点及退出、返回事件。测试没有直接写入轨迹或告警，也没有调用 Worker。
 
 软件管线使用测试坐标验证序列化和传输，不属于真实定位证据。主应用没有注入测试坐标。
 
@@ -40,9 +40,9 @@
 - `board-main-service-final.txt`：最终主应用前台服务状态。
 - `board-backend-archive-query-final.txt`、`board-backend-track-payloads-final.jsonl`、`board-backend-evidence-sha256-final.txt`：媒体和两点轨迹后台证据。
 - `apk-sha256-final.txt`：阶段 4 APK 摘要。
-- `geofence-uart-board-e2e.txt`：外部 UART NMEA 到电子围栏 Room 和后台的生产服务链路。
+- `geofence-uart-board-e2e.txt`：外部 UART NMEA 到轨迹、电子围栏 Room 和后台的生产服务链路。
 
-既有开发板日志时间为 2026-07-29，本次围栏日志时间为 2026-07-30；对应主机取证日期为 2026-08-10 和 2026-08-11。该偏差来自板端系统时钟，仍由 OQ-017 跟踪。
+既有开发板日志时间为 2026-07-29，本次轨迹和围栏日志时间为 2026-07-30；对应主机取证日期为 2026-08-10 和 2026-08-11。该偏差来自板端系统时钟，仍由 OQ-017 跟踪。
 
 ## 未完成项
 

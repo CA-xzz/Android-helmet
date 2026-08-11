@@ -1,37 +1,41 @@
-H618 外部 UART NMEA 到电子围栏后台告警验证
+H618 外部 UART NMEA 到轨迹与电子围栏后台验证
 
 主机日期：2026-08-11 Asia/Shanghai
-板端日志日期：2026-07-30 17:15，板端时钟偏差由 OQ-017 跟踪
+板端日志日期：2026-07-30 17:35，板端时钟偏差由 OQ-017 跟踪
 设备：2c001031774186e21d3，QUAD-CORE H618 p1，Android 12，API 31
-测试源码提交：6aaca0294c4c9f428ea468d2db43d99dcd3b9452
+测试源码提交：06469906022b77283fddd82c6973fac3a8bfa2b1
 主应用 APK SHA-256：f82c157264a5b28f046de23a9788aac6aa856693ada509fe214925e09b9315ce
-测试 APK SHA-256：78c2b1115fe6ba3e80bbd7c39e3ee0a9dae4e489977bc7d35c43c84009a4e472
+测试 APK SHA-256：33c090b52c34c6fc884051a379c9eb763697185e552cb9452e63619717d08ea7
 
 测试入口：
 com.example.helmet.AutomaticGeofenceAlertUploadInstrumentedTest
-.uartNmeaExitAndReturnArePersistedAndAutomaticallyUploaded
+.uartNmeaTrackAndGeofenceEventsArePersistedAndAutomaticallyUploaded
 
 夹具与输入：
 - 板端临时 PTY 暴露为 /dev/ttyUSB99，通过 127.0.0.1:18084 接收测试进程发送的 HSL 帧。
 - HSL 输入包含心跳、配置 ACK 和 RTK_NMEA。GGA quality=4，围栏内纬度为 30.0001，围栏外纬度为 30.002，经度均为 114.0。
 - 测试配置围栏中心 30.0,114.0，半径 100 米，滞回 10 米，连续 2 个样本确认。
 - 后台运行于主机 127.0.0.1:18083，通过 ADB reverse 供生产 Worker 访问。
-- 测试只发送外部串口字节并查询结果，不直接写入 Room，不直接创建告警，不调用 Worker，也不调用告警上传接口。
+- 测试只发送外部串口字节并查询结果，不直接写入 Room，不直接创建轨迹或告警，不调用 Worker，也不调用上传接口。
+- 为避免 MainActivity 首次权限对话框影响测试启动，本次编排临时授予应用已声明的运行时权限；测试结束后全部撤销。
 
 运行路径：
-临时 PTY -> 用户态 AIDL/JNI 串口服务 -> HSL 解码 -> 外部 RTK NMEA 组装 -> 定位服务 -> 电子围栏引擎 -> Room -> WorkManager -> 后台告警接口。
+临时 PTY -> 用户态 AIDL/JNI 串口服务 -> HSL 解码 -> 外部 RTK NMEA 组装 -> 定位服务 -> 轨迹与电子围栏引擎 -> Room -> WorkManager -> 后台轨迹和告警接口。
 
 instrumentation 结果：
-Time: 7.087
+Time: 6.613
 OK (1 test)
 
 Room 结果：
+- 轨迹序号 7 至 12 连续有序，纬度依次为 30.0001、30.0001、30.002、30.002、30.0001、30.0001，经度均为 114.0。
+- 6 个轨迹点均为 source=EXTERNAL_NMEA、quality=RTK_FIXED、satellitesUsed=12、hdop=0.7、isMock=0、deliveryState=DELIVERED、attemptCount=1。
 - alertId=geofence-07e31309-ec84-3769-b484-79d0bb6b2521。
 - EXIT 记录：severity=HIGH，active=1，simulated=0，deliveryState=DELIVERED，attemptCount=1，位置 30.002,114.0，fixType=RTK_FIXED，distanceMeters=222.39016046694258。
 - ENTER 记录：severity=INFO，active=0，simulated=0，deliveryState=DELIVERED，attemptCount=1，位置 30.0001,114.0，fixType=RTK_FIXED，distanceMeters=11.119508022932331。
 - 本地事件顺序包含 GEOFENCE_EXIT 和 GEOFENCE_ENTER，事件载荷明确保存 finalHardwareEvidence=false。
 
 后台结果：
+- 轨迹接口按序返回序号 7 至 12，6 个 messageId 与 Room 逐项一致，位置和 NMEA 质量字段保持不变。
 - 同一 alertId 保存 2 个事件，顺序为 ACTIVATED、CLEARED。
 - ACTIVATED 保留 HIGH、RTK_FIXED、30.002,114.0、transition=EXIT、distanceMeters=222.39016046694258 和 simulated=false。
 - CLEARED 保留 INFO、RTK_FIXED、30.0001,114.0、transition=ENTER、distanceMeters=11.119508022932331 和 simulated=false。
@@ -39,7 +43,7 @@ Room 结果：
 
 恢复与清理：
 - 测试结束后恢复运行配置 revision=5、SIMULATED 模式和原后台配置。
-- 板端运行时看门狗已恢复，PID 1942；HelmetService 为前台运行状态，待发送轨迹和告警均为 0。
+- 板端运行时看门狗已恢复，PID 4243；HelmetService PID 4262，为前台运行状态，待发送轨迹和告警均为 0。
 - 测试包、/data/local/tmp/helmet-pty-bridge、/dev/ttyUSB99、ADB reverse 和 18083/18084 监听均已清除。
 - 板端仅保留 com.example.helmet，RECORD_AUDIO granted=false。
 
@@ -50,4 +54,4 @@ Room 结果：
 - 需求追踪校验：31 项通过。
 
 结论与边界：
-该测试证明外部用户态 UART 输入可以通过生产服务自动形成电子围栏退出和返回事件，并完成 Room 持久化与后台上传。外部 NMEA 和坐标由测试夹具合成，simulated=false 只表示输入经过非模拟 UART 路径，不表示真实 GNSS、RTK 精度或真实人员越界。该记录不替代接收机、天线、差分服务、现场越界、真实网络、地图声音和处置演练的最终验收。
+该测试证明外部用户态 UART 输入可以通过生产服务自动形成有序轨迹和电子围栏退出、返回事件，并完成 Room 持久化与后台上传。外部 NMEA 和坐标由测试夹具合成，simulated=false 只表示输入经过非模拟 UART 路径，不表示真实 GNSS、RTK 精度、真实移动轨迹或真实人员越界。该记录不替代接收机、天线、差分服务、现场移动和越界、真实网络、地图声音及处置演练的最终验收。
