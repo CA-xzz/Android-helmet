@@ -1302,9 +1302,39 @@ class MediaRepository:
             raise ApiError(HTTPStatus.FORBIDDEN, "alert access is forbidden")
 
     @staticmethod
-    def _alert_response(row: sqlite3.Row) -> dict[str, Any]:
+    def _alert_response(database: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]:
         payload = json.loads(row["latest_payload_json"])
         location = payload["location"]
+        evidence = dict(payload["evidence"])
+        if evidence.get("mediaAssetId") is None:
+            events = database.execute(
+                "SELECT payload_json FROM safety_alert_events WHERE alert_id = ? "
+                "ORDER BY occurred_at_epoch_millis DESC, message_id DESC",
+                (row["alert_id"],),
+            ).fetchall()
+            related_event_ids = []
+            for event in events:
+                event_evidence = json.loads(event["payload_json"])["evidence"]
+                if event_evidence.get("mediaAssetId") is not None:
+                    evidence["mediaAssetId"] = event_evidence["mediaAssetId"]
+                    break
+                related_event_id = event_evidence.get("relatedEventId")
+                if related_event_id is not None:
+                    related_event_ids.append(related_event_id)
+            media = None
+            if evidence.get("mediaAssetId") is None and related_event_ids:
+                placeholders = ",".join("?" for _ in related_event_ids)
+                media = database.execute(
+                    "SELECT media_id FROM media_archives "
+                    "WHERE json_extract(metadata_json, '$.deviceId') = ? "
+                    f"AND json_extract(metadata_json, '$.relatedEventId') IN ({placeholders}) "
+                    "AND json_extract(metadata_json, '$.kind') IN ('PHOTO', 'VIDEO') "
+                    "ORDER BY CAST(json_extract(metadata_json, '$.createdAtEpochMillis') AS INTEGER) DESC, "
+                    "media_id DESC LIMIT 1",
+                    (row["device_id"], *related_event_ids),
+                ).fetchone()
+            if media is not None:
+                evidence["mediaAssetId"] = media["media_id"]
         requires_attention = row["workflow_state"] != "CLOSED" and bool(row["device_active"])
         return {
             "alertId": row["alert_id"],
@@ -1318,7 +1348,7 @@ class MediaRepository:
             "sampleReference": row["sample_reference"],
             "simulated": bool(row["simulated"]),
             "location": location,
-            "evidence": payload["evidence"],
+            "evidence": evidence,
             "sensorSnapshot": payload["sensorSnapshot"],
             "localActions": payload["localActions"],
             "sensorFaults": payload["sensorFaults"],
@@ -1350,7 +1380,7 @@ class MediaRepository:
                 row = database.execute(
                     "SELECT * FROM safety_alerts WHERE alert_id = ?", (existing_event["alert_id"],)
                 ).fetchone()
-                response = self._alert_response(row)
+                response = self._alert_response(database, row)
                 response["deduplicated"] = True
                 return response
 
@@ -1420,9 +1450,9 @@ class MediaRepository:
             row = database.execute(
                 "SELECT * FROM safety_alerts WHERE alert_id = ?", (alert["alertId"],)
             ).fetchone()
-        response = self._alert_response(row)
-        response["deduplicated"] = False
-        return response
+            response = self._alert_response(database, row)
+            response["deduplicated"] = False
+            return response
 
     def safety_alerts(
         self,
@@ -1460,7 +1490,7 @@ class MediaRepository:
                 f"SELECT * FROM safety_alerts{where} ORDER BY updated_at_epoch_millis DESC LIMIT ?",
                 (*values, limit),
             ).fetchall()
-        return [self._alert_response(row) for row in rows]
+            return [self._alert_response(database, row) for row in rows]
 
     def safety_alert(self, alert_id: str, actor_id: str, actor_role: str) -> dict[str, Any]:
         self._validate_alert_actor(actor_id, actor_role)
@@ -1482,7 +1512,7 @@ class MediaRepository:
                 "FROM safety_alert_workflow_history WHERE alert_id = ? ORDER BY workflow_sequence",
                 (alert_id,),
             ).fetchall()
-        response = self._alert_response(row)
+            response = self._alert_response(database, row)
         response["events"] = [
             {
                 "kind": event["event_kind"],
@@ -1534,7 +1564,7 @@ class MediaRepository:
                 raise ApiError(HTTPStatus.NOT_FOUND, "alert not found")
             current = row["workflow_state"]
             if target == current:
-                response = self._alert_response(row)
+                response = self._alert_response(database, row)
                 response["deduplicated"] = True
                 return response
             if target not in ALERT_WORKFLOW_TRANSITIONS[current]:
@@ -1552,9 +1582,9 @@ class MediaRepository:
             row = database.execute(
                 "SELECT * FROM safety_alerts WHERE alert_id = ?", (alert_id,)
             ).fetchone()
-        response = self._alert_response(row)
-        response["deduplicated"] = False
-        return response
+            response = self._alert_response(database, row)
+            response["deduplicated"] = False
+            return response
 
     def create_call(self, raw: Any) -> dict[str, Any]:
         if not isinstance(raw, dict):
@@ -2510,7 +2540,7 @@ class MediaRepository:
                 "occurredAtEpochMillis": None,
                 "source": "NONE",
             }
-        latest_alert = None if alert_row is None else self._alert_response(alert_row)
+        latest_alert = None if alert_row is None else self._alert_response(database, alert_row)
         last_seen_candidates = [
             0 if status is None else status["occurredAtEpochMillis"],
             track_time,

@@ -976,6 +976,7 @@ function alertCard(alert) {
   addMeta(meta, "本地动作位", String(alert.localActions));
   addMeta(meta, "配置版本", alert.configVersion == null ? "无" : String(alert.configVersion));
   addMeta(meta, "数据来源", alert.simulated ? "模拟" : "设备上报");
+  addMeta(meta, "现场证据", alert.evidence?.mediaAssetId || "等待媒体归档");
   article.append(meta);
 
   if (alert.location.latitude != null) {
@@ -985,6 +986,25 @@ function alertCard(alert) {
     locate.textContent = `地图定位 ${alert.location.latitude.toFixed(6)}, ${alert.location.longitude.toFixed(6)}`;
     locate.addEventListener("click", () => mapView.focus(alert.location.latitude, alert.location.longitude, 17));
     article.append(locate);
+  }
+  if (alert.evidence?.mediaAssetId) {
+    const evidence = document.createElement("button");
+    evidence.type = "button";
+    evidence.className = "text-button";
+    evidence.textContent = "查看现场证据";
+    evidence.addEventListener("click", async event => {
+      event.stopPropagation();
+      evidence.disabled = true;
+      try {
+        const mediaId = encodeURIComponent(alert.evidence.mediaAssetId);
+        const media = await api(`/v1/media/${mediaId}`);
+        await previewMedia(media, evidence);
+      } catch (error) {
+        evidence.disabled = false;
+        showError(`现场证据读取失败：${error.message}`);
+      }
+    });
+    article.append(evidence);
   }
   if (alert.workflowState !== "CLOSED" && elements["actor-role"].value !== "VIEWER") {
     const actions = document.createElement("div");

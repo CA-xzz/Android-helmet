@@ -413,6 +413,8 @@ class MediaServiceTest(unittest.TestCase):
         self.assertIn(b"PLAY_VOICE_MESSAGES", script)
         self.assertIn(b"MAX_VOICE_PREVIEW_BYTES", script)
         self.assertIn(b"/v1/media?", script)
+        self.assertIn("查看现场证据".encode(), script)
+        self.assertIn(b"/v1/media/${mediaId}", script)
         self.assertIn(b"MAX_MEDIA_PREVIEW_BYTES", script)
         self.assertIn(b"URL.createObjectURL", script)
         self.assertIn("服务器校时".encode(), script)
@@ -1472,6 +1474,79 @@ class MediaServiceTest(unittest.TestCase):
         status, response = self.post_json("/v1/alerts", invalid)
         self.assertEqual(400, status)
         self.assertIn("localActions", response["error"])
+
+    def test_archived_media_is_resolved_as_alert_evidence_without_changing_device_payload(self) -> None:
+        alert = self.safety_alert(message_id="motion-alert-event")
+        alert.update({"alertId": "motion-alert-1", "type": "FALL", "severity": "HIGH"})
+        alert["evidence"] = {"mediaAssetId": None, "relatedEventId": alert["messageId"]}
+        status, created = self.post_json("/v1/alerts", alert)
+        self.assertEqual(200, status)
+        self.assertIsNone(created["evidence"]["mediaAssetId"])
+
+        payload = b"captured-motion-evidence" * 100
+        metadata = {
+            **self.metadata("motion-alert-photo", payload),
+            "kind": "PHOTO",
+            "mimeType": "image/jpeg",
+            "width": 1920,
+            "height": 1080,
+            "durationMillis": None,
+            "createdAtEpochMillis": 1_786_000_000_100,
+            "relatedEventId": alert["messageId"],
+        }
+        status, session = self.post_json("/v1/media/sessions", metadata)
+        self.assertEqual(200, status)
+        chunk_headers = {
+            "Content-Type": "application/octet-stream",
+            "Content-Range": f"bytes 0-{len(payload) - 1}/{len(payload)}",
+            "X-Chunk-SHA256": hashlib.sha256(payload).hexdigest(),
+        }
+        status, body, _ = self.request(
+            "PUT", f"/v1/media/sessions/{session['sessionId']}/chunks", payload, chunk_headers,
+        )
+        self.assertEqual(200, status)
+        self.assertEqual(len(payload), json.loads(body)["nextOffset"])
+        status, completed = self.post_json(
+            f"/v1/media/sessions/{session['sessionId']}/complete",
+            {
+                "mediaId": metadata["mediaId"],
+                "byteSize": len(payload),
+                "sha256": metadata["sha256"],
+            },
+        )
+        self.assertEqual(200, status)
+        self.assertEqual("COMPLETED", completed["status"])
+
+        actor_headers = {"X-Actor-Id": "dispatcher-evidence", "X-Actor-Role": "DISPATCHER"}
+        status, body, _ = self.request(
+            "GET", "/v1/alerts/motion-alert-1", headers=actor_headers,
+        )
+        self.assertEqual(200, status)
+        self.assertEqual("motion-alert-photo", json.loads(body)["evidence"]["mediaAssetId"])
+        status, duplicate = self.post_json("/v1/alerts", alert)
+        self.assertEqual(200, status)
+        self.assertTrue(duplicate["deduplicated"])
+        self.assertEqual("motion-alert-photo", duplicate["evidence"]["mediaAssetId"])
+
+        cleared = self.safety_alert(
+            message_id="motion-alert-clear",
+            active=False,
+            occurred_at=1_786_000_000_200,
+        )
+        cleared.update({"alertId": "motion-alert-1", "type": "FALL", "severity": "HIGH"})
+        cleared["evidence"] = {
+            "mediaAssetId": None,
+            "relatedEventId": cleared["messageId"],
+        }
+        status, response = self.post_json("/v1/alerts", cleared)
+        self.assertEqual(200, status)
+        self.assertFalse(response["active"])
+        self.assertEqual("motion-alert-photo", response["evidence"]["mediaAssetId"])
+        status, body, _ = self.request(
+            "GET", "/v1/alerts/motion-alert-1", headers=actor_headers,
+        )
+        self.assertEqual(200, status)
+        self.assertEqual("motion-alert-photo", json.loads(body)["evidence"]["mediaAssetId"])
 
     def test_geofence_exit_clear_and_operator_workflow_are_persistent(self) -> None:
         exit_alert = {
