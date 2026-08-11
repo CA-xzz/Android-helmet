@@ -33,6 +33,7 @@ class DeviceStatusWorkerInstrumentedTest {
         val payload = DeviceStatusPayload(
             messageId = messageId,
             deviceId = deviceId,
+            personId = "person-board-status",
             statusSequence = outboxSequence(context),
             occurredAtEpochMillis = occurredAt,
             operationalState = "IDLE",
@@ -61,6 +62,7 @@ class DeviceStatusWorkerInstrumentedTest {
                 .map { devices.getJSONObject(it) }
                 .single { it.getString("deviceId") == deviceId }
             assertEquals("IDLE", stored.getString("operationalState"))
+            assertEquals("person-board-status", stored.getString("personId"))
             assertEquals("SIMULATED", stored.getString("hardwareMode"))
             assertTrue(stored.getBoolean("simulated"))
             assertTrue(stored.getJSONObject("battery").getBoolean("reported"))

@@ -170,20 +170,6 @@ class HelmetService : LifecycleService() {
         )
         deviceStatusOutbox = DeviceStatusOutbox(this)
         deviceId = DeviceIdentityStore(this).getOrCreateDeviceId()
-        mediaController = Camera2MediaController(
-            this,
-            mediaStore,
-            deviceId,
-            wallClock = timeAuthority::nowEpochMillis,
-        )
-        cameraCapabilities = mediaController.inspect()
-        locationController = AndroidLocationController(
-            this,
-            deviceId,
-            epochClock = timeAuthority::nowEpochMillis,
-        )
-        networkMonitor = AndroidNetworkMonitor(this)
-        val locationCapabilities = LocationCapabilityInspector(this).inspect()
         val storedRuntimeConfig = RuntimeConfigStore(this).load()
         runtimeConfig = if (!BuildConfig.ALLOW_SIMULATED_HARDWARE && storedRuntimeConfig.simulatorEnabled) {
             StructuredLogger.warn(
@@ -194,6 +180,21 @@ class HelmetService : LifecycleService() {
         } else {
             storedRuntimeConfig
         }
+        mediaController = Camera2MediaController(
+            this,
+            mediaStore,
+            deviceId,
+            personId = runtimeConfig.personId,
+            wallClock = timeAuthority::nowEpochMillis,
+        )
+        cameraCapabilities = mediaController.inspect()
+        locationController = AndroidLocationController(
+            this,
+            deviceId,
+            epochClock = timeAuthority::nowEpochMillis,
+        )
+        networkMonitor = AndroidNetworkMonitor(this)
+        val locationCapabilities = LocationCapabilityInspector(this).inspect()
         geofenceEngine = GeofenceEngine(runtimeConfig.geofences)
         safetySampleProcessor = SafetySampleProcessor(runtimeConfig.safetyThresholds)
         activeGeofenceCount = runtimeConfig.geofences.size
@@ -961,6 +962,7 @@ class HelmetService : LifecycleService() {
                 DeviceStatusPayload(
                     messageId = UUID.randomUUID().toString(),
                     deviceId = deviceId,
+                    personId = backendConfig.personId,
                     statusSequence = deviceStatusOutbox.nextSequence(),
                     occurredAtEpochMillis = statusTime,
                     operationalState = stateMachine.current().name,

@@ -16,7 +16,7 @@
 - Android 多模块工程、前台服务、Room、专用离线队列、本地事件日志和启动恢复已实现。
 - 用户态 UART/JNI 硬件服务、外部模块协议、模拟器和协议测试已实现。
 - 原始 IMU、近电和高度样本已接入 Android 安全检测、告警持久化、本地反馈和外部模块输出命令运行路径。
-- 轨迹、电子围栏、媒体、呼叫、广播、语音消息、安全告警、处置审计和权限隔离已实现。
+- 轨迹、电子围栏、媒体、设备人员绑定、呼叫、广播、语音消息、安全告警、处置审计和权限隔离已实现。
 - 后台、管理端和开发板联调路径可运行。
 - 需求矩阵为 0 项未实现、31 项软件完成待实机、0 项已完成。
 
@@ -30,7 +30,7 @@
 - H618 已验证生产启动路径自动恢复持久队列。测试先写入 attemptCount 为 0 的轨迹、媒体、合成近电告警和通话，并向 256 KiB 媒体会话预置首个 64 KiB 分片；强制停止主应用后只启动应用进程，HelmetApplication 和 HelmetService 自动调度四类 Worker 并全部送达。媒体 Worker 从 nextOffset 65536 继续上传剩余 196608 字节，没有重复首片。测试不调用 Worker 或其 enqueue 方法，记录见 `docs/verification/stage-7/automatic-startup-queue-recovery-board-test.txt`。
 - 主应用已删除没有传输实现的通用事件上传任务。运行状态显示本地持久事件数，不再把本地事件日志标为待发送队列。
 - Room 版本 8 已删除本地事件日志中无用途的投递状态列。H618 上 1→8 迁移测试通过，主应用保留原有数据完成 7→8 覆盖升级，事件内容继续保留。
-- H618 在没有 Android 默认网络时，通过 ADB 回环验证了前台服务自动上报启动状态、服务器校时状态和 60 秒心跳，测试不直接调用 Worker，记录见 `docs/verification/stage-7/automatic-status-heartbeat-board-test.txt`。
+- H618 在没有 Android 默认网络时，通过 ADB 回环验证了前台服务自动上报启动状态、已配置人员编号、服务器校时状态和 60 秒心跳，测试不直接调用 Worker。相机控制器使用同一运行配置写入媒体人员字段；当前没有摄像头，尚无真实媒体组合证据。记录见 `docs/verification/stage-7/automatic-status-heartbeat-board-test.txt`。
 - H618 在没有 Android 默认网络时，通过 ADB 回环验证了前台服务接收模拟跌倒输入后自动持久化样本和告警，并由 SafetyAlertWorker 上传到后台。测试不直接创建告警或调用 Worker，记录见 `docs/verification/stage-7/automatic-safety-alert-upload-board-test.txt`。该记录不替代真实 IMU、位置和媒体证据。
 - H618 自动生成的模拟跌倒告警已验证后台提醒字段、只读角色拒绝、确认、处理中、关闭、操作者历史和后台重启持久化，记录见 `docs/verification/stage-7/safety-alert-workflow-board-test.txt`。该记录不替代真实现场告警和实际处置演练。
 - H618 在没有 Android 默认网络和 MQTT 配置时，通过 ADB 回环验证了覆盖安装后的前台服务自动轮询 HTTP 设备命令，按序处理接听、挂断、拒绝和文字广播，并提交回执和命令确认，记录见 `docs/verification/stage-5/android-http-command-polling-board-test.txt`。

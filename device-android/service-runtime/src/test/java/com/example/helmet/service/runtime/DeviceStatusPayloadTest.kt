@@ -13,6 +13,7 @@ class DeviceStatusPayloadTest {
         val payload = DeviceStatusPayload(
             messageId = "status-1",
             deviceId = "device-1",
+            personId = "person-1",
             statusSequence = 7,
             occurredAtEpochMillis = 2_000,
             operationalState = "IDLE",
@@ -32,7 +33,7 @@ class DeviceStatusPayloadTest {
         ).toJson()
 
         assertEquals(1, payload.getInt("schemaVersion"))
-        assertTrue(payload.isNull("personId"))
+        assertEquals("person-1", payload.getString("personId"))
         assertTrue(payload.isNull("activeCallId"))
         assertEquals(7L, payload.getLong("statusSequence"))
         assertEquals(68, payload.getJSONObject("battery").getInt("percent"))

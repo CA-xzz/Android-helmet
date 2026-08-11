@@ -26,6 +26,7 @@ class RuntimeConfigStoreInstrumentedTest {
             simulatorEnabled = false,
             hardwareDevicePath = "/dev/ttyAS4",
             hardwareBaudRate = 921_600,
+            personId = "person-42",
             backendBaseUrl = "https://example.invalid",
             backendBearerToken = "test-token",
             mqttBrokerUri = "ssl://example.invalid:8883",

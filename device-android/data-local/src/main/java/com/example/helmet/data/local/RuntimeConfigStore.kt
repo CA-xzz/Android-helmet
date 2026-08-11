@@ -24,6 +24,7 @@ class RuntimeConfigStore(context: Context) {
             .orEmpty()
             .ifBlank { "/dev/ttyAS2" },
         hardwareBaudRate = preferences.getInt("hardware_baud_rate", 115_200),
+        personId = preferences.getString("person_id", null),
         backendBaseUrl = preferences.getString("backend_base_url", "").orEmpty(),
         backendBearerToken = loadBackendBearerToken(),
         mqttBrokerUri = preferences.getString("mqtt_broker_uri", "").orEmpty(),
@@ -58,6 +59,7 @@ class RuntimeConfigStore(context: Context) {
             .putBoolean("simulator_enabled", config.simulatorEnabled)
             .putString("hardware_device_path", config.hardwareDevicePath)
             .putInt("hardware_baud_rate", config.hardwareBaudRate)
+            .putString("person_id", config.personId)
             .putString("backend_base_url", config.backendBaseUrl)
             .remove(BackendCredentialStore.LEGACY_TOKEN_KEY)
             .putString("mqtt_broker_uri", config.mqttBrokerUri)

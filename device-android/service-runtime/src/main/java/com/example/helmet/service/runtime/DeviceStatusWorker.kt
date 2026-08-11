@@ -103,6 +103,7 @@ data class DeviceTimeStatus(
 data class DeviceStatusPayload(
     val messageId: String,
     val deviceId: String,
+    val personId: String? = null,
     val statusSequence: Long,
     val occurredAtEpochMillis: Long,
     val operationalState: String,
@@ -130,7 +131,7 @@ data class DeviceStatusPayload(
         .put("messageId", messageId)
         .put("deviceId", deviceId)
         .put("statusSequence", statusSequence)
-        .put("personId", JSONObject.NULL)
+        .put("personId", personId ?: JSONObject.NULL)
         .put("occurredAtEpochMillis", occurredAtEpochMillis)
         .put("operationalState", operationalState)
         .put("networkState", networkState)

@@ -39,6 +39,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var statusView: TextView
     private lateinit var eventsView: TextView
     private lateinit var eventStore: EventStore
+    private lateinit var personIdInput: EditText
     private lateinit var backendUrlInput: EditText
     private lateinit var backendTokenInput: EditText
     private lateinit var ntripUrlInput: EditText
@@ -95,6 +96,13 @@ class MainActivity : ComponentActivity() {
         root.addView(actionButton("Use simulated hardware") { switchHardwareMode(simulatorEnabled = true) })
         root.addView(actionButton("Use UART hardware") { switchHardwareMode(simulatorEnabled = false) })
         val runtimeConfig = RuntimeConfigStore(this).load()
+        personIdInput = EditText(this).apply {
+            hint = "Assigned person ID; blank means unassigned"
+            setText(runtimeConfig.personId.orEmpty())
+            inputType = InputType.TYPE_CLASS_TEXT
+        }
+        root.addView(personIdInput, matchWidthWrapHeight())
+        root.addView(actionButton("Save person binding") { savePersonBinding() })
         backendUrlInput = EditText(this).apply {
             hint = "HTTPS media backend base URL"
             setText(runtimeConfig.backendBaseUrl)
@@ -246,6 +254,23 @@ class MainActivity : ComponentActivity() {
         TrackUploadWorker.enqueue(this)
         CommunicationWorker.enqueue(this)
         SafetyAlertWorker.enqueue(this)
+    }
+
+    private fun savePersonBinding() {
+        val store = RuntimeConfigStore(this)
+        val current = store.load()
+        runCatching {
+            current.copy(
+                revision = current.revision + 1,
+                personId = personIdInput.text.toString().trim().ifBlank { null },
+            )
+        }.onSuccess { updated ->
+            personIdInput.error = null
+            store.save(updated)
+            restartRuntimeService()
+        }.onFailure { error ->
+            personIdInput.error = error.message ?: "Invalid person ID"
+        }
     }
 
     private fun saveRtkConfiguration(enabled: Boolean) {

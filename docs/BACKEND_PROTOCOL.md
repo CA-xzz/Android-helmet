@@ -46,7 +46,7 @@ Broker 配置位于 `deploy/backend-stack/`，仅开放 TLS 端口并使用设�
 
 ### 设备状态和轨迹
 
-- `POST /v1/device-status`：上报电量、电压、位置质量、运行状态和时间质量。
+- `POST /v1/device-status`：上报可选人员编号、电量、电压、位置质量、运行状态和时间质量。
 - `GET /v1/devices/overview`：返回设备最新状态、轨迹、活动告警、呼叫和媒体摘要。
 - `POST /v1/tracks:batch`：按稳定消息 ID 和设备序号批量提交轨迹。
 - `GET /v1/tracks`：按设备和时间查询轨迹。
@@ -73,6 +73,8 @@ Broker 配置位于 `deploy/backend-stack/`，仅开放 TLS 端口并使用设�
 - `GET /v1/voice-messages/{mediaId}/content`：读取语音正文。
 
 同一 `mediaId` 重复完成必须返回相同结果。不同正文不能覆盖已存在的内容键。正文响应使用 `no-store` 并返回长度、类型和 ETag。
+
+设备私有运行配置中的可选 `personId` 使用与后台资源 ID 相同的格式。前台服务在设备状态中上报该值，相机控制器把同一值写入照片和录像元数据；空值表示设备当前未绑定人员。
 
 ### 呼叫
 

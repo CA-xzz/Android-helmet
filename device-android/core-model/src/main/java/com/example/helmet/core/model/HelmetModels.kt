@@ -122,6 +122,7 @@ data class RuntimeConfig(
     val simulatorEnabled: Boolean = true,
     val hardwareDevicePath: String = "/dev/ttyAS2",
     val hardwareBaudRate: Int = 115_200,
+    val personId: String? = null,
     val backendBaseUrl: String = "",
     val backendBearerToken: String = "",
     val mqttBrokerUri: String = "",
@@ -130,7 +131,17 @@ data class RuntimeConfig(
     val localIntercom: LocalIntercomRuntimeConfig = LocalIntercomRuntimeConfig(),
     val geofences: List<CircleGeofence> = emptyList(),
     val safetyThresholds: SafetyThresholdConfig = SafetyThresholdConfig(),
-)
+) {
+    init {
+        require(personId == null || PERSON_ID_PATTERN.matches(personId)) {
+            "personId must contain 1 to 128 letters, digits, dots, underscores, colons, or hyphens"
+        }
+    }
+
+    companion object {
+        private val PERSON_ID_PATTERN = Regex("^[A-Za-z0-9._:-]{1,128}$")
+    }
+}
 
 data class RuntimeSnapshot(
     val deviceId: String = "uninitialized",

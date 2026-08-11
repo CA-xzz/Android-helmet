@@ -36,6 +36,7 @@ class StatusHeartbeatInstrumentedTest {
                 originalConfig.copy(
                     revision = originalConfig.revision + 1,
                     simulatorEnabled = true,
+                    personId = TEST_PERSON_ID,
                     backendBaseUrl = TEST_ENDPOINT,
                     backendBearerToken = TEST_TOKEN,
                 ),
@@ -50,11 +51,13 @@ class StatusHeartbeatInstrumentedTest {
 
             val synchronized = awaitDevice(deviceId, IMMEDIATE_CALIBRATION_TIMEOUT_MILLIS) { device ->
                 val clock = device.getJSONObject("clock")
-                clock.optString("source") == "SERVER" && clock.optBoolean("synchronized")
+                device.optString("personId") == TEST_PERSON_ID &&
+                    clock.optString("source") == "SERVER" && clock.optBoolean("synchronized")
             }
             val firstContact = synchronized.getLong("lastContactAtEpochMillis")
             val firstSequence = synchronized.getLong("statusSequence")
             assertEquals("SERVER", synchronized.getJSONObject("clock").getString("source"))
+            assertEquals(TEST_PERSON_ID, synchronized.getString("personId"))
 
             val heartbeat = awaitDevice(deviceId, HEARTBEAT_TIMEOUT_MILLIS) { device ->
                 device.optLong("lastContactAtEpochMillis") > firstContact &&
@@ -63,6 +66,7 @@ class StatusHeartbeatInstrumentedTest {
             assertTrue(heartbeat.getLong("lastContactAtEpochMillis") > firstContact)
             assertTrue(heartbeat.getLong("statusSequence") > firstSequence)
             assertEquals("SERVER", heartbeat.getJSONObject("clock").getString("source"))
+            assertEquals(TEST_PERSON_ID, heartbeat.getString("personId"))
         } finally {
             context.stopService(HelmetService.startIntent(context))
             delay(500)
@@ -112,6 +116,7 @@ class StatusHeartbeatInstrumentedTest {
     companion object {
         private const val TEST_ENDPOINT = "http://127.0.0.1:18082"
         private const val TEST_TOKEN = "device-status-board-token"
+        private const val TEST_PERSON_ID = "person-board-heartbeat"
         private const val IMMEDIATE_CALIBRATION_TIMEOUT_MILLIS = 20_000L
         private const val HEARTBEAT_TIMEOUT_MILLIS = 80_000L
         private const val POLL_INTERVAL_MILLIS = 500L
