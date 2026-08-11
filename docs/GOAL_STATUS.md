@@ -40,6 +40,7 @@
 - H618、后台和同源浏览器已完成通话信令闭环。管理端接听后，前台服务通过 Room 状态观察自动创建 Offer，浏览器提交 Answer 和 ICE，H618 应用 Answer；管理端挂断后设备自动关闭会话并恢复 `OFFLINE_READY`。全过程未发送手工通话状态服务指令。记录见 `docs/verification/stage-5/dashboard-webrtc-board-e2e.txt`。开发板无摄像头，ICE 未完成连接，该记录不替代真实物理按键、麦克风、扬声器、视频、TURN 和弱网测试。
 - H618 已验证进程从 Room 持久 `CONNECTED` 呼叫恢复。服务自动生成序号 5 的新 Offer，后台概览返回 `latestOfferSequence=5`，管理端选择该 Offer 并生成序号 6 的新 Answer；设备未重复应用旧 Answer，挂断后落库 `ENDED` 并关闭 WebRTC 会话。记录见 `docs/verification/stage-5/webrtc-connected-recovery-board-test.txt`。该测试使用状态夹具和模拟呼叫，不替代真实媒体和弱网验收。
 - H618 上使用合成输入验证了原始安全样本、Android 检测、稳定告警周期、SET_OUTPUT 命令和样本去重运行路径，记录见 `docs/verification/stage-6/android-safety-runtime-board-test.txt`。该记录不替代真实传感器和执行器测试。
+- H618 已验证模拟近电样本和 `NEAR_ELECTRIC` 告警由生产前台服务自动持久化并上传。开发板 Room 和后台保存相同的样本引用、920 毫伏电场值、`CRITICAL` 级别和模拟来源，记录见 `docs/verification/stage-6/near-electric-alert-board-e2e.txt`。模拟网关直接产生告警且不执行物理本地动作，该记录不替代真实工频电场传感器、标定、连续检测、阈值和累积暴露、本地执行器或移动网络测试。
 - H618 已验证模拟高度样本和 `HEIGHT_LIMIT` 告警由生产前台服务自动持久化并上传。后台保留 2200 毫米高度、101325 帕气压、等级和位置质量，完成只读角色拒绝、确认、处理中、关闭和重启持久化。记录见 `docs/verification/stage-6/height-alert-board-e2e.txt`。模拟网关直接产生告警，该记录不替代真实高度传感器、连续检测、阈值、本地执行器和移动网络测试。
 - 后台已验证资源隔离、轨迹、媒体、呼叫、广播、语音、告警、审计、PostgreSQL 适配、S3 完整性和 MQTT 消息处理。
 - 管理端已验证权限中心、地图、媒体、呼叫、广播、语音和告警处置界面。

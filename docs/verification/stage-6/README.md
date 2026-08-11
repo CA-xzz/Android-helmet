@@ -8,6 +8,7 @@
 - 近电算法覆盖基线、强度、累积值、分级阈值和配置校验。
 - 高度算法覆盖基线、连续变化、阈值和滞回。
 - H618 Android 运行环境已验证原始样本进入检测引擎并生成、持久化安全告警。
+- H618 前台服务已验证模拟近电样本和告警自动持久化并由 Worker 上传，开发板与后台的样本引用、电场值、等级和来源一致。
 - H618 前台服务已验证模拟高度样本和告警自动持久化、Worker 上传、后台权限拒绝、处置历史和后台重启恢复。
 - 本地动作控制器产生语音、外部模块 LED、外部模块振动和 Android 振动请求，并记录失败结果。
 - 告警、传感器样本和关联信息先持久化，再进入可靠上传队列。
@@ -20,6 +21,7 @@
 - `android-host-tests.log`：算法、协议、数据和运行服务测试。
 - `android-board-safety-detection.log`：H618 合成数据回放。
 - `android-safety-runtime-board-test.txt`：H618 原始样本、告警周期、外部输出命令和持久化运行路径。
+- `near-electric-alert-board-e2e.txt`：H618 模拟近电样本和告警的自动持久化、上传及字段一致性。
 - `height-alert-board-e2e.txt`：H618 模拟高度样本和告警的自动上传、字段一致性、权限、处置和后台重启持久化。
 - `board-backend-alerts.json`、`board-backend-alert-audit.txt`：告警和处置审计。
 - `dashboard-alert-acknowledged.png`：管理端确认状态。

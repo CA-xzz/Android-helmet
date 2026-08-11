@@ -1,0 +1,128 @@
+# H618 近电告警自动上传验证
+
+日期：2026-08-11（Asia/Shanghai）
+
+设备：QUAD-CORE H618 p1，Android 12/API 31
+
+ADB 序列号：`2c001031774186e21d3`
+
+应用包：`com.example.helmet`
+
+APK SHA-256：`f82c157264a5b28f046de23a9788aac6aa856693ada509fe214925e09b9315ce`
+
+测试提交：`d1c5d29`
+
+设备 ID：`0b310ddc-96bb-44f9-9307-1b02e886c4f2`
+
+近电告警 ID：`0b310ddc-96bb-44f9-9307-1b02e886c4f2:32474690`
+
+## 目的
+
+验证 H618 前台服务接收模拟近电输入后，自动完成近电样本持久化、告警持久化、`SafetyAlertWorker` 调度和后台上传。测试不直接写入 Room，不直接创建、入队或运行 Worker，也不直接调用告警上传接口。
+
+## 环境与边界
+
+- 临时 SQLite 后台监听 `http://127.0.0.1:18083`，开发板通过 ADB reverse 接入。
+- Android 没有默认网络，原始应用后台配置为空。
+- 仪器测试临时配置回环后台和模拟硬件，结束时恢复原配置。
+- 测试通过显式 `ACTION_SIMULATE` 服务 Intent 依次输入 `SimulatedInput.FALL`、`SimulatedInput.NEAR_ELECTRIC` 和 `SimulatedInput.HEIGHT_LIMIT`。
+- 模拟网关直接产生近电样本和告警，不经过真实工频电场传感器，也不证明连续采样、基线校准、阈值分级或累积暴露计算。
+
+## 自动测试
+
+命令：
+
+```text
+adb -s 2c001031774186e21d3 install -r device-android/app/build/outputs/apk/debug/app-debug.apk
+adb -s 2c001031774186e21d3 install -t -r device-android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb -s 2c001031774186e21d3 reverse tcp:18083 tcp:18083
+adb -s 2c001031774186e21d3 shell am instrument -w -r -e class com.example.helmet.AutomaticSafetyAlertUploadInstrumentedTest com.example.helmet.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+结果：
+
+```text
+AutomaticSafetyAlertUploadInstrumentedTest
+foregroundServicePersistsAndAutomaticallyUploadsSimulatedSafetyAlerts
+Time: 6.188
+OK (1 test)
+```
+
+近电分支断言后台和 Room 的样本引用一致，并核对告警类型、级别、有效位、电场强度和检测来源。
+
+## 开发板 Room 结果
+
+近电样本：
+
+```text
+sampleReference=32474690
+validFlags=2
+electricFieldMilliVolts=920
+simulated=true
+```
+
+近电告警：
+
+```text
+type=NEAR_ELECTRIC
+severity=CRITICAL
+active=true
+configVersion=1
+sampleReference=32474690
+deliveryState=DELIVERED
+attemptCount=1
+lastError=null
+sensorSnapshot.detectionOrigin=SIMULATOR
+```
+
+设备事件：
+
+```text
+SIMULATED_NEAR_ELECTRIC_ACTIVE
+finalHardwareEvidence=false
+localActions=0
+
+SAFETY_ALERT_UPLOAD_COMPLETED
+deduplicated=false
+```
+
+## 后台结果
+
+```text
+workflowState=OPEN
+workflowSequence=1
+requiresAttention=true
+presentation.sound=true
+presentation.visualPriority=CRITICAL
+presentation.mapMarker=false
+location.fixType=NO_FIX
+sensorSnapshot.sampleReference=32474690
+sensorSnapshot.validFlags=2
+sensorSnapshot.electricFieldMilliVolts=920
+sensorSnapshot.simulated=true
+sensorSnapshot.detectionOrigin=SIMULATOR
+```
+
+本次隔离后台共收到同一仪器测试产生的三条告警：`FALL`、`NEAR_ELECTRIC` 和 `HEIGHT_LIMIT`。近电告警 ID、样本引用、电场强度和等级与开发板 Room 记录一致。
+
+## 测试后恢复
+
+- 测试包 `com.example.helmet.test` 已卸载，只保留主应用包。
+- 应用最新 `RUNTIME_STARTED` 记录为 `configRevision=5`、`deviceCommandTransport=UNCONFIGURED`、`httpCommandPollIntervalMillis=null`。
+- `HelmetService` 保持 `isForeground=true`、`foregroundId=1001`。
+- `RECORD_AUDIO` 权限保持 `granted=false`。
+- ADB reverse、临时后台和临时数据在证据采集后清理。
+
+## 软件回归
+
+- Android 单元测试与 Lint：738 个 Gradle 任务通过。
+- APK 和 Android 测试 APK 构建：383 个 Gradle 任务通过。
+- 后台：71 项测试通过。
+- 工具：10 项测试通过。
+- 需求追踪校验：31 项通过。
+
+## 结论
+
+H618 已验证模拟近电样本和 `NEAR_ELECTRIC` 告警通过生产前台服务自动持久化并上传。后台保留 920 毫伏电场值、`CRITICAL` 级别、样本引用、位置质量和模拟来源字段。该证据补齐 5.5 告警自动上传的软件开发板闭环。
+
+测试使用模拟网关直接产生告警，并因模拟输入不触发物理本地动作。它不替代真实工频电场传感器、连续采样、基线和漂移测量、电压或距离标定、阈值分级、累积暴露、可信位置、LED、语音、振动、4G/5G 断网恢复或现场验收。REQ-5.5 仍为软件完成待实机。
