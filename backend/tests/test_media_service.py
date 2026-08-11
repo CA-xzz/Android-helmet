@@ -421,6 +421,8 @@ class MediaServiceTest(unittest.TestCase):
         self.assertIn("时间来源未上报".encode(), script)
         self.assertIn(b"/v1/access-profile", script)
         self.assertIn(b"AUTO_REFRESH_INTERVAL_MILLIS = 5_000", script)
+        self.assertIn(b"CALL_SIGNAL_PAGE_LIMIT = 100", script)
+        self.assertNotIn(b"/signals?afterSequence=0&limit=500", script)
         self.assertIn(b"scheduleAutoRefresh()", script)
         self.assertIn(b'addEventListener("visibilitychange"', script)
         self.assertIn(b"VIEW_SECURITY_AUDIT", script)

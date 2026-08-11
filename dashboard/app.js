@@ -3,6 +3,7 @@
 const MAX_MEDIA_PREVIEW_BYTES = 100 * 1024 * 1024;
 const MAX_VOICE_PREVIEW_BYTES = 25 * 1024 * 1024;
 const AUTO_REFRESH_INTERVAL_MILLIS = 5_000;
+const CALL_SIGNAL_PAGE_LIMIT = 100;
 
 const state = {
   alerts: [],
@@ -1339,7 +1340,7 @@ async function connectLiveVideo(device, button) {
   try {
     const [ice, signalBody] = await Promise.all([
       request(`/v1/calls/${encodeURIComponent(callId)}/ice-config?requesterId=${encodeURIComponent(actorId)}`),
-      request(`/v1/calls/${encodeURIComponent(callId)}/signals?afterSequence=0&limit=500`),
+      request(`/v1/calls/${encodeURIComponent(callId)}/signals?afterSequence=0&limit=${CALL_SIGNAL_PAGE_LIMIT}`),
     ]);
     const offer = [...signalBody.signals].reverse().find(signal => signal.type === "OFFER" && signal.senderId !== actorId);
     if (!offer) throw new Error("设备尚未提交视频 OFFER");
@@ -1403,7 +1404,7 @@ function pollSignals(callId, actorId) {
   clearTimeout(state.signalPollTimer);
   state.signalPollTimer = setTimeout(async () => {
     try {
-      const body = await request(`/v1/calls/${encodeURIComponent(callId)}/signals?afterSequence=${state.signalSequence}&limit=500`);
+      const body = await request(`/v1/calls/${encodeURIComponent(callId)}/signals?afterSequence=${state.signalSequence}&limit=${CALL_SIGNAL_PAGE_LIMIT}`);
       for (const signal of body.signals) {
         state.signalSequence = Math.max(state.signalSequence, signal.sequence);
         if (state.peerConnection) await applyRemoteCandidate(state.peerConnection, signal, actorId);
