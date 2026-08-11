@@ -86,6 +86,8 @@ Broker 配置位于 `deploy/backend-stack/`，仅开放 TLS 端口并使用设�
 - `GET /v1/calls/{callId}/signals`：按序读取信令。
 - `POST /v1/calls/{callId}/signals`：提交 SDP 或 ICE 信令。
 
+设备概览中的活动视频呼叫返回 `hasOffer` 和 `latestOfferSequence`。管理端必须从 `latestOfferSequence - 1` 开始读取并选择该精确 Offer，不能从旧信令页推断当前 Offer。呼叫进入终态后，设备概览的 `liveVideo` 为 `null`。
+
 非法状态转换、越权控制和序号缺口均拒绝并审计。
 
 ### 广播和设备命令

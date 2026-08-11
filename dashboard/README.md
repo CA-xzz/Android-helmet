@@ -21,6 +21,6 @@ export HELMET_MAP_MAX_ZOOM=19
 
 模板必须使用 HTTPS，并同时包含 `{z}`、`{x}` 和 `{y}`。地图服务许可、调用限额和密钥注入由部署方确认，仓库不保存地图密钥。
 
-实时视频入口以每页最多 100 条按序读取设备提交的 WebRTC OFFER，获取短期 ICE 配置，提交 ANSWER 和 ICE candidate，并播放远端视频轨道。VIEWER 不显示连接入口。H618 与同源浏览器已验证 Offer、Answer 和 ICE 信令闭环，但开发板没有摄像头且 ICE 未完成连接。真实媒体仍需外部 STUN/TURN、摄像头、网络和远端浏览器完成端到端验收。
+实时视频入口使用设备概览返回的 `latestOfferSequence`，从该序号前一项开始读取并选择精确的 WebRTC OFFER。每页最多读取 100 条信令，随后获取短期 ICE 配置，提交 ANSWER 和 ICE candidate，并播放远端视频轨道。VIEWER 不显示连接入口。H618 与同源浏览器已验证首次连接和持久 `CONNECTED` 状态进程恢复后的新 Offer、Answer 和 ICE 信令闭环；设备未复用旧 Answer。开发板没有摄像头且 ICE 未完成连接。真实媒体仍需外部 STUN/TURN、摄像头、网络和异机浏览器完成端到端验收。
 
 令牌只保存在页面内存，不写入 URL、Cookie、localStorage 或 sessionStorage。权限中心只展示现有 schema 2 配置，不提供令牌签发、撤销或运行时权限修改。外部环境必须通过 HTTPS 访问。

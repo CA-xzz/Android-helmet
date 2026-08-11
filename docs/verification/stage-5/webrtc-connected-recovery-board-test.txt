@@ -1,0 +1,69 @@
+# WebRTC 已连接通话进程恢复开发板测试
+
+日期：2026-08-11
+
+设备：H618 Android 12，ADB 序列号 `2c001031774186e21d3`
+
+应用包：`com.example.helmet`
+
+APK SHA-256：`f82c157264a5b28f046de23a9788aac6aa856693ada509fe214925e09b9315ce`
+
+修复提交：`ad4e76a`
+
+呼叫 ID：`b9f088b8-b56d-4566-b10a-e9a4b69e838d`
+
+设备 ID：`0b310ddc-96bb-44f9-9307-1b02e886c4f2`
+
+## 目的
+
+验证前台服务进程在 Room 已保存 `CONNECTED` 呼叫时能建立新的 WebRTC 会话，并保证设备和管理端只处理本轮 Offer 之后的 Answer 和 ICE，不复用重启前的旧信令。
+
+## 环境
+
+- 使用临时 SQLite 后台和同源管理端，地址为 ADB 回环 `http://127.0.0.1:18087`。
+- 后台 STUN 地址为本机测试地址，开发板没有可用摄像头，呼叫使用模拟输入。
+- 为测试音频 PeerConnection 临时授予 `RECORD_AUDIO`。测试结束后撤销权限并清除临时后台配置。
+- 后台命令序号用五条临时广播对齐设备已有命令游标。这些记录只存在于临时数据库。
+
+## 步骤与证据
+
+1. 设备创建视频上行呼叫，管理端接听。设备提交序号 1 的 Offer；管理端提交序号 2 的 Answer 和序号 3、4 的 ICE。设备事件 `WEBRTC_ANSWER_APPLIED` 记录旧 Answer ID `be99dc87-bd77-41cd-97ac-939642ed9771`。
+2. 后台把测试呼叫推进到 `CONNECTED`、状态序号 4，原因为 `RECOVERY_FIXTURE_CONNECTED`。停止应用进程后，把同一状态写入 Room，随后只启动生产前台服务。测试没有发送 `CALL_STATE_UPDATED` 或其他手工服务状态 Intent。
+3. 服务从持久 `CONNECTED` 状态自动创建新 PeerConnection，并提交序号 5 的新 Offer。设备事件为：
+
+   ```text
+   WEBRTC_OFFER_SENT {"callId":"b9f088b8-b56d-4566-b10a-e9a4b69e838d","audioEnabled":true,"videoEnabled":false,"degradedReason":"CAMERA_UNAVAILABLE","recovery":true,"bandwidthModeApplied":true,...}
+   ```
+
+4. 后台设备概览在活动呼叫中返回 `hasOffer=true` 和 `latestOfferSequence=5`。管理端从 `afterSequence=4` 读取并选择序号 5 的 Offer，未复用序号 1 的旧 Offer。
+5. 管理端针对新 Offer 提交序号 6 的 Answer、序号 7、8 的 ICE 和序号 9 的 ICE 完成标记。设备从新 Offer 序号开始轮询，忽略旧 Answer，并记录：
+
+   ```text
+   WEBRTC_ANSWER_APPLIED {"callId":"b9f088b8-b56d-4566-b10a-e9a4b69e838d","signalId":"45687443-7686-437d-bc13-6ef07d35585d"}
+   ```
+
+6. 管理端挂断后，后台呼叫状态为 `ENDED`、状态序号 5、原因为 `OPERATOR_ENDED`。开发板 Room 查询和事件查询结果为：
+
+   ```text
+   call_sessions:
+   b9f088b8-b56d-4566-b10a-e9a4b69e838d|ENDED|5|OPERATOR_ENDED|DELIVERED
+
+   CALL_STATE_APPLIED {"commandId":"7848844c-b5e0-4ba3-a689-0a6d591abd7f","callId":"b9f088b8-b56d-4566-b10a-e9a4b69e838d","state":"ENDED"}
+   WEBRTC_SESSION_CLOSED {"callId":"b9f088b8-b56d-4566-b10a-e9a4b69e838d","reason":"CALL_ENDED"}
+   ```
+
+7. 挂断后的后台设备概览为 `operationalState=OFFLINE_READY`、`networkState=UNAVAILABLE`、`liveVideo=null`。
+
+## 自动检查
+
+- 后台完整测试：71 项通过。
+- Android 单元测试与 Lint：738 个 Gradle 任务通过。
+- Android APK 构建：354 个 Gradle 任务通过。
+- `node --check dashboard/app.js` 通过。
+- `CallStateObservationGateTest` 定向测试通过。
+
+## 结论
+
+H618 已验证持久 `CONNECTED` 通话在进程重启后自动创建新 Offer。后台明确返回最新 Offer 序号，管理端选择该精确序号，设备只轮询新 Offer 之后的远端信令。旧 Answer 没有被重复应用，管理端挂断后设备关闭会话并恢复空闲状态。
+
+该测试使用模拟呼叫和 Room 状态夹具。ICE 保持本地测试状态，未建立真实媒体轨道。结果不替代真实物理按键、摄像头、麦克风、扬声器、生产 STUN/TURN、4G/5G 弱网和双向音视频验收。

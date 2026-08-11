@@ -6,9 +6,9 @@
 
 ## 结论
 
-阶段 5 软件门禁通过。呼叫状态、WebRTC 信令、短期 TURN 凭据、HTTP 设备命令自动轮询、文字广播回执、语音消息权限，以及专用 LoRa 语音模块入组、密钥槽、半双工 PTT、状态和质量遥测均有自动测试或开发板夹具记录。新增夹具证据见 `../stage-7/rtk-local-intercom-board-test.txt`。`webrtc-bandwidth-policy-board-test.txt` 进一步验证初始网络快照、通话建立前弱网策略保留和 PeerConnection 带宽模式切换。开发板没有摄像头、可用音频采集节点、已验证扬声器、远端浏览器、生产 TURN 或专用无线语音硬件，因此真实双向音视频、弱网恢复、距离、穿透、时延和可懂度尚未验收。
+阶段 5 软件门禁通过。呼叫状态、WebRTC 信令、短期 TURN 凭据、HTTP 设备命令自动轮询、文字广播回执、语音消息权限，以及专用 LoRa 语音模块入组、密钥槽、半双工 PTT、状态和质量遥测均有自动测试或开发板夹具记录。新增夹具证据见 `../stage-7/rtk-local-intercom-board-test.txt`。`webrtc-bandwidth-policy-board-test.txt` 进一步验证初始网络快照、通话建立前弱网策略保留和 PeerConnection 带宽模式切换。开发板没有摄像头、可用音频采集节点、已验证扬声器、异机浏览器、生产 TURN 或专用无线语音硬件，因此真实双向音视频、弱网恢复、距离、穿透、时延和可懂度尚未验收。
 
-WebRTC 依赖为 `io.github.webrtc-sdk:android:144.7559.09`。arm64 原生库可在开发板加载。板端探针明确设置 `captureAudio=false`，只验证 PeerConnection 初始化、DTLS-SRTP SDP Offer 和释放流程。`dashboard-webrtc-board-e2e.txt` 补充验证管理端接听后 H618 无需手工服务指令即可自动提交 Offer，浏览器提交 Answer 和 ICE，H618 应用 Answer，挂断后回到 `OFFLINE_READY`。该闭环没有建立媒体连接。
+WebRTC 依赖为 `io.github.webrtc-sdk:android:144.7559.09`。arm64 原生库可在开发板加载。板端探针明确设置 `captureAudio=false`，只验证 PeerConnection 初始化、DTLS-SRTP SDP Offer 和释放流程。`dashboard-webrtc-board-e2e.txt` 补充验证管理端接听后 H618 无需手工服务指令即可自动提交 Offer，浏览器提交 Answer 和 ICE，H618 应用 Answer，挂断后回到 `OFFLINE_READY`。`webrtc-connected-recovery-board-test.txt` 验证服务从持久 `CONNECTED` 状态恢复时创建新 Offer，管理端按后台返回的精确序号选择该 Offer，设备跳过旧 Answer。两项闭环均没有建立真实媒体连接。
 
 ## 自动检查
 
@@ -31,6 +31,7 @@ WebRTC 依赖为 `io.github.webrtc-sdk:android:144.7559.09`。arm64 原生库可
 | `apk-sha256-final.txt` | APK SHA-256：`0708ba64454d801a07c8c16db7f5c3f29dc109da17a62b220216a687a2ec3641` |
 | `webrtc-bandwidth-policy-board-test.txt` | H618 验证初始无网络快照入库、WebRTC 原生库、DTLS-SRTP Offer、低带宽与普通模式切换；当前 APK SHA-256 为 `5b4626026569958cb8d554c803099a7975f534c90e246401ce1baf68c59dd9a1` |
 | `dashboard-webrtc-board-e2e.txt` | H618、后台和同源浏览器完成 REQUESTED、ACCEPTED、CONNECTING、ENDED 与 Offer、Answer、ICE 信令闭环；APK SHA-256 为 `fe8a971cba23ae2237bbbdbe32e2221cdd0bda37a3850e0cad65847da0f0a2c1` |
+| `webrtc-connected-recovery-board-test.txt` | H618 从持久 `CONNECTED` 呼叫恢复，创建序号 5 的新 Offer；管理端提交序号 6 的新 Answer，设备跳过旧 Answer，挂断后恢复 `OFFLINE_READY`；APK SHA-256 为 `f82c157264a5b28f046de23a9788aac6aa856693ada509fe214925e09b9315ce` |
 
 文字广播在没有 TTS 引擎的开发板上按序产生 `RECEIVED`、`PLAYING` 和 `FAILED` 回执，失败原因为 `TTS_UNAVAILABLE`。该结果证明失败可观测，不证明扬声器播放。
 
