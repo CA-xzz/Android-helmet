@@ -10,6 +10,7 @@ import com.example.helmet.core.model.EventSeverity
 import com.example.helmet.core.model.RuntimeConfig
 import com.example.helmet.data.local.CallStore
 import com.example.helmet.data.local.EventStore
+import com.example.helmet.feature.connectivity.ConnectivitySnapshot
 import com.example.helmet.webrtc.LocalIceCandidate
 import com.example.helmet.webrtc.WebRtcCallEngine
 import com.example.helmet.webrtc.WebRtcCallListener
@@ -28,6 +29,24 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 
+internal fun shouldUseCallLowBandwidthMode(snapshot: ConnectivitySnapshot): Boolean =
+    !snapshot.hasValidatedInternet ||
+        snapshot.metered ||
+        snapshot.roaming ||
+        snapshot.downstreamKbps?.let { it in 1 until 1_000 } == true ||
+        snapshot.upstreamKbps?.let { it in 1 until 500 } == true
+
+internal class CallBandwidthPolicy {
+    @Volatile
+    private var lowBandwidth = false
+
+    fun update(enabled: Boolean) {
+        lowBandwidth = enabled
+    }
+
+    fun apply(setMode: (Boolean) -> Boolean): Boolean = setMode(lowBandwidth)
+}
+
 class CallMediaCoordinator(
     context: Context,
     private val scope: CoroutineScope,
@@ -44,6 +63,7 @@ class CallMediaCoordinator(
     private var activeJob: Job? = null
     private var offerSent = false
     private val pendingCandidates = mutableListOf<CallSignal>()
+    private val bandwidthPolicy = CallBandwidthPolicy()
 
     suspend fun start(callId: String, runtimeConfig: RuntimeConfig) = lifecycleMutex.withLock {
         if (activeCallId == callId && activeJob?.isActive == true) return
@@ -63,7 +83,10 @@ class CallMediaCoordinator(
         if (activeCallId == callId) stopLocked(reason)
     }
 
-    fun setLowBandwidthMode(enabled: Boolean): Boolean = activeEngine?.setLowBandwidthMode(enabled) ?: false
+    fun setLowBandwidthMode(enabled: Boolean): Boolean {
+        bandwidthPolicy.update(enabled)
+        return activeEngine?.let { engine -> bandwidthPolicy.apply(engine::setLowBandwidthMode) } ?: true
+    }
 
     override fun close() {
         activeJob?.cancel()
@@ -91,6 +114,7 @@ class CallMediaCoordinator(
             )
             activeEngine = engine
             val offer = engine.createOffer()
+            val bandwidthModeApplied = bandwidthPolicy.apply(engine::setLowBandwidthMode)
             val offerSignal = signal(
                 call,
                 CallSignalType.OFFER,
@@ -119,6 +143,7 @@ class CallMediaCoordinator(
                     "audioEnabled" to offer.audioEnabled,
                     "videoEnabled" to offer.videoEnabled,
                     "degradedReason" to offer.degradedReason,
+                    "bandwidthModeApplied" to bandwidthModeApplied,
                     "iceExpiresAtEpochMillis" to ice.expiresAtEpochMillis,
                 ),
             )

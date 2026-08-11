@@ -1234,7 +1234,6 @@ class HelmetService : LifecycleService() {
     private fun startNetworkMonitoring() {
         networkStatusCollector = lifecycleScope.launch(Dispatchers.IO) {
             networkMonitor.snapshot
-                .drop(1)
                 .collect { snapshot -> handleNetworkStatus(snapshot) }
         }
     }
@@ -1283,10 +1282,7 @@ class HelmetService : LifecycleService() {
             CommunicationWorker.enqueue(this)
             SafetyAlertWorker.enqueue(this)
         }
-        val lowBandwidth = snapshot.metered ||
-            snapshot.downstreamKbps?.let { it in 1 until 1_000 } == true ||
-            snapshot.upstreamKbps?.let { it in 1 until 500 } == true
-        callMediaCoordinator.setLowBandwidthMode(lowBandwidth)
+        callMediaCoordinator.setLowBandwidthMode(shouldUseCallLowBandwidthMode(snapshot))
         publishStatus("NETWORK_STATUS_CHANGED")
     }
 

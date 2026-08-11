@@ -51,6 +51,8 @@ class WebRtcCallEngineInstrumentedTest {
             assertTrue(offer.degradedReason == "AUDIO_CAPTURE_DISABLED_FOR_PROBE")
             assertTrue(offer.sdp.contains("a=fingerprint:"))
             assertTrue(offer.sdp.contains("UDP/TLS/RTP/SAVPF"))
+            assertTrue(engine.setLowBandwidthMode(true))
+            assertTrue(engine.setLowBandwidthMode(false))
             assertTrue(listener.statuses.any { it.state == WebRtcMediaState.OFFER_READY })
         } finally {
             engine.close()
