@@ -72,9 +72,25 @@ class AutomaticSafetyAlertUploadInstrumentedTest {
                 input = SimulatedInput.FALL,
                 expectedType = "FALL",
             )
-            assertCommonAlert(fall)
+            assertCommonAlert(fall, expectedSeverity = "HIGH")
             assertEquals(0x0001, fall.uploaded.getJSONObject("sensorSnapshot").getInt("validFlags"))
             assertEquals(2_400, fall.uploaded.getJSONObject("sensorSnapshot").getInt("accelerationXMilliG"))
+
+            val electric = uploadAndAwait(
+                deviceId = deviceId,
+                safetyStore = safetyStore,
+                input = SimulatedInput.NEAR_ELECTRIC,
+                expectedType = "NEAR_ELECTRIC",
+            )
+            assertCommonAlert(electric, expectedSeverity = "CRITICAL")
+            val electricSnapshot = electric.uploaded.getJSONObject("sensorSnapshot")
+            assertEquals(0x0002, electricSnapshot.getInt("validFlags"))
+            assertEquals(920, electricSnapshot.getInt("electricFieldMilliVolts"))
+            assertEquals("SIMULATOR", electricSnapshot.getString("detectionOrigin"))
+            assertEquals(
+                electricSnapshot.getLong("sampleReference"),
+                JSONObject(electric.local.sensorSnapshotJson).getLong("sampleReference"),
+            )
 
             val height = uploadAndAwait(
                 deviceId = deviceId,
@@ -82,7 +98,7 @@ class AutomaticSafetyAlertUploadInstrumentedTest {
                 input = SimulatedInput.HEIGHT_LIMIT,
                 expectedType = "HEIGHT_LIMIT",
             )
-            assertCommonAlert(height)
+            assertCommonAlert(height, expectedSeverity = "HIGH")
             val heightSnapshot = height.uploaded.getJSONObject("sensorSnapshot")
             assertEquals(0x0004, heightSnapshot.getInt("validFlags"))
             assertEquals(101_325L, heightSnapshot.getLong("pressurePascals"))
@@ -134,8 +150,8 @@ class AutomaticSafetyAlertUploadInstrumentedTest {
         return UploadedAlert(uploaded, checkNotNull(deliveredResult))
     }
 
-    private fun assertCommonAlert(result: UploadedAlert) {
-        assertEquals("HIGH", result.uploaded.getString("severity"))
+    private fun assertCommonAlert(result: UploadedAlert, expectedSeverity: String) {
+        assertEquals(expectedSeverity, result.uploaded.getString("severity"))
         assertEquals("OPEN", result.uploaded.getString("workflowState"))
         assertTrue(result.uploaded.getBoolean("active"))
         assertTrue(result.uploaded.getBoolean("simulated"))
