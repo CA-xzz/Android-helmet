@@ -34,6 +34,7 @@
 - H618 在没有 Android 默认网络时，通过 ADB 回环验证了前台服务接收模拟跌倒输入后自动持久化样本和告警，并由 SafetyAlertWorker 上传到后台。测试不直接创建告警或调用 Worker，记录见 `docs/verification/stage-7/automatic-safety-alert-upload-board-test.txt`。该记录不替代真实 IMU、位置和媒体证据。
 - H618 自动生成的模拟跌倒告警已验证后台提醒字段、只读角色拒绝、确认、处理中、关闭、操作者历史和后台重启持久化，记录见 `docs/verification/stage-7/safety-alert-workflow-board-test.txt`。该记录不替代真实现场告警和实际处置演练。
 - 后台自动测试已验证告警先到、同设备同事件照片后归档时动态补出媒体 ID，且设备原始告警重复提交仍幂等；管理端提供现场证据预览入口。该测试不替代真实摄像头和现场告警证据。
+- 管理端已在内置浏览器验证首次连接后每 5 秒自动刷新。接口提交设备状态和严重跌倒告警后，无需手动刷新即可更新人员、位置、电池、电压、摘要、地图和告警卡片；记录见 `docs/verification/stage-7/dashboard-auto-refresh-regression.txt`。该记录不替代真实定位、电池、IMU、浏览器声音和现场告警验收。
 - H618 在没有 Android 默认网络和 MQTT 配置时，通过 ADB 回环验证了覆盖安装后的前台服务自动轮询 HTTP 设备命令，按序处理接听、挂断、拒绝和文字广播，并提交回执和命令确认，记录见 `docs/verification/stage-5/android-http-command-polling-board-test.txt`。
 - H618 上使用合成输入验证了原始安全样本、Android 检测、稳定告警周期、SET_OUTPUT 命令和样本去重运行路径，记录见 `docs/verification/stage-6/android-safety-runtime-board-test.txt`。该记录不替代真实传感器和执行器测试。
 - 后台已验证资源隔离、轨迹、媒体、呼叫、广播、语音、告警、审计、PostgreSQL 适配、S3 完整性和 MQTT 消息处理。

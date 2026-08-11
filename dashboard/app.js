@@ -2,6 +2,7 @@
 
 const MAX_MEDIA_PREVIEW_BYTES = 100 * 1024 * 1024;
 const MAX_VOICE_PREVIEW_BYTES = 25 * 1024 * 1024;
+const AUTO_REFRESH_INTERVAL_MILLIS = 5_000;
 
 const state = {
   alerts: [],
@@ -10,6 +11,7 @@ const state = {
   voiceMessages: [],
   media: [],
   refreshVersion: 0,
+  autoRefreshTimer: null,
   identityVersion: 0,
   devices: [],
   mapConfig: null,
@@ -78,10 +80,11 @@ async function loadAccessProfile(expectedRefreshVersion = null) {
     return body;
   };
   let profile;
+  const includeKnownDevelopmentActor = state.accessProfile?.mode === "DEVELOPMENT_SINGLE_TOKEN";
   try {
-    profile = await requestProfile(false);
+    profile = await requestProfile(includeKnownDevelopmentActor);
   } catch (error) {
-    if (error.status !== 403) throw error;
+    if (includeKnownDevelopmentActor || error.status !== 403) throw error;
     profile = await requestProfile(true);
   }
   if (expectedRefreshVersion != null && expectedRefreshVersion !== state.refreshVersion) {
@@ -102,6 +105,8 @@ async function loadAccessProfile(expectedRefreshVersion = null) {
 
 function resetAccessIdentity(clearOperationalState = false) {
   const previousProfile = state.accessProfile;
+  clearTimeout(state.autoRefreshTimer);
+  state.autoRefreshTimer = null;
   state.refreshVersion += 1;
   state.identityVersion += 1;
   state.accessProfile = null;
@@ -144,6 +149,8 @@ async function request(path, options = {}) {
 }
 
 async function refresh() {
+  clearTimeout(state.autoRefreshTimer);
+  state.autoRefreshTimer = null;
   const refreshVersion = ++state.refreshVersion;
   elements.refresh.disabled = true;
   try {
@@ -191,8 +198,21 @@ async function refresh() {
     if (refreshVersion !== state.refreshVersion) return;
     showConnection(error.message, false);
   } finally {
-    if (refreshVersion === state.refreshVersion) elements.refresh.disabled = false;
+    if (refreshVersion === state.refreshVersion) {
+      elements.refresh.disabled = false;
+      scheduleAutoRefresh();
+    }
   }
+}
+
+function scheduleAutoRefresh() {
+  clearTimeout(state.autoRefreshTimer);
+  state.autoRefreshTimer = null;
+  if (!state.accessProfile || document.hidden) return;
+  state.autoRefreshTimer = setTimeout(() => {
+    state.autoRefreshTimer = null;
+    refresh();
+  }, AUTO_REFRESH_INTERVAL_MILLIS);
 }
 
 function showConnection(message, connected) {
@@ -1439,6 +1459,11 @@ elements["actor-role"].addEventListener("change", () => {
   if (state.accessProfile?.mode === "DEVELOPMENT_SINGLE_TOKEN") resetAccessIdentity();
   if (elements["actor-role"].value === "VIEWER") closeLiveVideo();
   render();
+});
+document.addEventListener("visibilitychange", () => {
+  clearTimeout(state.autoRefreshTimer);
+  state.autoRefreshTimer = null;
+  if (!document.hidden && state.accessProfile) refresh();
 });
 elements["map-zoom-in"].addEventListener("click", () => mapView.setZoom(mapView.zoom + 1));
 elements["map-zoom-out"].addEventListener("click", () => mapView.setZoom(mapView.zoom - 1));

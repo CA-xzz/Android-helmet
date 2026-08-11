@@ -18,6 +18,7 @@
 - `call-prompt-board-test.txt`、`audio-pcm-board-probe.txt`：呼叫提示和音频能力探针。
 - `dashboard-access-center-regression.txt`：权限中心、角色隔离和拒绝审计。
 - `dashboard-media-archive-regression.txt`：媒体上传、检索、预览和组织隔离。
+- `dashboard-auto-refresh-regression.txt`：首次连接后每 5 秒自动刷新，接口新增设备和严重告警无需手动操作即可出现在摘要、地图和设备卡片。
 - `dashboard-broadcast-console-regression.txt`：广播发送、设备回执和只读角色。
 - `dashboard-voice-player-regression.txt`：语音上传、播放和组织隔离。
 - `controlled-board-e2e-regression.txt`：开发板到本地后台的受控端到端回归。
