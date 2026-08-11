@@ -37,6 +37,7 @@
 - 管理端已在内置浏览器验证首次连接后每 5 秒自动刷新。接口提交设备状态和严重跌倒告警后，无需手动刷新即可更新人员、位置、电池、电压、摘要、地图和告警卡片；记录见 `docs/verification/stage-7/dashboard-auto-refresh-regression.txt`。该记录不替代真实定位、电池、IMU、浏览器声音和现场告警验收。
 - H618 在没有 Android 默认网络和 MQTT 配置时，通过 ADB 回环验证了覆盖安装后的前台服务自动轮询 HTTP 设备命令，按序处理接听、挂断、拒绝和文字广播，并提交回执和命令确认，记录见 `docs/verification/stage-5/android-http-command-polling-board-test.txt`。
 - H618 已验证前台服务在启动时处理初始无网络快照，Room 保存 `NETWORK_STATUS_CHANGED/UNAVAILABLE`；弱网策略在通话引擎建立前保留，并能在 PeerConnection 上切换低带宽和普通模式。记录见 `docs/verification/stage-5/webrtc-bandwidth-policy-board-test.txt`。该记录不替代真实 4G/5G 弱网、TURN 和双向媒体测试。
+- H618、后台和同源浏览器已完成通话信令闭环。管理端接听后，前台服务通过 Room 状态观察自动创建 Offer，浏览器提交 Answer 和 ICE，H618 应用 Answer；管理端挂断后设备自动关闭会话并恢复 `OFFLINE_READY`。全过程未发送手工通话状态服务指令。记录见 `docs/verification/stage-5/dashboard-webrtc-board-e2e.txt`。开发板无摄像头，ICE 未完成连接，该记录不替代真实物理按键、麦克风、扬声器、视频、TURN 和弱网测试。
 - H618 上使用合成输入验证了原始安全样本、Android 检测、稳定告警周期、SET_OUTPUT 命令和样本去重运行路径，记录见 `docs/verification/stage-6/android-safety-runtime-board-test.txt`。该记录不替代真实传感器和执行器测试。
 - 后台已验证资源隔离、轨迹、媒体、呼叫、广播、语音、告警、审计、PostgreSQL 适配、S3 完整性和 MQTT 消息处理。
 - 管理端已验证权限中心、地图、媒体、呼叫、广播、语音和告警处置界面。

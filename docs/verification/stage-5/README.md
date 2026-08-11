@@ -8,7 +8,7 @@
 
 阶段 5 软件门禁通过。呼叫状态、WebRTC 信令、短期 TURN 凭据、HTTP 设备命令自动轮询、文字广播回执、语音消息权限，以及专用 LoRa 语音模块入组、密钥槽、半双工 PTT、状态和质量遥测均有自动测试或开发板夹具记录。新增夹具证据见 `../stage-7/rtk-local-intercom-board-test.txt`。`webrtc-bandwidth-policy-board-test.txt` 进一步验证初始网络快照、通话建立前弱网策略保留和 PeerConnection 带宽模式切换。开发板没有摄像头、可用音频采集节点、已验证扬声器、远端浏览器、生产 TURN 或专用无线语音硬件，因此真实双向音视频、弱网恢复、距离、穿透、时延和可懂度尚未验收。
 
-WebRTC 依赖为 `io.github.webrtc-sdk:android:144.7559.09`。arm64 原生库可在开发板加载。板端探针明确设置 `captureAudio=false`，只验证 PeerConnection 初始化、DTLS-SRTP SDP Offer 和释放流程。
+WebRTC 依赖为 `io.github.webrtc-sdk:android:144.7559.09`。arm64 原生库可在开发板加载。板端探针明确设置 `captureAudio=false`，只验证 PeerConnection 初始化、DTLS-SRTP SDP Offer 和释放流程。`dashboard-webrtc-board-e2e.txt` 补充验证管理端接听后 H618 无需手工服务指令即可自动提交 Offer，浏览器提交 Answer 和 ICE，H618 应用 Answer，挂断后回到 `OFFLINE_READY`。该闭环没有建立媒体连接。
 
 ## 自动检查
 
@@ -30,6 +30,7 @@ WebRTC 依赖为 `io.github.webrtc-sdk:android:144.7559.09`。arm64 原生库可
 | `board-install-final.txt` | 最终 APK 覆盖安装结果 |
 | `apk-sha256-final.txt` | APK SHA-256：`0708ba64454d801a07c8c16db7f5c3f29dc109da17a62b220216a687a2ec3641` |
 | `webrtc-bandwidth-policy-board-test.txt` | H618 验证初始无网络快照入库、WebRTC 原生库、DTLS-SRTP Offer、低带宽与普通模式切换；当前 APK SHA-256 为 `5b4626026569958cb8d554c803099a7975f534c90e246401ce1baf68c59dd9a1` |
+| `dashboard-webrtc-board-e2e.txt` | H618、后台和同源浏览器完成 REQUESTED、ACCEPTED、CONNECTING、ENDED 与 Offer、Answer、ICE 信令闭环；APK SHA-256 为 `fe8a971cba23ae2237bbbdbe32e2221cdd0bda37a3850e0cad65847da0f0a2c1` |
 
 文字广播在没有 TTS 引擎的开发板上按序产生 `RECEIVED`、`PLAYING` 和 `FAILED` 回执，失败原因为 `TTS_UNAVAILABLE`。该结果证明失败可观测，不证明扬声器播放。
 
@@ -50,7 +51,7 @@ WebRTC 依赖为 `io.github.webrtc-sdk:android:144.7559.09`。arm64 原生库可
 - 音频 HAL 指向不存在的 `/dev/snd/pcmC16D0c`，不能采集真实麦克风音频。
 - CameraService 报告 0 个摄像头。
 - STUN/TURN 使用本地测试配置，没有验证公网 NAT 穿透或真实中继。
-- 没有远端管理端或浏览器建立 PeerConnection。
+- 同源浏览器已建立 PeerConnection 并提交 Answer，但 ICE 只到 `CHECKING`，没有远端视频轨道或媒体连接。
 - 没有专用无线语音硬件，不能执行覆盖距离、遮挡、时延、丢包和可懂度测试。
 - 开发板系统时间落后于主机，短期凭据校验采用服务器签发时间保护测试有效期；生产环境仍需可靠 RTC 或网络校时。
 - 不带 `-final` 的早期日志保留诊断过程，其中包含已修复的测试失败，不作为门禁证据。
