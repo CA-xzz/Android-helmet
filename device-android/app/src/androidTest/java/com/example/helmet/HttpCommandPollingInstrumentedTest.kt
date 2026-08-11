@@ -249,12 +249,13 @@ class HttpCommandPollingInstrumentedTest {
         afterSequence: Long,
         expected: Set<Pair<String, CallState>>,
     ): Set<String> = withTimeout(AUTOMATIC_DELIVERY_TIMEOUT_MILLIS) {
-        while (true) {
+        var matched: Map<Pair<String, CallState>, String>
+        do {
             val response = getJson(
                 "/v1/device-commands?deviceId=$deviceId&afterSequence=$afterSequence&limit=100",
             )
             val commands = response.getJSONArray("commands")
-            val matched = buildMap<Pair<String, CallState>, String> {
+            matched = buildMap {
                 for (index in 0 until commands.length()) {
                     val command = commands.getJSONObject(index)
                     if (command.getString("type") != "CALL_STATE") continue
@@ -263,10 +264,9 @@ class HttpCommandPollingInstrumentedTest {
                     if (key in expected) put(key, command.getString("commandId"))
                 }
             }
-            if (matched.keys == expected) return@withTimeout matched.values.toSet()
-            delay(250)
-        }
-        error("unreachable")
+            if (matched.keys != expected) delay(250)
+        } while (matched.keys != expected)
+        matched.values.toSet()
     }
 
     companion object {
