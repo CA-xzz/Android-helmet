@@ -48,6 +48,7 @@ adb -s "$ADB_SERIAL" get-state | rg -q '^device$' || {
 (cd "$PROJECT_ROOT" && \
     HELMET_SOURCE_COMMIT=$(git rev-parse HEAD) \
     ./gradlew --no-daemon --console=plain \
+        --project-cache-dir "$GRADLE_PROJECT_CACHE_DIR" \
         :device-android:app:assembleDebug \
         :device-android:app:assembleDebugAndroidTest)
 

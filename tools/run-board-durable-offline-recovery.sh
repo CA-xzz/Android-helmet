@@ -109,7 +109,9 @@ adb -s "$ADB_SERIAL" get-state | rg -q '^device$' || {
     exit 1
 }
 
-(cd "$PROJECT_ROOT" && ./gradlew --no-daemon --console=plain :device-android:service-runtime:assembleDebugAndroidTest)
+(cd "$PROJECT_ROOT" && ./gradlew --no-daemon --console=plain \
+    --project-cache-dir "$GRADLE_PROJECT_CACHE_DIR" \
+    :device-android:service-runtime:assembleDebugAndroidTest)
 adb -s "$ADB_SERIAL" reverse --remove tcp:18080 >/dev/null 2>&1 || true
 adb -s "$ADB_SERIAL" uninstall "$TEST_PACKAGE" >/dev/null 2>&1 || true
 adb -s "$ADB_SERIAL" install -r -t "$TEST_APK"
