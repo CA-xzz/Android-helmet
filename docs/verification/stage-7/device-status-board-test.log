@@ -1,0 +1,15 @@
+Command:
+  adb -s 2c001031774186e21d3 reverse tcp:18082 tcp:18082
+  ./gradlew --no-daemon :device-android:service-runtime:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.helmet.service.runtime.DeviceStatusWorkerInstrumentedTest
+
+Backend observations:
+  POST /v1/device-status HTTP/1.1 200
+  GET /v1/devices/overview HTTP/1.1 200
+
+Device result:
+  Starting 1 tests on QUAD-CORE H618 p1 - 12
+  Finished 1 tests on QUAD-CORE H618 p1 - 12
+  BUILD SUCCESSFUL in 17s
+  294 actionable tasks: 17 executed, 277 up-to-date
+
+The fixture used simulated=true, NO_FIX, and an absent battery. This verifies persistence, statusSequence, authenticated upload, matching acknowledgement with serverReceivedAtEpochMillis, outbox clearing, overview retrieval, server contact time, the exact observed device/server clock offset, and transition of the test process time authority to SERVER. The server was local through ADB reverse. This is not production or long-run time evidence and is not real GNSS, battery, camera, or media evidence.

@@ -1,0 +1,18 @@
+archive_id                                    object_sha256                                                     byte_size  device_id                  fix_type  status     next_offset
+--------------------------------------------  ----------------------------------------------------------------  ---------  -------------------------  --------  ---------  -----------
+worker-fd7c3eec-c134-452e-adab-73944d9161c2   faec70346577f98fdd1b00719a1dde4bffa9f854313002080e45fb41ddaa4dd5  300000     board-2c001031774186e21d3  NO_FIX    COMPLETED  300000     
+android-4096fa87-1b9c-47cd-adbf-6c36121d228c  5e4ec8adbec838d574e3a8e5ad8550febc5fc913ef026890bbed7e437c8991c6  700000     board-2c001031774186e21d3  NO_FIX    COMPLETED  700000     
+android-92c243ac-f5d1-4120-bbb7-0422ca3900ef  f101963580e7deb59f09073f328223c0f1311e93fddc2b4b1c6b6037590dd5a1  700000     board-2c001031774186e21d3  NO_FIX    COMPLETED  700000     
+android-1fad3cf8-26fb-4805-8ee3-6660b60fdf96  f101963580e7deb59f09073f328223c0f1311e93fddc2b4b1c6b6037590dd5a1  700000     board-2c001031774186e21d3  NO_FIX    COMPLETED  700000     
+status     session_count
+---------  -------------
+COMPLETED  4            
+archive_count
+-------------
+4            
+object_count
+------------
+3           
+5e4ec8adbec838d574e3a8e5ad8550febc5fc913ef026890bbed7e437c8991c6  docs/verification/stage-3/media-backend-data/objects/5e/5e4ec8adbec838d574e3a8e5ad8550febc5fc913ef026890bbed7e437c8991c6.bin
+faec70346577f98fdd1b00719a1dde4bffa9f854313002080e45fb41ddaa4dd5  docs/verification/stage-3/media-backend-data/objects/fa/faec70346577f98fdd1b00719a1dde4bffa9f854313002080e45fb41ddaa4dd5.bin
+f101963580e7deb59f09073f328223c0f1311e93fddc2b4b1c6b6037590dd5a1  docs/verification/stage-3/media-backend-data/objects/f1/f101963580e7deb59f09073f328223c0f1311e93fddc2b4b1c6b6037590dd5a1.bin

@@ -1,0 +1,66 @@
+> Task :device-android:feature-connectivity:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:feature-connectivity:preBuild UP-TO-DATE
+> Task :device-android:feature-connectivity:preDebugBuild UP-TO-DATE
+> Task :device-android:feature-connectivity:generateDebugResValues UP-TO-DATE
+> Task :device-android:feature-connectivity:generateDebugResources UP-TO-DATE
+> Task :device-android:feature-connectivity:packageDebugResources UP-TO-DATE
+> Task :device-android:feature-connectivity:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:feature-connectivity:generateDebugRFile UP-TO-DATE
+> Task :device-android:feature-connectivity:compileDebugKotlin UP-TO-DATE
+> Task :device-android:feature-connectivity:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:feature-connectivity:compileDebugJavaWithJavac NO-SOURCE
+> Task :device-android:feature-connectivity:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :device-android:feature-connectivity:preDebugAndroidTestBuild UP-TO-DATE
+> Task :device-android:feature-connectivity:writeDebugAarMetadata UP-TO-DATE
+> Task :device-android:feature-connectivity:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:feature-connectivity:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :device-android:feature-connectivity:checkDebugAndroidTestAarMetadata
+> Task :device-android:feature-connectivity:mapDebugAndroidTestSourceSetPaths
+> Task :device-android:feature-connectivity:generateDebugAndroidTestResources FROM-CACHE
+> Task :device-android:feature-connectivity:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:feature-connectivity:processDebugManifest UP-TO-DATE
+> Task :device-android:feature-connectivity:processDebugAndroidTestManifest
+> Task :device-android:feature-connectivity:javaPreCompileDebugAndroidTest FROM-CACHE
+> Task :device-android:feature-connectivity:mergeDebugAndroidTestShaders
+> Task :device-android:feature-connectivity:compileDebugAndroidTestShaders NO-SOURCE
+> Task :device-android:feature-connectivity:generateDebugAndroidTestAssets UP-TO-DATE
+> Task :device-android:feature-connectivity:mergeDebugShaders UP-TO-DATE
+> Task :device-android:feature-connectivity:compileDebugShaders NO-SOURCE
+> Task :device-android:feature-connectivity:generateDebugAssets UP-TO-DATE
+> Task :device-android:feature-connectivity:packageDebugAssets UP-TO-DATE
+> Task :device-android:feature-connectivity:mergeDebugAndroidTestAssets
+> Task :device-android:feature-connectivity:compressDebugAndroidTestAssets FROM-CACHE
+> Task :device-android:feature-connectivity:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :device-android:feature-connectivity:desugarDebugAndroidTestFileDependencies FROM-CACHE
+> Task :device-android:feature-connectivity:processDebugJavaRes UP-TO-DATE
+> Task :device-android:feature-connectivity:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:feature-connectivity:mergeDebugNativeLibs NO-SOURCE
+> Task :device-android:feature-connectivity:copyDebugJniLibsProjectOnly
+> Task :device-android:feature-connectivity:checkDebugAndroidTestDuplicateClasses
+> Task :device-android:feature-connectivity:mergeDebugAndroidTestJniLibFolders
+> Task :device-android:feature-connectivity:bundleLibRuntimeToDirDebug
+> Task :device-android:feature-connectivity:mergeDebugAndroidTestResources
+> Task :device-android:feature-connectivity:mergeExtDexDebugAndroidTest FROM-CACHE
+> Task :device-android:feature-connectivity:mergeDebugAndroidTestNativeLibs NO-SOURCE
+> Task :device-android:feature-connectivity:stripDebugAndroidTestDebugSymbols NO-SOURCE
+> Task :device-android:feature-connectivity:validateSigningDebugAndroidTest
+> Task :device-android:feature-connectivity:writeDebugAndroidTestSigningConfigVersions
+> Task :device-android:feature-connectivity:mergeLibDexDebugAndroidTest
+> Task :device-android:feature-connectivity:processDebugAndroidTestResources
+> Task :device-android:feature-connectivity:compileDebugAndroidTestKotlin
+> Task :device-android:feature-connectivity:compileDebugAndroidTestJavaWithJavac NO-SOURCE
+> Task :device-android:feature-connectivity:dexBuilderDebugAndroidTest
+> Task :device-android:feature-connectivity:mergeDebugAndroidTestGlobalSynthetics FROM-CACHE
+> Task :device-android:feature-connectivity:processDebugAndroidTestJavaRes
+> Task :device-android:feature-connectivity:mergeProjectDexDebugAndroidTest
+> Task :device-android:feature-connectivity:mergeDebugAndroidTestJavaResource
+> Task :device-android:feature-connectivity:packageDebugAndroidTest
+> Task :device-android:feature-connectivity:createDebugAndroidTestApkListingFileRedirect
+
+> Task :device-android:feature-connectivity:connectedDebugAndroidTest
+Starting 1 tests on QUAD-CORE H618 p1 - 12
+
+Finished 1 tests on QUAD-CORE H618 p1 - 12
+
+BUILD SUCCESSFUL in 12s
+47 actionable tasks: 23 executed, 6 from cache, 18 up-to-date

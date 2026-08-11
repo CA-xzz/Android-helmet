@@ -1,0 +1,108 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.9/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :native-hardware-service
+Passing custom test runner argument android.testInstrumentationRunnerArguments.serial from gradle.properties or command line is not compatible with configuration caching. Please specify this argument using android gradle dsl.
+
+> Task :device-android:core-model:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:data-local:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:data-local:preBuild UP-TO-DATE
+> Task :device-android:core-model:preBuild UP-TO-DATE
+> Task :device-android:core-model:preDebugBuild UP-TO-DATE
+> Task :device-android:data-local:preDebugBuild UP-TO-DATE
+> Task :device-android:data-local:generateDebugResValues UP-TO-DATE
+> Task :device-android:core-model:generateDebugResValues UP-TO-DATE
+> Task :device-android:core-model:generateDebugResources UP-TO-DATE
+> Task :device-android:data-local:generateDebugResources UP-TO-DATE
+> Task :device-android:data-local:packageDebugResources UP-TO-DATE
+> Task :device-android:core-model:packageDebugResources UP-TO-DATE
+> Task :device-android:core-model:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:data-local:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:data-local:generateDebugRFile UP-TO-DATE
+> Task :device-android:core-model:generateDebugRFile UP-TO-DATE
+> Task :device-android:data-local:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:data-local:preDebugAndroidTestBuild UP-TO-DATE
+> Task :device-android:data-local:writeDebugAarMetadata UP-TO-DATE
+> Task :device-android:data-local:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:data-local:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :device-android:core-model:compileDebugKotlin UP-TO-DATE
+> Task :device-android:core-model:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:core-model:compileDebugJavaWithJavac NO-SOURCE
+> Task :device-android:core-model:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :device-android:core-model:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:core-model:writeDebugAarMetadata UP-TO-DATE
+> Task :device-android:core-model:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:core-model:processDebugManifest UP-TO-DATE
+> Task :device-android:core-model:mergeDebugShaders UP-TO-DATE
+> Task :device-android:core-model:compileDebugShaders NO-SOURCE
+> Task :device-android:core-model:generateDebugAssets UP-TO-DATE
+> Task :device-android:core-model:packageDebugAssets UP-TO-DATE
+> Task :device-android:core-model:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :device-android:core-model:processDebugJavaRes UP-TO-DATE
+> Task :device-android:data-local:mapDebugAndroidTestSourceSetPaths UP-TO-DATE
+> Task :device-android:core-model:bundleLibRuntimeToDirDebug UP-TO-DATE
+> Task :device-android:core-model:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:core-model:mergeDebugNativeLibs NO-SOURCE
+> Task :device-android:core-model:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :device-android:data-local:kaptGenerateStubsDebugKotlin UP-TO-DATE
+> Task :device-android:data-local:kaptDebugKotlin UP-TO-DATE
+> Task :device-android:data-local:compileDebugKotlin UP-TO-DATE
+> Task :device-android:data-local:compileDebugJavaWithJavac UP-TO-DATE
+> Task :device-android:data-local:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :device-android:data-local:checkDebugAndroidTestAarMetadata UP-TO-DATE
+> Task :device-android:data-local:generateDebugAndroidTestResources UP-TO-DATE
+> Task :device-android:data-local:mergeDebugAndroidTestResources UP-TO-DATE
+> Task :device-android:data-local:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:data-local:processDebugManifest UP-TO-DATE
+> Task :device-android:data-local:processDebugAndroidTestManifest UP-TO-DATE
+> Task :device-android:data-local:processDebugAndroidTestResources UP-TO-DATE
+> Task :device-android:data-local:kaptGenerateStubsDebugAndroidTestKotlin UP-TO-DATE
+> Task :device-android:data-local:kaptDebugAndroidTestKotlin UP-TO-DATE
+> Task :device-android:data-local:compileDebugAndroidTestKotlin UP-TO-DATE
+> Task :device-android:data-local:javaPreCompileDebugAndroidTest UP-TO-DATE
+> Task :device-android:data-local:compileDebugAndroidTestJavaWithJavac NO-SOURCE
+> Task :device-android:data-local:mergeDebugAndroidTestShaders UP-TO-DATE
+> Task :device-android:data-local:compileDebugAndroidTestShaders NO-SOURCE
+> Task :device-android:data-local:generateDebugAndroidTestAssets UP-TO-DATE
+> Task :device-android:data-local:mergeDebugShaders UP-TO-DATE
+> Task :device-android:data-local:compileDebugShaders NO-SOURCE
+> Task :device-android:data-local:generateDebugAssets UP-TO-DATE
+> Task :device-android:data-local:packageDebugAssets UP-TO-DATE
+> Task :device-android:data-local:mergeDebugAndroidTestAssets UP-TO-DATE
+> Task :device-android:data-local:compressDebugAndroidTestAssets UP-TO-DATE
+> Task :device-android:data-local:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :device-android:data-local:desugarDebugAndroidTestFileDependencies UP-TO-DATE
+> Task :device-android:data-local:dexBuilderDebugAndroidTest UP-TO-DATE
+> Task :device-android:data-local:processDebugAndroidTestJavaRes UP-TO-DATE
+> Task :device-android:data-local:processDebugJavaRes UP-TO-DATE
+> Task :device-android:data-local:mergeDebugAndroidTestJavaResource UP-TO-DATE
+> Task :device-android:data-local:checkDebugAndroidTestDuplicateClasses UP-TO-DATE
+> Task :device-android:data-local:mergeExtDexDebugAndroidTest UP-TO-DATE
+> Task :device-android:data-local:mergeProjectDexDebugAndroidTest UP-TO-DATE
+> Task :device-android:data-local:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:data-local:mergeDebugNativeLibs NO-SOURCE
+> Task :device-android:data-local:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :device-android:data-local:mergeDebugAndroidTestJniLibFolders UP-TO-DATE
+> Task :device-android:data-local:mergeDebugAndroidTestNativeLibs NO-SOURCE
+> Task :device-android:data-local:stripDebugAndroidTestDebugSymbols NO-SOURCE
+> Task :device-android:data-local:validateSigningDebugAndroidTest UP-TO-DATE
+> Task :device-android:data-local:writeDebugAndroidTestSigningConfigVersions UP-TO-DATE
+> Task :device-android:data-local:bundleLibRuntimeToDirDebug
+> Task :device-android:data-local:mergeLibDexDebugAndroidTest
+> Task :device-android:data-local:mergeDebugAndroidTestGlobalSynthetics UP-TO-DATE
+> Task :device-android:data-local:packageDebugAndroidTest
+> Task :device-android:data-local:createDebugAndroidTestApkListingFileRedirect UP-TO-DATE
+
+> Task :device-android:data-local:connectedDebugAndroidTest
+Starting 14 tests on QUAD-CORE H618 p1 - 12
+
+Finished 14 tests on QUAD-CORE H618 p1 - 12
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.9/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 19s
+72 actionable tasks: 6 executed, 66 up-to-date

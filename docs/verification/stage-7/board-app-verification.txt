@@ -1,0 +1,20 @@
+dc67f0cc9f3748f9b4a4f5954b4bae888ca764ca5564d8d5c6285f039d82a96f  device-android/app/build/outputs/apk/debug/app-debug.apk
+    versionCode=2 minSdk=31 targetSdk=31
+    versionName=0.2.0
+    isForeground=true foregroundId=1001 foregroundNoti=Notification(channel=helmet-runtime shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x42 color=0x00000000 vis=PRIVATE)
+Room integrity_check=ok
+Room user_version=6
+helmet_events=50
+safety_samples=3
+safety_alerts=3
+BatteryService present=false
+BatteryService level=0
+BatteryService voltage=0
+legacy_plaintext_backend_bearer_token=absent
+simulator_enabled=true
+rtk_enabled=absent, default false
+local_intercom_enabled=absent, default false
+runtime_state=OFFLINE_READY
+location_state=WAITING_FOR_FIX
+rtk_state=DISABLED
+local_intercom_state=DISABLED

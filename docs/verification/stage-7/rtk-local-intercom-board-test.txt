@@ -1,0 +1,35 @@
+日期：2026-08-10
+设备：2c001031774186e21d3
+设备型号：QUAD-CORE H618 p1
+系统：Android 12
+
+命令：
+ANDROID_SERIAL=2c001031774186e21d3 ./gradlew --no-daemon :device-android:service-runtime:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.helmet.service.runtime.RtkCorrectionControllerInstrumentedTest,com.example.helmet.service.runtime.LocalIntercomControllerInstrumentedTest
+
+结果：
+Starting 2 tests on QUAD-CORE H618 p1 - 12
+Finished 2 tests on QUAD-CORE H618 p1 - 12
+BUILD SUCCESSFUL in 18s
+294 actionable tasks: 17 executed, 277 up-to-date
+
+测试源码 SHA-256：
+e0193f9ce7496155c09cc48e2ed38d753787d64fe3f5ef7be6ee98122b2f731c  RtkCorrectionControllerInstrumentedTest.kt
+abf4da6df4055ec5efbea75add9cbf7a8fc98abcebe7d01415f4d221d6259b7d  LocalIntercomControllerInstrumentedTest.kt
+
+RTK 夹具范围：
+- 开发板本机启动 HTTP loopback NTRIP caster。
+- 输入校验和正确的 GGA。
+- caster 发送一个包含 900 字节 payload 的有效 RTCM3 帧。
+- Android 输出 2 个 RTK_CORRECTION HSL 命令，每个 payload 不超过 512 字节，拼接后与原 RTCM3 帧一致。
+
+本地对讲夹具范围：
+- 使用 connected=true、simulated=false 的硬件状态夹具，不代表真实外设。
+- 验证 groupId=42、channel=7、keySlot=3 的 JOIN 命令。
+- 输入 READY、2 个节点、VENDOR_NARROWBAND、-94 dBm、15‰ 丢包和 135ms 单向时延的模块状态夹具。
+- 验证 START_TRANSMIT 半双工命令和状态迁移。
+
+证据边界：
+- 板卡没有 GNSS/RTK 接收机、天线或差分服务。loopback HTTP 只允许测试地址，生产 NTRIP 要求 HTTPS。
+- 板卡没有专用 LoRa 语音模块、射频链路、麦克风或扬声器。
+- 本记录只证明 Android 12 板端协议、分片和控制状态机，不证明 0.5 米精度，也不证明无线语音距离、穿透、时延或可懂度。
+- 本记录不得提供给 HELMET_RTK_FIELD_EVIDENCE 或 HELMET_LOCAL_INTERCOM_FIELD_EVIDENCE 严格门禁变量。

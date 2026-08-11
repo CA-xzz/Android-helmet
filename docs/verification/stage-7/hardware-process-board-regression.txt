@@ -1,0 +1,23 @@
+H618 independent hardware process regression
+Date: 2026-08-11
+ADB serial: 2c001031774186e21d3
+Device: QUAD-CORE H618 p1, Android 12
+
+Scope
+
+The Android hardware service runs in the :hardware process. ApplicationProcessPolicy limits main-process initialization to the application package process so the hardware service can bind independently.
+
+Board result
+
+HardwareServiceInstrumentedTest passed 3 of 3 checks:
+
+1. The application binds the AIDL service through its signature-level permission.
+2. An unapproved device path is rejected.
+3. /dev/ttyAS2 opens and closes at 115200 baud through JNI.
+
+The test stops HelmetService before opening the UART to avoid runtime contention. The service is restored after the test.
+
+Boundary
+
+This proves AIDL/JNI process isolation and user-space UART access on the H618. No external module was connected, so it does not prove real module communication, sensor input or local output.
+

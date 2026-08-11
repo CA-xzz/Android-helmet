@@ -1,0 +1,128 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.9/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :device-android:data-local:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:feature-camera:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:core-model:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:data-local:preBuild UP-TO-DATE
+> Task :device-android:core-model:preBuild UP-TO-DATE
+> Task :device-android:feature-camera:preBuild UP-TO-DATE
+> Task :device-android:core-model:preDebugBuild UP-TO-DATE
+> Task :device-android:data-local:preDebugBuild UP-TO-DATE
+> Task :device-android:feature-camera:preDebugBuild UP-TO-DATE
+> Task :device-android:feature-camera:generateDebugResValues UP-TO-DATE
+> Task :device-android:core-model:generateDebugResValues UP-TO-DATE
+> Task :device-android:data-local:generateDebugResValues UP-TO-DATE
+> Task :device-android:feature-camera:generateDebugResources UP-TO-DATE
+> Task :device-android:core-model:generateDebugResources UP-TO-DATE
+> Task :device-android:data-local:generateDebugResources UP-TO-DATE
+> Task :device-android:data-local:packageDebugResources UP-TO-DATE
+> Task :device-android:core-model:packageDebugResources UP-TO-DATE
+> Task :device-android:feature-camera:packageDebugResources UP-TO-DATE
+> Task :device-android:core-model:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:feature-camera:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:data-local:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:feature-camera:generateDebugRFile UP-TO-DATE
+> Task :device-android:data-local:generateDebugRFile UP-TO-DATE
+> Task :device-android:core-model:generateDebugRFile UP-TO-DATE
+> Task :device-android:feature-camera:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:feature-camera:preDebugAndroidTestBuild UP-TO-DATE
+> Task :device-android:feature-camera:writeDebugAarMetadata UP-TO-DATE
+> Task :device-android:feature-camera:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:feature-camera:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :device-android:data-local:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:data-local:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:data-local:writeDebugAarMetadata UP-TO-DATE
+> Task :device-android:data-local:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:data-local:processDebugManifest UP-TO-DATE
+> Task :device-android:data-local:mergeDebugShaders UP-TO-DATE
+> Task :device-android:data-local:compileDebugShaders NO-SOURCE
+> Task :device-android:data-local:generateDebugAssets UP-TO-DATE
+> Task :device-android:data-local:packageDebugAssets UP-TO-DATE
+> Task :device-android:data-local:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:data-local:mergeDebugNativeLibs NO-SOURCE
+> Task :device-android:data-local:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :device-android:core-model:compileDebugKotlin UP-TO-DATE
+> Task :device-android:core-model:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:core-model:compileDebugJavaWithJavac NO-SOURCE
+> Task :device-android:core-model:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :device-android:core-model:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:core-model:writeDebugAarMetadata UP-TO-DATE
+> Task :device-android:core-model:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:core-model:processDebugManifest UP-TO-DATE
+> Task :device-android:core-model:mergeDebugShaders UP-TO-DATE
+> Task :device-android:core-model:compileDebugShaders NO-SOURCE
+> Task :device-android:core-model:generateDebugAssets UP-TO-DATE
+> Task :device-android:core-model:packageDebugAssets UP-TO-DATE
+> Task :device-android:core-model:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :device-android:core-model:processDebugJavaRes UP-TO-DATE
+> Task :device-android:core-model:bundleLibRuntimeToDirDebug UP-TO-DATE
+> Task :device-android:feature-camera:mapDebugAndroidTestSourceSetPaths UP-TO-DATE
+> Task :device-android:core-model:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:core-model:mergeDebugNativeLibs NO-SOURCE
+> Task :device-android:core-model:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :device-android:feature-camera:checkDebugAndroidTestAarMetadata UP-TO-DATE
+> Task :device-android:feature-camera:generateDebugAndroidTestResources UP-TO-DATE
+> Task :device-android:data-local:kaptGenerateStubsDebugKotlin UP-TO-DATE
+> Task :device-android:feature-camera:mergeDebugAndroidTestResources UP-TO-DATE
+> Task :device-android:feature-camera:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:feature-camera:processDebugManifest UP-TO-DATE
+> Task :device-android:data-local:kaptDebugKotlin UP-TO-DATE
+> Task :device-android:feature-camera:processDebugAndroidTestManifest UP-TO-DATE
+> Task :device-android:data-local:compileDebugKotlin UP-TO-DATE
+> Task :device-android:data-local:compileDebugJavaWithJavac UP-TO-DATE
+> Task :device-android:feature-camera:processDebugAndroidTestResources UP-TO-DATE
+> Task :device-android:feature-camera:javaPreCompileDebugAndroidTest UP-TO-DATE
+> Task :device-android:data-local:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :device-android:data-local:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :device-android:data-local:processDebugJavaRes UP-TO-DATE
+> Task :device-android:data-local:bundleLibRuntimeToDirDebug UP-TO-DATE
+> Task :device-android:feature-camera:compileDebugKotlin UP-TO-DATE
+> Task :device-android:feature-camera:compileDebugJavaWithJavac NO-SOURCE
+> Task :device-android:feature-camera:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :device-android:feature-camera:mergeDebugAndroidTestShaders UP-TO-DATE
+> Task :device-android:feature-camera:compileDebugAndroidTestShaders NO-SOURCE
+> Task :device-android:feature-camera:generateDebugAndroidTestAssets UP-TO-DATE
+> Task :device-android:feature-camera:mergeDebugShaders UP-TO-DATE
+> Task :device-android:feature-camera:compileDebugShaders NO-SOURCE
+> Task :device-android:feature-camera:generateDebugAssets UP-TO-DATE
+> Task :device-android:feature-camera:packageDebugAssets UP-TO-DATE
+> Task :device-android:feature-camera:mergeDebugAndroidTestAssets UP-TO-DATE
+> Task :device-android:feature-camera:compressDebugAndroidTestAssets UP-TO-DATE
+> Task :device-android:feature-camera:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :device-android:feature-camera:desugarDebugAndroidTestFileDependencies UP-TO-DATE
+> Task :device-android:feature-camera:processDebugJavaRes UP-TO-DATE
+> Task :device-android:feature-camera:checkDebugAndroidTestDuplicateClasses UP-TO-DATE
+> Task :device-android:feature-camera:mergeExtDexDebugAndroidTest UP-TO-DATE
+> Task :device-android:feature-camera:bundleLibRuntimeToDirDebug UP-TO-DATE
+> Task :device-android:feature-camera:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:feature-camera:mergeDebugNativeLibs NO-SOURCE
+> Task :device-android:feature-camera:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :device-android:feature-camera:mergeDebugAndroidTestJniLibFolders UP-TO-DATE
+> Task :device-android:feature-camera:mergeDebugAndroidTestNativeLibs NO-SOURCE
+> Task :device-android:feature-camera:stripDebugAndroidTestDebugSymbols NO-SOURCE
+> Task :device-android:feature-camera:validateSigningDebugAndroidTest UP-TO-DATE
+> Task :device-android:feature-camera:writeDebugAndroidTestSigningConfigVersions UP-TO-DATE
+> Task :device-android:feature-camera:mergeLibDexDebugAndroidTest
+> Task :device-android:feature-camera:compileDebugAndroidTestKotlin
+> Task :device-android:feature-camera:compileDebugAndroidTestJavaWithJavac NO-SOURCE
+> Task :device-android:feature-camera:dexBuilderDebugAndroidTest UP-TO-DATE
+> Task :device-android:feature-camera:mergeDebugAndroidTestGlobalSynthetics UP-TO-DATE
+> Task :device-android:feature-camera:processDebugAndroidTestJavaRes UP-TO-DATE
+> Task :device-android:feature-camera:mergeDebugAndroidTestJavaResource UP-TO-DATE
+> Task :device-android:feature-camera:mergeProjectDexDebugAndroidTest UP-TO-DATE
+> Task :device-android:feature-camera:packageDebugAndroidTest
+> Task :device-android:feature-camera:createDebugAndroidTestApkListingFileRedirect UP-TO-DATE
+
+> Task :device-android:feature-camera:connectedDebugAndroidTest
+Starting 2 tests on QUAD-CORE H618 p1 - 12
+
+Finished 2 tests on QUAD-CORE H618 p1 - 12
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.9/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 18s
+90 actionable tasks: 7 executed, 83 up-to-date

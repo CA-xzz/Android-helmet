@@ -1,0 +1,7 @@
+07-29 14:06:10.229   505   533 I ActivityManager: Start proc 1650:com.example.helmet/u0a93 for service {com.example.helmet/com.example.helmet.service.runtime.HelmetService}
+07-29 14:06:11.450  1650  1650 I HelmetRuntime: {"timestamp":1785305171448,"level":"INFO","event":"application_started"}
+07-29 14:06:11.777  1650  1795 I HelmetRuntime: {"timestamp":1785305171775,"level":"INFO","event":"runtime_status","state":"OFFLINE_READY","pendingOutboxCount":10,"lastEventType":"RUNTIME_STARTED"}
+07-29 14:07:06.986   505   520 I ActivityManager: Process com.example.helmet (pid 1650) has died: fg +50 FGS 
+07-29 14:07:08.021   505   533 I ActivityManager: Start proc 2297:com.example.helmet/u0a93 for service {com.example.helmet/com.example.helmet.service.runtime.HelmetService}
+07-29 14:07:08.557  2297  2297 I HelmetRuntime: {"timestamp":1785305228555,"level":"INFO","event":"application_started"}
+07-29 14:07:08.831  2297  2317 I HelmetRuntime: {"timestamp":1785305228829,"level":"INFO","event":"runtime_status","state":"OFFLINE_READY","pendingOutboxCount":11,"lastEventType":"RUNTIME_STARTED"}

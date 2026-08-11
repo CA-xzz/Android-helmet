@@ -1,0 +1,19 @@
+ACTIVITY MANAGER SERVICES (dumpsys activity services)
+  User 0 active services:
+  * ServiceRecord{73daa74 u0 com.example.helmet/.service.runtime.HelmetService}
+    intent={cmp=com.example.helmet/.service.runtime.HelmetService}
+    packageName=com.example.helmet
+    processName=com.example.helmet
+    baseDir=/data/app/~~GOb7N4_lLJFJcpyw9JiAtg==/com.example.helmet-UY_AiVkCw1YXfAnhAHX_QQ==/base.apk
+    dataDir=/data/user/0/com.example.helmet
+    app=ProcessRecord{4144475 12748:com.example.helmet/u0a112}
+    allowWhileInUsePermissionInFgs=true
+    recentCallingPackage=com.example.helmet
+    recentCallingUid=10112
+    allowStartForeground=12
+    startForegroundCount=1
+    infoAllowStartForeground=[callingPackage: com.example.helmet; callingUid: 10112; uidState: TOP ; intent: Intent { cmp=com.example.helmet/.service.runtime.HelmetService }; code:PROC_STATE_TOP; tempAllowListReason:<null>; targetSdkVersion:31; callerTargetSdkVersion:31; startForegroundCount:0; bindFromPackage:null]
+    isForeground=true foregroundId=1001 foregroundNoti=Notification(channel=helmet-runtime shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x42 color=0x00000000 vis=PRIVATE)
+    createTime=-7s850ms startingBgTimeout=--
+    lastActivity=-7s849ms restartTime=-7s849ms createdFromFg=true
+    startRequested=true delayedStop=false stopIfKilled=false callStart=true lastStartId=1

@@ -1,0 +1,36 @@
+H618 前台服务自动状态心跳验证
+
+日期：2026-08-11（Asia/Shanghai）
+设备：QUAD-CORE H618 p1
+ADB 序列号：2c001031774186e21d3
+Android：12，API 31
+APK SHA-256：d96ca609388ecfbbf4b9dd4eb2b9751d197f37dbc0042c0e69ab1806220ca665
+
+目的
+
+验证前台服务能在没有 Android 默认网络的 H618 上，通过 ADB 回环自动上报启动状态、使用服务器时间重新发布状态，并在 60 秒后自动发送心跳。测试不直接创建或调用 DeviceStatusWorker。
+
+环境
+
+- Android 状态为 Active default network: none。
+- 本地后台监听 http://127.0.0.1:18082，通过 adb reverse tcp:18082 tcp:18082 接入。
+- 精确回环地址不要求 WorkManager 网络约束；远端后台地址仍要求已连接网络。
+
+命令
+
+./gradlew --no-daemon --quiet :device-android:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.helmet.StatusHeartbeatInstrumentedTest
+
+结果
+
+- StatusHeartbeatInstrumentedTest：1 项通过，0 失败，0 错误。
+- serviceRepublishesServerTimeAndMaintainsPeriodicContact：通过，测试用例耗时 73.484 秒。
+- 后台收到状态序号 4、5 和 6，设备 ID 为 c754abda-e95d-4baf-b694-586d586910d0。
+- 序号 4 使用 SYSTEM 时间；收到服务器回执后，序号 5 使用 SERVER 时间，synchronized=true。
+- 序号 6 在序号 5 后 59,490 毫秒到达，使用 SERVER 时间，synchronized=true。
+- 三条状态均报告 operationalState=OFFLINE_READY、networkState=UNAVAILABLE、simulated=true。
+- 状态中 cameraAvailable=false、battery.present=false、location.fixType=NO_FIX，与当前开发板能力一致。
+- 本轮 APK 覆盖安装成功，冷启动后 HelmetService 的 isForeground=true。
+
+结论
+
+前台服务在 ADB 回环条件下能自动完成启动状态上报、服务器时间校准后的重新上报和周期心跳，不依赖测试直接运行 Worker。相同约束选择同时用于轨迹、媒体和安全告警 Worker。该结果证明调度软件路径，不替代真实移动网络、GNSS、电池、摄像头或长时间在线验收。

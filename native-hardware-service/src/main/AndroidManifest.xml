@@ -1,0 +1,16 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <permission
+        android:name="com.example.helmet.permission.BIND_HARDWARE_SERVICE"
+        android:protectionLevel="signature" />
+
+    <uses-permission android:name="com.example.helmet.permission.BIND_HARDWARE_SERVICE" />
+
+    <application>
+        <service
+            android:name=".HelmetHardwareService"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="com.example.helmet.permission.BIND_HARDWARE_SERVICE"
+            android:process=":hardware" />
+    </application>
+</manifest>

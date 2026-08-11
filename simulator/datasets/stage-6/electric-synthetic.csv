@@ -1,0 +1,11 @@
+# dataset_id=electric-synthetic-v1
+# sample_rate_hz=10
+# source=synthetic
+# final_hardware_evidence=false
+sample_ref,monotonic_ms,accel_x_mg,accel_y_mg,accel_z_mg,gyro_x_mdps,gyro_y_mdps,gyro_z_mdps,electric_mv,pressure_pa,temperature_centi_c,altitude_mm,label
+1,100,,,,,,,100,,,,NONE
+2,200,,,,,,,101,,,,NONE
+3,300,,,,,,,99,,,,NONE
+4,400,,,,,,,310,,,,NONE
+5,500,,,,,,,315,,,,NEAR_ELECTRIC
+6,600,,,,,,,320,,,,NONE

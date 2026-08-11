@@ -1,0 +1,9 @@
+alert_id                                    device_id                             alert_type     severity  device_active  simulated  workflow_state  config_version  sample_reference
+------------------------------------------  ------------------------------------  -------------  --------  -------------  ---------  --------------  --------------  ----------------
+alert-57a4a43e-06ab-4dce-ac8a-4b5accba0a01  135dc211-da56-49a8-814b-4861b523ecb5  NEAR_ELECTRIC  CRITICAL  1              1          OPEN            3               77              
+message_id                                    alert_id                                    event_kind  type           active  related_event_id                            
+--------------------------------------------  ------------------------------------------  ----------  -------------  ------  --------------------------------------------
+message-57a4a43e-06ab-4dce-ac8a-4b5accba0a01  alert-57a4a43e-06ab-4dce-ac8a-4b5accba0a01  ACTIVATED   NEAR_ELECTRIC  1       message-57a4a43e-06ab-4dce-ac8a-4b5accba0a01
+alert_id                                    workflow_sequence  workflow_state  actor_id                              actor_role  note        
+------------------------------------------  -----------------  --------------  ------------------------------------  ----------  ------------
+alert-57a4a43e-06ab-4dce-ac8a-4b5accba0a01  1                  OPEN            135dc211-da56-49a8-814b-4861b523ecb5  DEVICE      DEVICE_ALERT

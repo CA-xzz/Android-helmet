@@ -1,0 +1,23 @@
+2026-08-10 20:32:53,934 INFO media service listening on 127.0.0.1:18080
+2026-08-10 20:33:17,957 INFO 127.0.0.1 "POST /v1/calls HTTP/1.1" 200 -
+2026-08-10 20:33:18,012 INFO 127.0.0.1 "GET /v1/device-commands?deviceId=135dc211-da56-49a8-814b-4861b523ecb5&afterSequence=0&limit=100 HTTP/1.1" 200 -
+2026-08-10 20:33:18,075 INFO 127.0.0.1 "GET /v1/calls/call-feca7c1e-1b65-425c-ae57-8ef52863259d/ice-config?requesterId=135dc211-da56-49a8-814b-4861b523ecb5 HTTP/1.1" 200 -
+2026-08-10 20:33:18,114 INFO 127.0.0.1 "POST /v1/calls/call-feca7c1e-1b65-425c-ae57-8ef52863259d/signals HTTP/1.1" 200 -
+2026-08-10 20:33:18,137 INFO 127.0.0.1 "GET /v1/calls/call-feca7c1e-1b65-425c-ae57-8ef52863259d/signals?afterSequence=0&limit=100 HTTP/1.1" 200 -
+2026-08-10 20:33:18,161 INFO 127.0.0.1 "POST /v1/calls/call-feca7c1e-1b65-425c-ae57-8ef52863259d/transitions HTTP/1.1" 200 -
+2026-08-10 20:33:18,189 INFO 127.0.0.1 "POST /v1/broadcasts HTTP/1.1" 200 -
+2026-08-10 20:33:18,222 INFO 127.0.0.1 "GET /v1/device-commands?deviceId=135dc211-da56-49a8-814b-4861b523ecb5&afterSequence=0&limit=100 HTTP/1.1" 200 -
+2026-08-10 20:33:18,412 INFO 127.0.0.1 "POST /v1/device-commands/8c99b067-1576-478b-b93c-1fe830099ed6/ack HTTP/1.1" 200 -
+2026-08-10 20:33:18,492 INFO 127.0.0.1 "POST /v1/broadcasts/broadcast-feca7c1e-1b65-425c-ae57-8ef52863259d/receipts HTTP/1.1" 200 -
+2026-08-10 20:33:18,547 INFO 127.0.0.1 "POST /v1/broadcasts/broadcast-feca7c1e-1b65-425c-ae57-8ef52863259d/receipts HTTP/1.1" 200 -
+2026-08-10 20:33:18,605 INFO 127.0.0.1 "POST /v1/broadcasts/broadcast-feca7c1e-1b65-425c-ae57-8ef52863259d/receipts HTTP/1.1" 200 -
+2026-08-10 20:33:18,660 INFO 127.0.0.1 "POST /v1/device-commands/04c01774-6d6b-4c7b-a4cf-7d479a716d7a/ack HTTP/1.1" 200 -
+2026-08-10 20:33:18,703 INFO 127.0.0.1 "POST /v1/calls/call-feca7c1e-1b65-425c-ae57-8ef52863259d/transitions HTTP/1.1" 200 -
+2026-08-10 20:33:18,993 INFO 127.0.0.1 "POST /v1/media/sessions HTTP/1.1" 200 -
+2026-08-10 20:33:19,047 INFO 127.0.0.1 "PUT /v1/media/sessions/6598c759-e7bf-4c1f-aeb9-fb65dd803398/chunks HTTP/1.1" 200 -
+2026-08-10 20:33:19,082 INFO 127.0.0.1 "PUT /v1/media/sessions/6598c759-e7bf-4c1f-aeb9-fb65dd803398/chunks HTTP/1.1" 200 -
+2026-08-10 20:33:19,108 INFO 127.0.0.1 "POST /v1/media/sessions/6598c759-e7bf-4c1f-aeb9-fb65dd803398/complete HTTP/1.1" 200 -
+2026-08-10 20:33:19,255 INFO 127.0.0.1 "POST /v1/alerts HTTP/1.1" 200 -
+2026-08-10 20:33:19,309 INFO 127.0.0.1 "GET /v1/alerts/alert-57a4a43e-06ab-4dce-ac8a-4b5accba0a01 HTTP/1.1" 200 -
+2026-08-10 20:33:19,497 INFO 127.0.0.1 "POST /v1/tracks:batch HTTP/1.1" 200 -
+2026-08-10 20:33:43,168 INFO 127.0.0.1 "GET /v1/alerts?limit=20 HTTP/1.1" 200 -

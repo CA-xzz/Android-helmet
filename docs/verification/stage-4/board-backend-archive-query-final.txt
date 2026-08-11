@@ -1,0 +1,11 @@
+table_name      row_count
+--------------  ---------
+media_archives  1        
+track_points    2        
+message_id                                    device_id                                         sequence  fix_id                                      occurred_at_epoch_millis
+--------------------------------------------  ------------------------------------------------  --------  ------------------------------------------  ------------------------
+track-1-67205f5d-131d-411c-a38b-d1bae098b5eb  board-track-67205f5d-131d-411c-a38b-d1bae098b5eb  1         fix-1-67205f5d-131d-411c-a38b-d1bae098b5eb  1786000000001           
+track-2-67205f5d-131d-411c-a38b-d1bae098b5eb  board-track-67205f5d-131d-411c-a38b-d1bae098b5eb  2         fix-2-67205f5d-131d-411c-a38b-d1bae098b5eb  1786000001001           
+media_id                                     object_sha256                                                     created_at_epoch_millis
+-------------------------------------------  ----------------------------------------------------------------  -----------------------
+worker-d94078a3-3f11-44b6-9199-9dd119d760a2  7987555bde50440e0233a3ce72ae3d5c435e2bf983d0212f502f398bddc873b5  1786359154476          

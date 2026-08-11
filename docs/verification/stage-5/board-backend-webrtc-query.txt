@@ -1,0 +1,7 @@
+call_id                                    device_id                             state    state_sequence
+-----------------------------------------  ------------------------------------  -------  --------------
+call-f2bee3f0-42bf-460a-9ad6-c107365e8125  e829125a-556e-42cd-8947-dace7f8e08e9  RINGING  2             
+call-34ba6b05-9e1b-4e94-89b1-c1b4e963ec5d  24aacb18-d681-4b85-b7a8-b7b8eb54d409  RINGING  2             
+signal_id                                   call_id                                    sequence  sender_id                             signal_type  payload_bytes  created_at_epoch_millis
+------------------------------------------  -----------------------------------------  --------  ------------------------------------  -----------  -------------  -----------------------
+offer-f2bee3f0-42bf-460a-9ad6-c107365e8125  call-f2bee3f0-42bf-460a-9ad6-c107365e8125  1         e829125a-556e-42cd-8947-dace7f8e08e9  OFFER        45             1785315142740          

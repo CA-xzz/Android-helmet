@@ -1,0 +1,7 @@
+message_id            device_id                             call_id                                    sender_id          mime_type  byte_size  duration_millis  allowed_roles_json      created_at_epoch_millis
+--------------------  ------------------------------------  -----------------------------------------  -----------------  ---------  ---------  ---------------  ----------------------  -----------------------
+voice-board-stage5-1  e829125a-556e-42cd-8947-dace7f8e08e9  call-f2bee3f0-42bf-460a-9ad6-c107365e8125  dispatcher-stage5  audio/wav  59998      1747             ["ADMIN","DISPATCHER"]  1786358400000          
+message_id            actor_id           actor_role  action    occurred_at_epoch_millis
+--------------------  -----------------  ----------  --------  ------------------------
+voice-board-stage5-1  dispatcher-stage5  ADMIN       UPLOAD    1786362025998           
+voice-board-stage5-1  operator-stage5    DISPATCHER  PLAYBACK  1786362026020           

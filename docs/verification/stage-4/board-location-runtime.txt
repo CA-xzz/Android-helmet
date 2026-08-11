@@ -1,0 +1,43 @@
+Location Manager State:
+  User Info:
+    current users: u[0]
+  Location Settings:
+    Location Setting: true
+    Location Allow/Deny Packages:
+  Location Providers:
+    passive provider:
+      service: registered
+      listeners:
+        1000/android[SensorNotificationService]/964FE8BE Request[PASSIVE, minUpdateInterval=+30m0s0ms, minUpdateDistance=100000.0, WorkSource{1000 android}]
+      last location=null
+      enabled=true
+      allowed=true
+      identity=1000/android[LocationService]
+      properties=ProviderProperties[powerUsage=Low, accuracy=Fine]
+    fused provider:
+      service: ProviderRequest[@+1s0ms, LOW_POWER, WorkSource{10112 com.example.helmet}]
+      listeners:
+        10112/com.example.helmet/58CB1664 Request[@+1s0ms LOW_POWER, WorkSource{10112 com.example.helmet}]
+      last location=null
+      enabled=true
+      allowed=true
+      identity=1000/com.android.location.fused
+      properties=ProviderProperties[powerUsage=Low, accuracy=Fine, supports=[bearing,speed,altitude]]
+      stationary throttled=false (not idle) (not stationary)
+      target service=1000/com.android.location.fused/.FusedLocationService@0
+      connected=true
+  Historical Aggregate Location Provider Data:
+    passive:
+      1000/android[SensorNotificationService]: min/max interval = passive/passive, total/active/foreground duration = +1h37m58s206ms/+1h37m58s202ms/+1h37m58s205ms, locations = 0
+    fused:
+      10112/com.example.helmet: min/max interval = 1s/1s, total/active/foreground duration = +8s41ms/+8s39ms/+8s39ms, locations = 0
+  Geofence Manager:
+    service: unregistered
+  Event Log:
+    07-29 14:13:06.137: passive provider [u0] enabled
+    07-29 14:13:07.861: passive provider [u0] enabled
+    07-29 14:13:10.569: fused provider [u0] enabled
+    07-29 14:13:11.203: passive provider +registration 1000/android[SensorNotificationService]/964FE8BE -> Request[PASSIVE, minUpdateInterval=+30m0s0ms, minUpdateDistance=100000.0, WorkSource{1000 android}]
+    07-29 14:13:11.212: passive provider request = ProviderRequest[@0]
+    07-29 15:51:01.368: fused provider +registration 10112/com.example.helmet/58CB1664 -> Request[@+1s0ms LOW_POWER, WorkSource{10112 com.example.helmet}]
+    07-29 15:51:01.372: fused provider request = ProviderRequest[@+1s0ms, LOW_POWER, WorkSource{10112 com.example.helmet}]

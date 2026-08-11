@@ -1,0 +1,2 @@
+  * ServiceRecord{e6f90ad u0 com.example.helmet/.service.runtime.HelmetService}
+    app=ProcessRecord{a09b5da 12860:com.example.helmet/u0a112}

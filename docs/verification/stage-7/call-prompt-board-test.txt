@@ -1,0 +1,8 @@
+Device: 2c001031774186e21d3, Android 12
+Action: installed the current 0.2.0 debug APK and pressed the diagnostic "Simulate call key" once.
+
+Persisted events:
+CALL_STATUS_PROMPT_REQUESTED|INFO|{"callId":"62a285af-f77a-4408-bd6b-7403545e3fdf","state":"REQUESTED"}
+CALL_STATUS_PROMPT_FAILED|MEDIUM|{"callId":"62a285af-f77a-4408-bd6b-7403545e3fdf","state":"REQUESTED","message":"正在呼叫","ttsCompleted":false,"fallbackToneStarted":true,"error":"TTS_UNAVAILABLE"}
+
+The result proves that the requested state, explicit message, TTS outcome, fallback request and error are persisted. It does not prove audible output. The board has no TTS engine and its physical speaker path remains unverified.

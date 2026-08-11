@@ -1,0 +1,592 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.9/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :device-android:hardware-api:preBuild UP-TO-DATE
+> Task :device-android:service-runtime:preBuild UP-TO-DATE
+> Task :device-android:feature-location:preBuild UP-TO-DATE
+> Task :device-android:feature-camera:preBuild UP-TO-DATE
+> Task :device-android:media-sync:preBuild UP-TO-DATE
+> Task :device-android:data-local:preBuild UP-TO-DATE
+> Task :device-android:feature-location:preDebugBuild UP-TO-DATE
+> Task :device-android:feature-camera:preDebugBuild UP-TO-DATE
+> Task :device-android:hardware-api:preDebugBuild UP-TO-DATE
+> Task :device-android:data-local:preDebugBuild UP-TO-DATE
+> Task :device-android:media-sync:preDebugBuild UP-TO-DATE
+> Task :device-android:service-runtime:preDebugBuild UP-TO-DATE
+> Task :device-android:core-protocol:checkKotlinGradlePluginConfigurationErrors
+> Task :native-hardware-service:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:core-model:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:app:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:core-protocol:preBuild UP-TO-DATE
+> Task :native-hardware-service:preBuild UP-TO-DATE
+> Task :device-android:app:preBuild UP-TO-DATE
+> Task :device-android:core-model:preBuild UP-TO-DATE
+> Task :device-android:core-protocol:preDebugBuild UP-TO-DATE
+> Task :native-hardware-service:preDebugBuild UP-TO-DATE
+> Task :device-android:core-model:preDebugBuild UP-TO-DATE
+> Task :device-android:app:preDebugBuild UP-TO-DATE
+> Task :device-android:app:generateDebugBuildConfig UP-TO-DATE
+> Task :native-hardware-service:generateDebugResValues UP-TO-DATE
+> Task :device-android:service-runtime:writeDebugAarMetadata UP-TO-DATE
+> Task :device-android:core-model:generateDebugResValues UP-TO-DATE
+> Task :device-android:media-sync:writeDebugAarMetadata UP-TO-DATE
+> Task :device-android:data-local:writeDebugAarMetadata UP-TO-DATE
+> Task :device-android:feature-camera:writeDebugAarMetadata UP-TO-DATE
+> Task :device-android:core-protocol:generateDebugResValues UP-TO-DATE
+> Task :device-android:feature-location:writeDebugAarMetadata UP-TO-DATE
+> Task :device-android:data-local:generateDebugResValues UP-TO-DATE
+> Task :device-android:app:generateDebugResValues UP-TO-DATE
+> Task :device-android:service-runtime:generateDebugResValues UP-TO-DATE
+> Task :device-android:feature-camera:generateDebugResValues UP-TO-DATE
+> Task :device-android:media-sync:generateDebugResValues UP-TO-DATE
+> Task :device-android:feature-location:generateDebugResValues UP-TO-DATE
+> Task :device-android:core-model:generateDebugResources UP-TO-DATE
+> Task :native-hardware-service:generateDebugResources UP-TO-DATE
+> Task :device-android:core-protocol:generateDebugResources UP-TO-DATE
+> Task :device-android:service-runtime:generateDebugResources UP-TO-DATE
+> Task :device-android:data-local:generateDebugResources UP-TO-DATE
+> Task :device-android:media-sync:generateDebugResources UP-TO-DATE
+> Task :device-android:feature-camera:generateDebugResources UP-TO-DATE
+> Task :device-android:feature-location:generateDebugResources UP-TO-DATE
+> Task :device-android:app:generateDebugResources UP-TO-DATE
+> Task :device-android:feature-location:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:feature-location:processDebugManifest UP-TO-DATE
+> Task :device-android:feature-location:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:app:packageDebugResources UP-TO-DATE
+> Task :device-android:core-protocol:packageDebugResources UP-TO-DATE
+> Task :device-android:data-local:packageDebugResources UP-TO-DATE
+> Task :device-android:feature-camera:packageDebugResources UP-TO-DATE
+> Task :device-android:media-sync:packageDebugResources UP-TO-DATE
+> Task :device-android:core-model:packageDebugResources UP-TO-DATE
+> Task :device-android:service-runtime:packageDebugResources UP-TO-DATE
+> Task :native-hardware-service:packageDebugResources UP-TO-DATE
+> Task :device-android:feature-location:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:media-sync:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:feature-camera:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:service-runtime:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:data-local:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:feature-location:packageDebugResources UP-TO-DATE
+> Task :device-android:media-sync:processDebugManifest UP-TO-DATE
+> Task :device-android:feature-camera:processDebugManifest UP-TO-DATE
+> Task :device-android:service-runtime:processDebugManifest UP-TO-DATE
+> Task :device-android:data-local:processDebugManifest UP-TO-DATE
+> Task :device-android:app:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:core-model:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:core-protocol:parseDebugLocalResources UP-TO-DATE
+> Task :native-hardware-service:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:service-runtime:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:media-sync:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:feature-camera:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:feature-location:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:data-local:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :device-android:service-runtime:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:core-protocol:generateDebugRFile UP-TO-DATE
+> Task :device-android:app:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:core-model:generateDebugRFile UP-TO-DATE
+> Task :native-hardware-service:generateDebugRFile UP-TO-DATE
+> Task :device-android:feature-location:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:data-local:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:media-sync:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:feature-camera:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:core-protocol:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:app:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:app:preDebugUnitTestBuild UP-TO-DATE
+> Task :device-android:core-protocol:writeDebugAarMetadata UP-TO-DATE
+> Task :native-hardware-service:javaPreCompileDebug UP-TO-DATE
+> Task :native-hardware-service:preDebugUnitTestBuild UP-TO-DATE
+> Task :device-android:data-local:generateDebugRFile UP-TO-DATE
+> Task :device-android:service-runtime:generateDebugRFile UP-TO-DATE
+> Task :device-android:data-local:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:service-runtime:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:app:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :device-android:feature-location:generateDebugRFile UP-TO-DATE
+> Task :device-android:core-protocol:extractDeepLinksDebug UP-TO-DATE
+> Task :native-hardware-service:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :device-android:feature-location:preDebugUnitTestBuild UP-TO-DATE
+> Task :device-android:feature-camera:generateDebugRFile UP-TO-DATE
+> Task :device-android:media-sync:generateDebugRFile UP-TO-DATE
+> Task :device-android:service-runtime:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:app:preDebugAndroidTestBuild SKIPPED
+> Task :device-android:service-runtime:preDebugUnitTestBuild UP-TO-DATE
+> Task :device-android:feature-camera:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:media-sync:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:app:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :native-hardware-service:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:feature-camera:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:service-runtime:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :device-android:feature-camera:preDebugUnitTestBuild UP-TO-DATE
+> Task :device-android:media-sync:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:media-sync:preDebugUnitTestBuild UP-TO-DATE
+> Task :device-android:app:extractProguardFiles UP-TO-DATE
+> Task :native-hardware-service:writeDebugAarMetadata UP-TO-DATE
+> Task :device-android:core-protocol:processDebugManifest UP-TO-DATE
+> Task :device-android:service-runtime:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:media-sync:generateDebugUnitTestStubRFile UP-TO-DATE
+> Task :native-hardware-service:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:core-protocol:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:service-runtime:mergeDebugNativeLibs NO-SOURCE
+> Task :device-android:media-sync:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :device-android:core-protocol:preDebugUnitTestBuild UP-TO-DATE
+> Task :device-android:service-runtime:stripDebugDebugSymbols NO-SOURCE
+> Task :device-android:media-sync:extractProguardFiles UP-TO-DATE
+> Task :device-android:core-protocol:generateDebugUnitTestStubRFile UP-TO-DATE
+> Task :native-hardware-service:processDebugManifest UP-TO-DATE
+> Task :device-android:service-runtime:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :device-android:media-sync:prepareLintJarForPublish UP-TO-DATE
+> Task :device-android:core-protocol:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :device-android:service-runtime:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :device-android:service-runtime:mergeDebugShaders UP-TO-DATE
+> Task :device-android:core-protocol:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:service-runtime:compileDebugShaders NO-SOURCE
+> Task :device-android:core-protocol:mergeDebugNativeLibs NO-SOURCE
+> Task :device-android:service-runtime:generateDebugAssets UP-TO-DATE
+> Task :device-android:core-protocol:stripDebugDebugSymbols NO-SOURCE
+> Task :device-android:core-protocol:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :device-android:service-runtime:packageDebugAssets UP-TO-DATE
+> Task :device-android:service-runtime:prepareDebugArtProfile UP-TO-DATE
+> Task :device-android:core-protocol:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :device-android:service-runtime:prepareLintJarForPublish UP-TO-DATE
+> Task :device-android:service-runtime:writeDebugLintModelMetadata UP-TO-DATE
+> Task :device-android:service-runtime:extractProguardFiles UP-TO-DATE
+> Task :device-android:service-runtime:preDebugAndroidTestBuild UP-TO-DATE
+> Task :device-android:service-runtime:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :device-android:media-sync:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:media-sync:mergeDebugNativeLibs NO-SOURCE
+> Task :device-android:media-sync:stripDebugDebugSymbols NO-SOURCE
+> Task :device-android:hardware-api:compileDebugAidl UP-TO-DATE
+> Task :device-android:hardware-api:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:media-sync:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :device-android:core-protocol:mergeDebugShaders UP-TO-DATE
+> Task :device-android:hardware-api:generateDebugResValues UP-TO-DATE
+> Task :device-android:data-local:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:feature-location:generateDebugUnitTestStubRFile UP-TO-DATE
+> Task :device-android:core-protocol:compileDebugShaders NO-SOURCE
+> Task :device-android:data-local:preDebugUnitTestBuild UP-TO-DATE
+> Task :device-android:core-protocol:generateDebugAssets UP-TO-DATE
+> Task :device-android:media-sync:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :device-android:hardware-api:generateDebugResources UP-TO-DATE
+> Task :device-android:feature-location:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :device-android:feature-location:extractProguardFiles UP-TO-DATE
+> Task :device-android:media-sync:mergeDebugShaders UP-TO-DATE
+> Task :device-android:media-sync:compileDebugShaders NO-SOURCE
+> Task :device-android:media-sync:generateDebugAssets UP-TO-DATE
+> Task :device-android:core-protocol:packageDebugAssets UP-TO-DATE
+> Task :device-android:feature-location:prepareLintJarForPublish UP-TO-DATE
+> Task :device-android:hardware-api:packageDebugResources UP-TO-DATE
+> Task :device-android:feature-location:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:media-sync:packageDebugAssets UP-TO-DATE
+> Task :device-android:core-protocol:prepareDebugArtProfile UP-TO-DATE
+> Task :device-android:feature-location:mergeDebugNativeLibs NO-SOURCE
+> Task :device-android:feature-camera:generateDebugUnitTestStubRFile UP-TO-DATE
+> Task :device-android:core-protocol:prepareLintJarForPublish UP-TO-DATE
+> Task :device-android:media-sync:prepareDebugArtProfile UP-TO-DATE
+> Task :device-android:core-protocol:writeDebugLintModelMetadata UP-TO-DATE
+> Task :device-android:feature-location:stripDebugDebugSymbols NO-SOURCE
+> Task :device-android:feature-camera:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :device-android:hardware-api:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:media-sync:writeDebugLintModelMetadata UP-TO-DATE
+> Task :device-android:core-protocol:extractProguardFiles UP-TO-DATE
+> Task :device-android:feature-location:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :device-android:core-protocol:preDebugAndroidTestBuild UP-TO-DATE
+> Task :device-android:feature-camera:extractProguardFiles UP-TO-DATE
+> Task :device-android:media-sync:preDebugAndroidTestBuild UP-TO-DATE
+> Task :device-android:core-protocol:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :device-android:feature-camera:prepareLintJarForPublish UP-TO-DATE
+> Task :device-android:feature-location:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :device-android:hardware-api:generateDebugRFile UP-TO-DATE
+> Task :device-android:feature-camera:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:data-local:generateDebugUnitTestStubRFile UP-TO-DATE
+> Task :device-android:media-sync:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :device-android:feature-location:mergeDebugShaders UP-TO-DATE
+> Task :device-android:core-model:compileDebugKotlin UP-TO-DATE
+> Task :device-android:feature-location:compileDebugShaders NO-SOURCE
+> Task :device-android:feature-camera:mergeDebugNativeLibs NO-SOURCE
+> Task :device-android:feature-location:generateDebugAssets UP-TO-DATE
+> Task :device-android:hardware-api:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:feature-camera:stripDebugDebugSymbols NO-SOURCE
+> Task :device-android:core-model:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:hardware-api:writeDebugAarMetadata UP-TO-DATE
+> Task :device-android:feature-location:packageDebugAssets UP-TO-DATE
+> Task :device-android:feature-camera:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :device-android:feature-location:prepareDebugArtProfile UP-TO-DATE
+> Task :device-android:core-model:compileDebugJavaWithJavac NO-SOURCE
+> Task :device-android:hardware-api:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:feature-location:writeDebugLintModelMetadata UP-TO-DATE
+> Task :device-android:feature-location:preDebugAndroidTestBuild UP-TO-DATE
+> Task :device-android:feature-camera:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :device-android:data-local:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :device-android:feature-location:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :device-android:core-model:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :device-android:hardware-api:processDebugManifest UP-TO-DATE
+> Task :device-android:data-local:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:feature-camera:mergeDebugShaders UP-TO-DATE
+> Task :device-android:core-model:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :device-android:hardware-api:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:feature-camera:compileDebugShaders NO-SOURCE
+> Task :device-android:hardware-api:preDebugUnitTestBuild UP-TO-DATE
+> Task :device-android:feature-camera:generateDebugAssets UP-TO-DATE
+> Task :device-android:core-model:processDebugJavaRes UP-TO-DATE
+> Task :device-android:feature-camera:packageDebugAssets UP-TO-DATE
+> Task :device-android:core-model:writeDebugAarMetadata UP-TO-DATE
+> Task :device-android:core-model:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:feature-camera:prepareDebugArtProfile UP-TO-DATE
+> Task :device-android:hardware-api:generateDebugUnitTestStubRFile UP-TO-DATE
+> Task :device-android:feature-camera:writeDebugLintModelMetadata UP-TO-DATE
+> Task :device-android:hardware-api:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :device-android:core-model:processDebugManifest UP-TO-DATE
+> Task :device-android:hardware-api:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:feature-camera:preDebugAndroidTestBuild UP-TO-DATE
+> Task :device-android:core-model:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:hardware-api:mergeDebugNativeLibs NO-SOURCE
+> Task :device-android:feature-camera:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :device-android:core-model:preDebugUnitTestBuild UP-TO-DATE
+> Task :device-android:hardware-api:stripDebugDebugSymbols NO-SOURCE
+> Task :device-android:hardware-api:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :device-android:hardware-api:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :device-android:hardware-api:mergeDebugShaders UP-TO-DATE
+> Task :device-android:hardware-api:compileDebugShaders NO-SOURCE
+> Task :device-android:hardware-api:generateDebugAssets UP-TO-DATE
+> Task :device-android:hardware-api:packageDebugAssets UP-TO-DATE
+> Task :device-android:core-model:generateDebugUnitTestStubRFile UP-TO-DATE
+> Task :device-android:hardware-api:prepareDebugArtProfile UP-TO-DATE
+> Task :device-android:hardware-api:prepareLintJarForPublish UP-TO-DATE
+> Task :device-android:hardware-api:writeDebugLintModelMetadata UP-TO-DATE
+> Task :device-android:hardware-api:extractProguardFiles UP-TO-DATE
+> Task :device-android:hardware-api:preDebugAndroidTestBuild UP-TO-DATE
+> Task :device-android:hardware-api:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :device-android:media-sync:compileDebugKotlin UP-TO-DATE
+> Task :device-android:media-sync:compileDebugJavaWithJavac NO-SOURCE
+> Task :device-android:media-sync:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :device-android:media-sync:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :device-android:media-sync:processDebugJavaRes UP-TO-DATE
+> Task :device-android:core-protocol:compileDebugKotlin UP-TO-DATE
+> Task :device-android:core-protocol:compileDebugJavaWithJavac NO-SOURCE
+> Task :device-android:core-protocol:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :device-android:app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :device-android:feature-location:compileDebugKotlin UP-TO-DATE
+> Task :device-android:core-protocol:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :device-android:feature-location:compileDebugJavaWithJavac NO-SOURCE
+> Task :device-android:feature-location:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :device-android:data-local:kaptGenerateStubsDebugKotlin UP-TO-DATE
+> Task :device-android:core-protocol:processDebugJavaRes UP-TO-DATE
+> Task :device-android:feature-location:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :device-android:feature-location:processDebugJavaRes UP-TO-DATE
+> Task :device-android:app:checkDebugAarMetadata UP-TO-DATE
+> Task :device-android:hardware-api:compileDebugKotlin UP-TO-DATE
+> Task :device-android:hardware-api:compileDebugJavaWithJavac UP-TO-DATE
+> Task :device-android:hardware-api:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :device-android:hardware-api:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :device-android:feature-location:compileDebugUnitTestKotlin UP-TO-DATE
+> Task :device-android:feature-location:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :device-android:hardware-api:processDebugJavaRes UP-TO-DATE
+> Task :device-android:data-local:kaptDebugKotlin UP-TO-DATE
+> Task :device-android:feature-location:processDebugUnitTestJavaRes UP-TO-DATE
+> Task :device-android:app:mergeDebugResources UP-TO-DATE
+> Task :device-android:data-local:compileDebugKotlin UP-TO-DATE
+> Task :device-android:app:processDebugMainManifest UP-TO-DATE
+> Task :device-android:app:processDebugManifest UP-TO-DATE
+> Task :device-android:feature-location:testDebugUnitTest UP-TO-DATE
+> Task :device-android:app:processDebugManifestForPackage UP-TO-DATE
+> Task :device-android:data-local:compileDebugJavaWithJavac UP-TO-DATE
+> Task :device-android:data-local:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :device-android:data-local:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :device-android:data-local:processDebugJavaRes UP-TO-DATE
+> Task :device-android:feature-location:createFullJarDebug
+> Task :device-android:service-runtime:generateDebugUnitTestStubRFile
+> Task :device-android:feature-camera:compileDebugKotlin UP-TO-DATE
+> Task :device-android:data-local:kaptGenerateStubsDebugUnitTestKotlin UP-TO-DATE
+> Task :device-android:feature-camera:compileDebugJavaWithJavac NO-SOURCE
+> Task :device-android:feature-camera:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :device-android:feature-camera:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :device-android:feature-camera:processDebugJavaRes UP-TO-DATE
+> Task :device-android:data-local:kaptDebugUnitTestKotlin UP-TO-DATE
+> Task :device-android:data-local:compileDebugUnitTestKotlin NO-SOURCE
+> Task :device-android:app:processDebugResources UP-TO-DATE
+> Task :device-android:data-local:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :device-android:data-local:processDebugUnitTestJavaRes NO-SOURCE
+> Task :device-android:feature-location:extractDebugAnnotations
+> Task :device-android:data-local:testDebugUnitTest NO-SOURCE
+> Task :device-android:feature-location:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :device-android:data-local:mergeDebugNativeLibs NO-SOURCE
+> Task :device-android:feature-location:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :device-android:data-local:stripDebugDebugSymbols NO-SOURCE
+> Task :device-android:data-local:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :device-android:feature-location:mergeDebugJavaResource UP-TO-DATE
+> Task :device-android:service-runtime:compileDebugKotlin UP-TO-DATE
+> Task :device-android:service-runtime:compileDebugJavaWithJavac NO-SOURCE
+> Task :device-android:service-runtime:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :device-android:service-runtime:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :device-android:data-local:extractDebugAnnotations
+> Task :device-android:data-local:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :device-android:data-local:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :device-android:service-runtime:processDebugJavaRes UP-TO-DATE
+> Task :device-android:data-local:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :device-android:service-runtime:compileDebugUnitTestKotlin NO-SOURCE
+> Task :device-android:feature-location:syncDebugLibJars
+> Task :device-android:service-runtime:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :device-android:data-local:mergeDebugShaders UP-TO-DATE
+> Task :device-android:service-runtime:processDebugUnitTestJavaRes NO-SOURCE
+> Task :device-android:data-local:compileDebugShaders NO-SOURCE
+> Task :device-android:data-local:generateDebugAssets UP-TO-DATE
+> Task :device-android:service-runtime:testDebugUnitTest NO-SOURCE
+> Task :device-android:data-local:packageDebugAssets UP-TO-DATE
+> Task :device-android:data-local:prepareDebugArtProfile UP-TO-DATE
+> Task :native-hardware-service:configureCMakeDebug[arm64-v8a]
+> Task :device-android:data-local:prepareLintJarForPublish UP-TO-DATE
+> Task :device-android:data-local:mergeDebugJavaResource UP-TO-DATE
+> Task :device-android:service-runtime:extractDebugAnnotations
+> Task :device-android:service-runtime:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :device-android:service-runtime:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :device-android:feature-location:bundleDebugLocalLintAar
+> Task :device-android:service-runtime:mergeDebugJavaResource UP-TO-DATE
+> Task :native-hardware-service:compileDebugKotlin UP-TO-DATE
+> Task :native-hardware-service:compileDebugJavaWithJavac NO-SOURCE
+> Task :native-hardware-service:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :native-hardware-service:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :native-hardware-service:generateDebugUnitTestStubRFile UP-TO-DATE
+> Task :native-hardware-service:compileDebugUnitTestKotlin NO-SOURCE
+> Task :native-hardware-service:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :device-android:data-local:syncDebugLibJars
+> Task :device-android:service-runtime:syncDebugLibJars
+> Task :native-hardware-service:processDebugJavaRes UP-TO-DATE
+> Task :native-hardware-service:processDebugUnitTestJavaRes NO-SOURCE
+> Task :native-hardware-service:testDebugUnitTest NO-SOURCE
+> Task :device-android:data-local:bundleDebugLocalLintAar
+> Task :device-android:service-runtime:bundleDebugLocalLintAar
+> Task :device-android:data-local:createFullJarDebug
+> Task :device-android:data-local:writeDebugLintModelMetadata UP-TO-DATE
+> Task :device-android:data-local:extractProguardFiles UP-TO-DATE
+> Task :device-android:data-local:preDebugAndroidTestBuild UP-TO-DATE
+> Task :device-android:data-local:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :device-android:service-runtime:createFullJarDebug
+> Task :native-hardware-service:buildCMakeDebug[arm64-v8a]
+> Task :device-android:feature-camera:createFullJarDebug UP-TO-DATE
+> Task :device-android:core-model:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :device-android:core-model:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:core-model:mergeDebugNativeLibs NO-SOURCE
+> Task :device-android:core-model:stripDebugDebugSymbols NO-SOURCE
+> Task :native-hardware-service:configureCMakeDebug[armeabi-v7a]
+> Task :device-android:core-model:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :device-android:core-protocol:extractDebugAnnotations
+> Task :device-android:hardware-api:extractDebugAnnotations
+> Task :device-android:core-protocol:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :device-android:hardware-api:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :device-android:core-protocol:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :native-hardware-service:buildCMakeDebug[armeabi-v7a]
+> Task :device-android:core-model:extractDebugAnnotations
+> Task :device-android:hardware-api:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :device-android:core-model:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :device-android:core-model:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :device-android:core-protocol:mergeDebugJavaResource UP-TO-DATE
+> Task :device-android:hardware-api:mergeDebugJavaResource UP-TO-DATE
+> Task :device-android:core-model:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :device-android:hardware-api:syncDebugLibJars UP-TO-DATE
+> Task :device-android:core-protocol:syncDebugLibJars UP-TO-DATE
+> Task :device-android:core-model:mergeDebugShaders UP-TO-DATE
+> Task :device-android:core-protocol:bundleDebugLocalLintAar UP-TO-DATE
+> Task :device-android:hardware-api:bundleDebugLocalLintAar UP-TO-DATE
+> Task :device-android:core-model:compileDebugShaders NO-SOURCE
+> Task :device-android:core-model:generateDebugAssets UP-TO-DATE
+> Task :native-hardware-service:configureCMakeDebug[x86]
+> Task :device-android:core-model:packageDebugAssets UP-TO-DATE
+> Task :device-android:core-protocol:createFullJarDebug UP-TO-DATE
+> Task :device-android:app:compileDebugKotlin UP-TO-DATE
+> Task :device-android:hardware-api:createFullJarDebug UP-TO-DATE
+> Task :device-android:core-model:prepareDebugArtProfile UP-TO-DATE
+> Task :device-android:core-model:prepareLintJarForPublish UP-TO-DATE
+> Task :device-android:media-sync:createFullJarDebug UP-TO-DATE
+> Task :device-android:core-model:mergeDebugJavaResource UP-TO-DATE
+> Task :native-hardware-service:buildCMakeDebug[x86]
+> Task :device-android:media-sync:extractDebugAnnotations
+> Task :device-android:feature-camera:extractDebugAnnotations
+> Task :device-android:media-sync:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :device-android:feature-camera:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :device-android:feature-camera:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :device-android:core-model:syncDebugLibJars
+> Task :device-android:media-sync:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :device-android:feature-camera:mergeDebugJavaResource UP-TO-DATE
+> Task :device-android:media-sync:mergeDebugJavaResource UP-TO-DATE
+> Task :native-hardware-service:configureCMakeDebug[x86_64]
+> Task :device-android:feature-camera:syncDebugLibJars UP-TO-DATE
+> Task :device-android:media-sync:syncDebugLibJars UP-TO-DATE
+> Task :device-android:core-model:bundleDebugLocalLintAar
+> Task :device-android:feature-camera:bundleDebugLocalLintAar UP-TO-DATE
+> Task :device-android:media-sync:bundleDebugLocalLintAar UP-TO-DATE
+> Task :device-android:core-model:createFullJarDebug
+> Task :native-hardware-service:buildCMakeDebug[x86_64]
+> Task :device-android:core-model:writeDebugLintModelMetadata UP-TO-DATE
+> Task :native-hardware-service:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:core-model:extractProguardFiles UP-TO-DATE
+> Task :native-hardware-service:mergeDebugNativeLibs UP-TO-DATE
+> Task :native-hardware-service:stripDebugDebugSymbols UP-TO-DATE
+> Task :native-hardware-service:copyDebugJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :native-hardware-service:extractDebugAnnotations
+> Task :native-hardware-service:extractDeepLinksForAarDebug UP-TO-DATE
+> Task :device-android:core-model:generateDebugLintModel
+> Task :device-android:core-protocol:generateDebugAndroidTestLintModel
+> Task :device-android:core-model:compileDebugUnitTestKotlin
+> Task :device-android:core-model:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :native-hardware-service:mergeDebugGeneratedProguardFiles UP-TO-DATE
+> Task :native-hardware-service:mergeDebugConsumerProguardFiles UP-TO-DATE
+> Task :device-android:feature-camera:compileDebugUnitTestKotlin
+> Task :device-android:core-model:processDebugUnitTestJavaRes UP-TO-DATE
+> Task :device-android:feature-camera:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :device-android:core-protocol:generateDebugLintModel
+> Task :device-android:feature-camera:processDebugUnitTestJavaRes UP-TO-DATE
+> Task :native-hardware-service:mergeDebugShaders UP-TO-DATE
+> Task :native-hardware-service:compileDebugShaders NO-SOURCE
+> Task :native-hardware-service:generateDebugAssets UP-TO-DATE
+> Task :native-hardware-service:packageDebugAssets UP-TO-DATE
+> Task :device-android:core-protocol:generateDebugUnitTestLintModel
+> Task :native-hardware-service:prepareDebugArtProfile UP-TO-DATE
+> Task :native-hardware-service:prepareLintJarForPublish UP-TO-DATE
+> Task :device-android:core-protocol:compileDebugUnitTestKotlin
+> Task :device-android:hardware-api:compileDebugUnitTestKotlin
+> Task :device-android:data-local:generateDebugLintModel
+> Task :device-android:media-sync:compileDebugUnitTestKotlin
+> Task :device-android:hardware-api:generateDebugAndroidTestLintModel
+> Task :device-android:hardware-api:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :native-hardware-service:mergeDebugJavaResource UP-TO-DATE
+> Task :device-android:hardware-api:processDebugUnitTestJavaRes UP-TO-DATE
+> Task :device-android:media-sync:generateDebugLintModel
+> Task :native-hardware-service:syncDebugLibJars UP-TO-DATE
+> Task :native-hardware-service:bundleDebugLocalLintAar UP-TO-DATE
+> Task :device-android:feature-location:generateDebugLintModel
+> Task :device-android:media-sync:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :native-hardware-service:createFullJarDebug UP-TO-DATE
+> Task :native-hardware-service:preDebugAndroidTestBuild UP-TO-DATE
+> Task :native-hardware-service:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :native-hardware-service:writeDebugLintModelMetadata UP-TO-DATE
+> Task :device-android:media-sync:processDebugUnitTestJavaRes UP-TO-DATE
+> Task :device-android:core-protocol:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :device-android:core-protocol:processDebugUnitTestJavaRes UP-TO-DATE
+> Task :device-android:app:compileDebugJavaWithJavac UP-TO-DATE
+> Task :device-android:app:bundleDebugClassesToRuntimeJar
+> Task :device-android:feature-location:generateDebugAndroidTestLintModel
+> Task :device-android:app:bundleDebugClassesToCompileJar
+> Task :device-android:service-runtime:generateDebugAndroidTestLintModel
+> Task :device-android:app:processDebugJavaRes UP-TO-DATE
+> Task :device-android:app:compileDebugUnitTestKotlin NO-SOURCE
+> Task :device-android:app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :device-android:app:processDebugUnitTestJavaRes NO-SOURCE
+> Task :device-android:feature-location:generateDebugUnitTestLintModel
+> Task :device-android:app:testDebugUnitTest NO-SOURCE
+> Task :device-android:app:generateDebugAndroidTestLintModel
+> Task :native-hardware-service:generateDebugAndroidTestLintModel
+> Task :native-hardware-service:extractProguardFiles UP-TO-DATE
+> Task :device-android:data-local:generateDebugAndroidTestLintModel
+> Task :native-hardware-service:generateDebugUnitTestLintModel
+> Task :device-android:data-local:generateDebugUnitTestLintModel
+> Task :device-android:service-runtime:generateDebugUnitTestLintModel
+> Task :device-android:data-local:generateDebugLintReportModel
+> Task :device-android:feature-location:generateDebugLintReportModel
+> Task :device-android:app:generateDebugUnitTestLintModel
+> Task :device-android:core-model:testDebugUnitTest
+> Task :device-android:hardware-api:testDebugUnitTest
+> Task :device-android:core-protocol:testDebugUnitTest
+> Task :device-android:feature-camera:testDebugUnitTest
+> Task :device-android:core-model:preDebugAndroidTestBuild UP-TO-DATE
+> Task :device-android:media-sync:testDebugUnitTest
+> Task :device-android:core-model:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :device-android:core-protocol:generateDebugLintReportModel
+> Task :device-android:core-model:generateDebugAndroidTestLintModel
+> Task :device-android:hardware-api:generateDebugLintModel
+> Task :device-android:feature-camera:generateDebugLintModel
+> Task :device-android:media-sync:generateDebugAndroidTestLintModel
+> Task :device-android:core-model:generateDebugUnitTestLintModel
+> Task :device-android:hardware-api:generateDebugUnitTestLintModel
+> Task :native-hardware-service:generateDebugLintReportModel
+> Task :device-android:media-sync:generateDebugUnitTestLintModel
+> Task :native-hardware-service:generateDebugLintModel
+> Task :device-android:service-runtime:generateDebugLintModel
+> Task :device-android:core-model:generateDebugLintReportModel
+> Task :device-android:feature-camera:generateDebugAndroidTestLintModel
+> Task :device-android:hardware-api:generateDebugLintReportModel
+> Task :device-android:media-sync:generateDebugLintReportModel
+> Task :device-android:service-runtime:generateDebugLintReportModel
+> Task :device-android:feature-camera:generateDebugUnitTestLintModel
+> Task :device-android:app:generateDebugLintReportModel
+> Task :device-android:feature-camera:generateDebugLintReportModel
+> Task :native-hardware-service:lintAnalyzeDebugAndroidTest
+> Task :device-android:core-protocol:lintAnalyzeDebugAndroidTest
+> Task :device-android:hardware-api:lintAnalyzeDebugAndroidTest
+> Task :device-android:feature-location:lintAnalyzeDebugAndroidTest
+> Task :native-hardware-service:lintAnalyzeDebugUnitTest
+> Task :device-android:core-model:lintAnalyzeDebugAndroidTest
+> Task :device-android:core-model:lintAnalyzeDebugUnitTest
+> Task :device-android:hardware-api:lintAnalyzeDebugUnitTest
+> Task :device-android:core-protocol:lintAnalyzeDebugUnitTest
+> Task :device-android:core-model:lintAnalyzeDebug
+> Task :device-android:app:lintAnalyzeDebugUnitTest
+> Task :device-android:app:lintAnalyzeDebugAndroidTest
+> Task :device-android:data-local:lintAnalyzeDebugAndroidTest
+> Task :device-android:core-protocol:lintAnalyzeDebug
+> Task :device-android:data-local:lintAnalyzeDebug
+> Task :device-android:media-sync:lintAnalyzeDebug
+> Task :device-android:feature-location:lintAnalyzeDebug
+> Task :device-android:data-local:lintAnalyzeDebugUnitTest
+> Task :device-android:hardware-api:lintAnalyzeDebug
+> Task :device-android:feature-camera:lintAnalyzeDebugUnitTest
+> Task :device-android:feature-camera:lintAnalyzeDebugAndroidTest
+> Task :device-android:feature-location:lintAnalyzeDebugUnitTest
+> Task :device-android:feature-camera:lintAnalyzeDebug
+> Task :native-hardware-service:lintAnalyzeDebug
+> Task :device-android:media-sync:lintAnalyzeDebugAndroidTest
+> Task :device-android:media-sync:lintAnalyzeDebugUnitTest
+
+> Task :native-hardware-service:lintReportDebug
+Wrote HTML report to file:///Users/caxzz/Desktop/android-helmet/native-hardware-service/build/reports/lint-results-debug.html
+
+> Task :native-hardware-service:lintDebug
+> Task :device-android:service-runtime:lintAnalyzeDebugUnitTest
+> Task :device-android:core-model:lintReportDebug
+> Task :device-android:core-model:lintDebug
+> Task :device-android:core-protocol:lintReportDebug
+> Task :device-android:core-protocol:lintDebug
+
+> Task :device-android:data-local:lintReportDebug
+Wrote HTML report to file:///Users/caxzz/Desktop/android-helmet/device-android/data-local/build/reports/lint-results-debug.html
+
+> Task :device-android:data-local:lintDebug
+> Task :device-android:service-runtime:lintAnalyzeDebugAndroidTest
+
+> Task :device-android:feature-location:lintReportDebug
+Wrote HTML report to file:///Users/caxzz/Desktop/android-helmet/device-android/feature-location/build/reports/lint-results-debug.html
+
+> Task :device-android:feature-location:lintDebug
+
+> Task :device-android:feature-camera:lintReportDebug
+Wrote HTML report to file:///Users/caxzz/Desktop/android-helmet/device-android/feature-camera/build/reports/lint-results-debug.html
+
+> Task :device-android:feature-camera:lintDebug
+
+> Task :device-android:media-sync:lintReportDebug
+Wrote HTML report to file:///Users/caxzz/Desktop/android-helmet/device-android/media-sync/build/reports/lint-results-debug.html
+
+> Task :device-android:media-sync:lintDebug
+
+> Task :device-android:hardware-api:lintReportDebug
+Wrote HTML report to file:///Users/caxzz/Desktop/android-helmet/device-android/hardware-api/build/reports/lint-results-debug.html
+
+> Task :device-android:hardware-api:lintDebug
+> Task :device-android:service-runtime:lintAnalyzeDebug
+
+> Task :device-android:service-runtime:lintReportDebug
+Wrote HTML report to file:///Users/caxzz/Desktop/android-helmet/device-android/service-runtime/build/reports/lint-results-debug.html
+
+> Task :device-android:service-runtime:lintDebug
+> Task :device-android:app:lintAnalyzeDebug
+
+> Task :device-android:app:lintReportDebug
+Wrote HTML report to file:///Users/caxzz/Desktop/android-helmet/device-android/app/build/reports/lint-results-debug.html
+
+> Task :device-android:app:lintDebug
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.9/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 16s
+454 actionable tasks: 141 executed, 313 up-to-date

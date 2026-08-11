@@ -1,0 +1,54 @@
+阶段 7 管理端媒体归档回归
+日期：2026-08-11
+
+实现范围
+
+1. GET /v1/media 支持可选 deviceId、PHOTO/VIDEO kind 和 1..100 limit，并按媒体发生时间和 mediaId 确定性倒序。
+2. 列表沿用生产主体绑定、组织边界和可选设备子集；跨组织设备筛选返回 403 并进入拒绝审计。
+3. 管理端显示时间、人员、尺寸、时长、关联事件、位置和归档状态，并支持设备和类型筛选。
+4. 预览使用认证头读取同源正文，不把令牌写入 URL。页面限制 100 MiB，并核对声明长度、实际读取长度、MIME 和 ETag 摘要标识。
+5. 关闭预览或更换令牌会取消读取、撤销 Blob URL，并清除旧组织媒体列表。
+6. 媒体正文响应使用 Cache-Control: private, no-store。
+7. 页面 CSP 允许受控代码生成的 blob: 图像和音视频地址。首次浏览器取证发现此前策略阻止 blob: 图像显示，修复后图像完整显示；object、base 和 frame 约束保持不变。
+8. 新增 BrowserMediaArchiveEndToEndInstrumentedTest。测试在 H618 上生成确定性 640 × 360 JPEG，经真实 MediaUploadWorker 和 ADB reverse 上传，再由浏览器认证预览。
+
+H618 与浏览器端到端结果
+
+- 仪器测试：BrowserMediaArchiveEndToEndInstrumentedTest 1/1 通过，初次耗时 0.813 秒；实现和证据提交后使用相同媒体 ID 幂等复跑 1/1 通过，耗时 0.662 秒。
+- 测试设备：H618，ADB 序列号 2c001031774186e21d3。
+- 媒体 ID：browser-media-h618-20260811；设备 ID：browser-media-device-a；事件：browser-media-e2e。
+- 创建时间：1786421603000；类型：PHOTO / image/jpeg；尺寸：640 × 360；字节数：27,218。
+- SHA-256 与 ETag：acbed968e045a59734b0bbcf50bb0d5bd84f36c064ee21e42409459a0e6f4842。
+- 管理员 A 经页面读取正文并显示图像，页面显示 26.6 KiB，完成长度、类型和摘要标识核对。
+- 切换为组织 B 查看者后，身份和设备范围变为 browser-media-organization-b / browser-media-device-b，媒体列表为空，不保留组织 A 归档。
+- 组织 B 查看者显式查询组织 A 设备返回 403。组织 B 管理员页面显示 /v1/media 拒绝审计及主体 browser-media-viewer-b。
+- 首次截图暴露 CSP 未允许 blob: 的真实显示缺陷。实现提交补充 img-src blob: 和 media-src blob:，定向后台测试和浏览器复验通过。
+
+浏览器证据
+
+- dashboard-media-h618-preview-browser.jpg：1280 × 3932；SHA-256 6b3ffb8de93feeb970a921853131e168000bd941a5b072b18ba129513628e6a6。
+- dashboard-media-cross-org-browser.jpg：1280 × 3624；SHA-256 1b6b6674b9f0b0881f6d42f77618fb588b10013fd7a8325c0cd7de9a2639261f。
+- dashboard-media-cross-org-audit-browser.jpg：1280 × 3777；SHA-256 8f2b285bc2cd895e28f919e382dfc3582688599131d70bdc42f103a0af406fc3。
+
+自动验证
+
+- :device-android:service-runtime:assembleDebugAndroidTest：通过，297 个任务，17 个执行、280 个最新。
+- Android debug/release 单元测试、Lint、debug APK、androidTest APK 和未签名 release APK：2022/2022 个 Gradle 任务通过。
+- 后台定向 CSP 测试：1/1 通过。
+- python3 -m unittest discover -s backend/tests：90/90 项通过，耗时 20.668 秒。
+- node --check dashboard/app.js：通过。
+- python3 -m py_compile backend/media_service.py backend/tests/test_media_service.py：通过。
+- git diff --check：通过。
+
+覆盖结果
+
+- 开发单令牌模式要求有效操作主体头；缺失主体返回 403。
+- 照片和视频列表、类型筛选、设备筛选、非法 VOICE 类型和超限 limit 已覆盖。
+- schema 2 两组织验证本组织列表只返回绑定设备媒体，另一组织为空，显式跨组织筛选返回 403。
+- 单项正文继续在返回前完成对象大小和 SHA-256 校验；自动测试核对 ETag 和 no-store。
+- 管理端资源测试确认媒体归档入口、列表 API、预览上限、Blob URL、Blob CSP 和换令牌媒体清理代码存在。
+- H618 与浏览器实跑补充验证有效 JPEG 解码、页面实际显示、身份切换后列表清理和拒绝审计可见性。
+
+证据边界
+
+测试图由 H618 Android Canvas 在测试包私有目录生成，不是摄像头成像。后台使用本地 schema 2 身份夹具、SQLite、本地对象目录、HTTP 和 ADB reverse。结果证明设备端媒体生成、Worker 上传、后台归档、认证浏览器预览、身份切换清理、跨组织拒绝和审计的软件闭环，不替代真实摄像头、生产 PostgreSQL/S3/HTTPS、正式身份服务、生产网络或最终整机端到端证据。

@@ -1,0 +1,57 @@
+阶段 7 管理端语音消息播放器回归
+日期：2026-08-11
+
+实现范围
+
+1. Android MediaKind 新增 VOICE，并保存发送主体、发送角色、允许角色和可选呼叫 ID。
+2. Room 从 v6 迁移至 v7。旧照片和视频记录保持不变，语音字段使用空默认值；新增持久化往返和 v6 到 v7 迁移测试。
+3. MediaUploadWorker 复用既有断点上传、摘要校验、幂等完成和失败分类；VOICE 请求发送 durationMillis、senderId、senderRole、allowedRoles 和 callId，不发送图像尺寸、人员和位置字段。
+4. 客户端在读取文件后验证语音 MIME、正时长、发送主体、发送角色、非空允许角色和可选呼叫 ID。无效元数据作为不可重试错误处理。
+5. DISPATCHER、SUPERVISOR 和 ADMIN 具有 PLAY_VOICE_MESSAGES 能力；VIEWER 不请求受限列表。
+6. 管理端播放器使用认证头读取 /v1/voice-messages/{messageId}/content，不把令牌写入 URL。页面要求 Content-Length，并核对实际长度、MIME、ETag 和 25 MiB 上限。
+7. 关闭播放器或更换令牌会取消读取、停止音频、撤销 Blob URL，并清除旧组织语音列表。正文使用 Cache-Control: private, no-store。
+
+H618 到浏览器端到端结果
+
+- 测试设备：H618 Android 12，ADB 序列号 2c001031774186e21d3。
+- BrowserVoiceMessageEndToEndInstrumentedTest 在测试包私有目录生成确定性 16 kHz、单声道、16 位 PCM WAV，经真实 MediaUploadWorker 和 ADB reverse 上传。
+- 初次测试 1/1 通过，耗时 0.890 秒。实现提交后重新构建、安装并清空测试包数据，使用相同消息 ID 幂等复跑 1/1 通过，耗时 1.009 秒。
+- 消息 ID：browser-voice-h618-20260811；设备和发送主体：browser-media-device-a；发送角色：DEVICE；事件：browser-voice-e2e。
+- 类型：VOICE / audio/wav；时长：1,500 毫秒；字节数：48,044；允许角色：ADMIN、DISPATCHER、SUPERVISOR。
+- 服务端对象、下载文件和 ETag 摘要均为 562bf8eb97984aa0e005a78b4f3df63b75ad9c93d7e362f5daf0fdd82839e6c4。下载文件由 file 识别为 RIFF little-endian、Microsoft PCM、16 bit、mono、16000 Hz。
+- 管理员 A 页面显示设备、2 秒、设备发送者、46.9 KiB、事件、audio/wav 和允许角色。打开播放器后正文长度、类型和摘要标识核对通过，audio 元素使用同源 Blob URL。
+- 浏览器播放控件由播放图标变为暂停图标，证明 WAV 已被浏览器解码并进入播放状态。没有录音或声学测量，因此不证明声音可听、扬声器输出或语音可懂度。
+- 语音审计表记录 1 条 UPLOAD 和 2 条 PLAYBACK。两次 PLAYBACK 均由 browser-media-admin-a / ADMIN 产生。
+
+权限隔离结果
+
+- 组织 B 的 VIEWER 身份 browser-media-viewer-b 绑定 browser-media-organization-b / browser-media-device-b。页面显示当前角色不可检索语音消息和当前身份没有语音消息播放权限，不保留组织 A 消息。
+- 组织 B 管理员 browser-media-admin-b 只看到本组织设备，语音列表为空。
+- 组织 B 管理员直接请求组织 A 消息正文返回 403，原因为 resource belongs to another organization or device。
+- security_audit_events 保存 DENIED 记录，包含组织 B、ADMIN、GET、完整资源路径、403 和拒绝原因；管理端权限中心显示同一记录。
+
+浏览器证据
+
+- dashboard-voice-h618-player-browser.jpg：1280 × 3932；SHA-256 b76befcafe6cae50b9bac6b3aa7c79a2198c2cb5dd404c711fa0b2ebb8542f68。显示已核对正文并加载 0:01 音频控件。
+- dashboard-voice-h618-playing-browser.jpg：1280 × 3932；SHA-256 477e7128b4a6540e81a072c95b9fa6afe3e9e7e7f153c6b6a991701d2431df78。控件显示暂停图标，证明浏览器进入播放状态。
+- dashboard-voice-cross-org-browser.jpg：1280 × 720；SHA-256 c6dd9134b1493d23e060e7606b4c2026fba086b1bb2a42be145635ba4c1c4075。显示 VIEWER 不可检索和播放语音消息。
+- dashboard-voice-cross-org-audit-browser.jpg：1280 × 720；SHA-256 9b30fa9ef14ce239df8c80310582374382b17d45227632722bec682f760fc551。显示组织 B 管理员身份、设备范围和跨组织正文 403 拒绝审计。
+
+自动验证
+
+- :device-android:media-sync:testDebugUnitTest、:device-android:data-local:assembleDebugAndroidTest 和 :device-android:service-runtime:assembleDebugAndroidTest：330 个 Gradle 任务通过，43 个执行、287 个最新。
+- H618 数据层专项 5/5 通过，覆盖 v1 到 v7、v6 到 v7、媒体状态、待传重开和语音元数据持久化。
+- H618 语音端到端初次及提交后复跑均为 1/1 通过。
+- 后台全量回归：90/90 项通过。
+- 管理端脚本语法、后台 Python 编译和 git diff --check 通过。
+
+覆盖结果
+
+- 单元测试确认 VOICE JSON 包含授权字段并排除 width、height 和 location。
+- Room v7 schema、旧记录迁移默认值和语音元数据往返在 H618 上通过。
+- H618 实跑覆盖测试 WAV 生成、私有文件、SHA-256、Room 待传记录、真实 Worker、断点上传会话、服务端完成、设备端 DELIVERED 状态和幂等复跑。
+- 管理端实跑覆盖授权列表、认证正文、长度、类型、摘要、Blob 音频解码、播放控件状态、VIEWER 隔离、跨组织 403 和拒绝审计。
+
+证据边界
+
+WAV 是 H618 测试包生成的 440 Hz 合成音，不是麦克风录音。后台使用本地 schema 2 身份夹具、SQLite、本地对象目录、HTTP 和 ADB reverse。浏览器控件进入播放状态不等于扬声器声学输出。结果证明 Android 语音媒体模型、Room、Worker、后台归档、授权浏览器解码播放、组织隔离和审计的软件闭环，不替代真实麦克风、扬声器声学测量、生产 PostgreSQL/S3/HTTPS、正式身份服务、生产网络、真实 WebRTC 通话或最终整机验收。

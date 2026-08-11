@@ -1,0 +1,3 @@
+gradlew.bat text eol=crlf
+docs/verification/** -whitespace
+ANDROID_MIGRATION_GUIDE.md whitespace=-trailing-space

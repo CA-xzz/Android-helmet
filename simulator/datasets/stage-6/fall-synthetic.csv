@@ -1,0 +1,9 @@
+# dataset_id=fall-synthetic-v1
+# sample_rate_hz=10
+# source=synthetic
+# final_hardware_evidence=false
+sample_ref,monotonic_ms,accel_x_mg,accel_y_mg,accel_z_mg,gyro_x_mdps,gyro_y_mdps,gyro_z_mdps,electric_mv,pressure_pa,temperature_centi_c,altitude_mm,label
+1,100,0,0,1000,0,0,0,,,,,NONE
+2,200,0,0,100,0,0,0,,,,,NONE
+3,340,0,0,100,0,0,0,,,,,NONE
+4,400,2400,0,0,0,0,0,,,,,FALL

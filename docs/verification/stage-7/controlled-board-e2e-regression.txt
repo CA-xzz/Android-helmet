@@ -1,0 +1,27 @@
+H618 local end-to-end regression
+Date: 2026-08-11
+ADB serial: 2c001031774186e21d3
+Device: QUAD-CORE H618 p1
+
+Environment
+
+Two loopback backend instances used isolated temporary SQLite databases and local object directories. ADB reverse exposed them to the board. Temporary services, directories and port forwards were removed after the run.
+
+Covered paths
+
+- CommunicationWorker created calls, synchronized commands and ICE configuration, submitted signaling, received broadcasts and returned command and playback results.
+- DeviceStatusWorker uploaded a status, matched the receipt, cleared its outbox entry and calibrated server time.
+- MediaUploadWorker uploaded a Room media record through chunk sessions.
+- SafetyAlertWorker uploaded an alert, sample snapshot, location association and local-action fields.
+- TrackUploadWorker uploaded ordered track points and cleared the reliable queue.
+- The media client resumed a partial upload and completed it idempotently.
+- The main service published a new status sequence and server contact time after the heartbeat interval.
+
+Backend observation
+
+All tested calls, commands, signaling, broadcast, media, alert, track and device-status requests returned successful responses. The final device status reported simulated hardware, no validated network, server-calibrated time and no real battery or position.
+
+Boundary
+
+This proves the Android-to-backend software path over ADB reverse. It does not prove external PostgreSQL, S3, MQTT, TURN, real network, camera, GNSS/RTK, audio, LoRa or safety sensors.
+

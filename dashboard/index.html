@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>安全帽运行台</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/dashboard/styles.css">
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">ANDROID HELMET</p>
+      <h1>安全帽运行台</h1>
+    </div>
+    <div id="connection-state" class="state">未连接</div>
+  </header>
+
+  <main>
+    <section class="panel controls" aria-labelledby="connection-title">
+      <h2 id="connection-title">连接</h2>
+      <label>访问令牌<input id="token" type="password" autocomplete="off"></label>
+      <label>操作员 ID<input id="actor-id" value="dispatcher-web" pattern="[A-Za-z0-9._:-]+"></label>
+      <label>角色
+        <select id="actor-role">
+          <option>DISPATCHER</option>
+          <option>SUPERVISOR</option>
+          <option>ADMIN</option>
+          <option>VIEWER</option>
+        </select>
+      </label>
+      <button id="refresh" type="button">刷新</button>
+      <button id="sound" type="button" class="secondary">启用声音</button>
+      <p class="hint">令牌仅保存在当前页面内存。生产环境必须通过 HTTPS 访问。</p>
+    </section>
+
+    <section class="panel access-panel" aria-labelledby="access-title">
+      <div class="section-heading">
+        <h2 id="access-title">权限中心</h2>
+        <span id="access-mode">连接后核对实际权限</span>
+      </div>
+      <div id="access-profile" class="access-profile" aria-live="polite">
+        <div class="empty compact">尚未读取令牌对应的身份</div>
+      </div>
+      <div class="access-details">
+        <section aria-labelledby="directory-title">
+          <h3 id="directory-title">本组织权限目录</h3>
+          <div id="access-directory" class="access-directory">
+            <div class="empty compact">仅本组织管理员可查看脱敏目录</div>
+          </div>
+        </section>
+        <section aria-labelledby="security-audit-title">
+          <h3 id="security-audit-title">权限拒绝审计</h3>
+          <div id="security-audit" class="security-audit">
+            <div class="empty compact">仅本组织管理员可查看拒绝记录</div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="summary" aria-label="告警摘要">
+      <article><strong id="open-count">0</strong><span>待处理</span></article>
+      <article><strong id="critical-count">0</strong><span>严重告警</span></article>
+      <article><strong id="active-call-count">0</strong><span>活动呼叫</span></article>
+      <article><strong id="device-count">0</strong><span>涉及设备</span></article>
+    </section>
+
+    <section class="panel call-panel" aria-labelledby="calls-title">
+      <div class="section-heading">
+        <h2 id="calls-title">呼叫</h2>
+        <span>接听、拒绝和挂断均写入审计</span>
+      </div>
+      <div id="calls" class="calls" aria-live="polite"></div>
+    </section>
+
+    <section class="panel broadcast-panel" aria-labelledby="broadcast-title">
+      <div class="section-heading">
+        <h2 id="broadcast-title">文字广播</h2>
+        <span>发送记录和设备播放回执</span>
+      </div>
+      <div class="broadcast-workspace">
+        <fieldset id="broadcast-compose" class="broadcast-compose" disabled>
+          <legend>发送广播</legend>
+          <label>目标设备
+            <select id="broadcast-device"></select>
+          </label>
+          <label>文字内容
+            <textarea id="broadcast-text" maxlength="2000" rows="4" placeholder="输入需要设备自动播报的文字"></textarea>
+          </label>
+          <div class="broadcast-options">
+            <label>优先级
+              <select id="broadcast-priority">
+                <option value="5">普通</option>
+                <option value="10">紧急</option>
+                <option value="0">低</option>
+              </select>
+            </label>
+            <label>语言
+              <input id="broadcast-language" value="zh-CN" maxlength="128">
+            </label>
+            <label>有效期
+              <select id="broadcast-validity">
+                <option value="15">15 分钟</option>
+                <option value="5">5 分钟</option>
+                <option value="60">1 小时</option>
+                <option value="0">不设置</option>
+              </select>
+            </label>
+          </div>
+          <button id="send-broadcast" type="button">发送到设备</button>
+          <p id="broadcast-form-state" class="hint" role="status">连接后核对发送权限</p>
+        </fieldset>
+        <div id="broadcasts" class="broadcasts" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="panel voice-panel" aria-labelledby="voice-title">
+      <div class="section-heading">
+        <h2 id="voice-title">语音消息</h2>
+        <span id="voice-access-state">连接后核对播放权限</span>
+      </div>
+      <div id="voice-messages" class="voice-messages" aria-live="polite"></div>
+    </section>
+
+    <section class="panel media-panel" aria-labelledby="media-title">
+      <div class="section-heading">
+        <h2 id="media-title">媒体归档</h2>
+        <span>按当前身份的设备范围检索</span>
+      </div>
+      <div class="media-filters">
+        <label>设备
+          <select id="media-device-filter">
+            <option value="">全部可访问设备</option>
+          </select>
+        </label>
+        <label>类型
+          <select id="media-kind-filter">
+            <option value="">照片和视频</option>
+            <option value="PHOTO">照片</option>
+            <option value="VIDEO">视频</option>
+          </select>
+        </label>
+        <button id="apply-media-filter" type="button" class="secondary">应用筛选</button>
+      </div>
+      <div id="media" class="media-archives" aria-live="polite"></div>
+    </section>
+
+    <section class="map-workspace">
+      <div class="panel map-panel">
+        <div class="section-heading">
+          <h2>设备综合地图</h2>
+          <span id="map-state">底图未配置</span>
+        </div>
+        <div id="helmet-map" class="helmet-map" tabindex="0" aria-label="设备位置地图">
+          <div class="tile-layer" aria-hidden="true"></div>
+          <svg class="map-overlay" aria-hidden="true"><g class="routes"></g></svg>
+          <div class="map-markers"></div>
+          <div class="map-controls" aria-label="地图控制">
+            <button id="map-zoom-in" type="button" title="放大">+</button>
+            <button id="map-zoom-out" type="button" title="缩小">−</button>
+            <button id="map-fit" type="button" title="显示全部设备">全</button>
+          </div>
+          <div id="map-empty" class="map-empty">没有可信位置</div>
+        </div>
+        <div class="map-footer">
+          <span><i class="legend-device"></i>设备</span>
+          <span><i class="legend-alert"></i>活动告警</span>
+          <span id="map-attribution">尚未配置生产地图底图</span>
+        </div>
+      </div>
+
+      <aside class="panel device-panel">
+        <div class="section-heading">
+          <h2>设备综合状态</h2>
+          <span>位置、视频、电量和电压</span>
+        </div>
+        <div id="devices" class="devices" aria-live="polite"></div>
+      </aside>
+    </section>
+
+    <section class="workspace alerts-workspace">
+      <div class="panel">
+        <div class="section-heading">
+          <h2>告警列表</h2>
+          <span id="updated-at">尚未刷新</span>
+        </div>
+        <div id="alerts" class="alerts" aria-live="polite"></div>
+      </div>
+
+    </section>
+  </main>
+
+  <dialog id="transition-dialog">
+    <form method="dialog">
+      <h2>更新处置状态</h2>
+      <p id="dialog-alert"></p>
+      <label>目标状态
+        <select id="target-state">
+          <option value="ACKNOWLEDGED">已确认</option>
+          <option value="IN_PROGRESS">处置中</option>
+          <option value="CLOSED">已关闭</option>
+        </select>
+      </label>
+      <label>说明<textarea id="transition-note" maxlength="2000" rows="4"></textarea></label>
+      <p id="dialog-error" class="error" role="alert"></p>
+      <div class="dialog-actions">
+        <button value="cancel" class="secondary">取消</button>
+        <button id="confirm-transition" value="default" type="button">提交</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="video-dialog" class="video-dialog">
+    <form method="dialog">
+      <div class="section-heading">
+        <h2 id="video-title">实时视频</h2>
+        <button id="close-video" value="cancel" class="secondary">关闭</button>
+      </div>
+      <video id="live-video" autoplay playsinline controls></video>
+      <p id="video-state" class="hint">尚未连接</p>
+    </form>
+  </dialog>
+
+  <dialog id="media-dialog" class="media-dialog">
+    <form method="dialog">
+      <div class="section-heading">
+        <h2 id="media-preview-title">媒体预览</h2>
+        <button id="close-media-preview" value="cancel" class="secondary">关闭</button>
+      </div>
+      <div class="media-preview-frame">
+        <img id="media-preview-image" alt="归档照片预览" hidden>
+        <video id="media-preview-video" controls playsinline hidden></video>
+      </div>
+      <p id="media-preview-state" class="hint">尚未读取媒体</p>
+    </form>
+  </dialog>
+
+  <dialog id="voice-dialog" class="voice-dialog">
+    <form method="dialog">
+      <div class="section-heading">
+        <h2 id="voice-preview-title">语音消息</h2>
+        <button id="close-voice-preview" value="cancel" class="secondary">关闭</button>
+      </div>
+      <audio id="voice-preview-audio" controls preload="metadata"></audio>
+      <p id="voice-preview-state" class="hint">尚未读取语音</p>
+    </form>
+  </dialog>
+
+  <script src="/dashboard/app.js" defer></script>
+</body>
+</html>

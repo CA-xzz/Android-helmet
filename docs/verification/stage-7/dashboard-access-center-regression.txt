@@ -1,0 +1,42 @@
+Dashboard access center regression
+Date: 2026-08-11 Asia/Shanghai
+Requirement: REQ-5.1-06
+
+Scope
+
+- GET /v1/access-profile returns the token-bound principal, role, organization, effective device scope and capabilities.
+- ADMIN receives a same-organization sanitized directory.
+- VIEWER, DISPATCHER and SUPERVISOR receive no directory.
+- DEVICE dashboard access is rejected.
+- The directory excludes bearer tokens and tokenSha256 values.
+- Changing the token clears prior identity, directory, audit and operational data.
+
+Automated verification
+
+- backend media service tests covered two organizations, multiple roles, conflicting actor headers, DEVICE rejection and cross-organization resource denial.
+- dashboard asset tests verified access-profile loading, role-based controls, token-change reset and absence of browser storage.
+- node --check dashboard/app.js passed.
+- python3 -m py_compile backend/media_service.py passed.
+
+Browser verification
+
+A same-origin loopback backend used a schema 2 fixture with one organization, one device and ADMIN, VIEWER and DEVICE principals.
+
+Observed ADMIN state:
+
+- Actor ID and role matched the authenticated principal.
+- Organization, device scope and capability list were shown.
+- The directory contained only same-organization principals.
+- A denied VIEWER request appeared in the ADMIN security audit.
+
+Observed VIEWER state:
+
+- Actor ID and role changed after token replacement.
+- Directory and security-audit areas were unavailable.
+- Readable operational resources still loaded.
+- Browser console warnings and errors were zero.
+
+Boundary
+
+This proves local role and organization isolation in the backend and browser. External identity service, real device certificates and external backend deployment remain pending. REQ-5.1-06 stays software complete pending external end-to-end validation.
+

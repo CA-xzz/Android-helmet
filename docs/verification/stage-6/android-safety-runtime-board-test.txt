@@ -1,0 +1,32 @@
+Android 安全检测运行路径开发板验证
+
+日期：2026-08-11（Asia/Shanghai）
+开发板：QUAD-CORE H618 p1
+ADB 序列号：2c001031774186e21d3
+系统：Android 12，API 31
+APK SHA-256：c5903935a5a103d2b562e06169dc83bbd74171250f3a30c5098eacb25d571a67
+
+执行结果
+
+1. :service-runtime:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.helmet.service.runtime.SafetySampleProcessorInstrumentedTest
+   结果：1 项通过，BUILD SUCCESSFUL，318 个 Gradle 任务。
+2. :data-local:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.helmet.data.local.SafetyStoreInstrumentedTest
+   结果：2 项通过，BUILD SUCCESSFUL，72 个 Gradle 任务。
+3. ./tools/test-android.sh
+   结果：单元测试和 Lint 通过，BUILD SUCCESSFUL，738 个 Gradle 任务。
+4. ./tools/build-android.sh
+   结果：APK 构建通过，BUILD SUCCESSFUL，354 个 Gradle 任务。
+5. ADB 安装和冷启动
+   结果：安装成功；MainActivity 启动成功；TotalTime 1757 ms；HelmetService isForeground=true；versionCode=2；versionName=0.2.0；VIBRATE 权限已声明并授予。
+
+已验证的软件行为
+
+- 原始字段样本在 H618 Android 运行环境进入 SafetyDetectionEngine，并生成 Android 来源的安全告警。
+- 合成近电样本生成激活和解除事件，保留基线、超出值、暴露时间、测量值、阈值和累积值。
+- 同一告警周期的激活和解除事件共用稳定告警 ID；SET_OUTPUT 激活和解除命令共用稳定 requestId，并要求协议确认。
+- 原始样本的完全重复输入不重复处理；外部模块重启后复用 sampleReference 时，新样本可替换旧记录。
+- APK 可在目标开发板安装、冷启动并保持前台服务运行。
+
+结论和限制
+
+本次使用合成输入在真实 H618 Android 运行环境验证软件接线，不构成最终硬件证据。开发板未连接 IMU、工频电场传感器、高度传感器、LED、振动器或外部语音器件。板载 TTS 初始化失败。未测量动作识别率、近电标定、高度精度、声学输出、振动输出或 LED 输出。REQ-5.4、REQ-5.5 和 REQ-5.6 保持软件完成待实机。

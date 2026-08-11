@@ -1,0 +1,14 @@
+test_auth_collision_and_chunk_digest_fail_closed (test_media_service.MediaServiceTest) ... ok
+test_call_lifecycle_commands_ack_and_audit_are_idempotent (test_media_service.MediaServiceTest) ... ok
+test_partial_offset_survives_repository_restart (test_media_service.MediaServiceTest) ... ok
+test_resumable_integrity_checked_and_idempotent_archive (test_media_service.MediaServiceTest) ... ok
+test_text_broadcast_command_and_playback_receipts_are_persistent (test_media_service.MediaServiceTest) ... ok
+test_track_batch_is_ordered_persistent_and_idempotent (test_media_service.MediaServiceTest) ... ok
+test_track_batch_rejects_mock_out_of_order_and_collisions (test_media_service.MediaServiceTest) ... ok
+test_voice_message_upload_query_playback_authorization_and_audit (test_media_service.MediaServiceTest) ... ok
+test_webrtc_signals_are_ordered_idempotent_and_use_short_lived_turn_credentials (test_media_service.MediaServiceTest) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 4.860s
+
+OK

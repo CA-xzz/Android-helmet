@@ -1,0 +1,83 @@
+H618 Android 音频 PCM 实机探针
+=============================
+
+验证日期：2026-08-11
+设备序列号：2c001031774186e21d3
+设备型号：QUAD-CORE H618 p1
+系统指纹：Allwinner/apollo_p1/apollo-p1:12/SP1A.211105.004/20260729.120356:eng/test-keys
+
+命令
+----
+
+工作树干净且 HEAD 为上述提交时执行：
+
+  ./tools/run-board-audio-pcm-probe.sh \
+    --adb-serial 2c001031774186e21d3
+
+脚本构建并安装当前主应用和独立仪器测试包。测试只有显式传入
+`hardwareAudioProbe=true` 时执行；普通仪器测试套件通过 JUnit assumption 跳过这两个
+硬件探针。测试结束或失败后，脚本卸载测试包并恢复主应用前台服务。
+
+构建结果
+--------
+
+  BUILD SUCCESSFUL in 6s
+  383 actionable tasks: 31 executed, 352 up-to-date
+
+实机结果
+--------
+
+总结果为 2 项执行、1 项通过、1 项失败，不能计为通过的音频验收项。
+
+播放路径通过：
+
+  audioOutputDeviceTypes=2
+  audioPlaybackSamplesWritten=22050
+  audioPlaybackHeadFrames=22050
+
+Android 将类型 2 枚举为 Built-In Speaker。探针以 44100 Hz、PCM 16-bit、单声道写入
+0.5 秒低幅度测试音，AudioTrack 播放头推进到全部 22050 帧。
+
+麦克风路径失败：
+
+  audioInputDeviceTypes=15,25
+  audioCaptureRoutedDeviceType=15
+  microphoneMuted=false
+  audioCaptureSamples=16000
+  audioCaptureNonZeroSamples=0
+  audioCapturePeak=0
+  audioCaptureRms=0.0
+  java.lang.AssertionError: microphone PCM is entirely zero
+
+Android 将类型 15 枚举并路由为 Built-In Mic。AudioRecord 以 16000 Hz、PCM 16-bit、
+单声道进入 RECORDSTATE_RECORDING 并返回全部 16000 个采样，但所有采样均为零。
+
+板级诊断
+--------
+
+`/proc/asound/pcm`：
+
+  00-00: soc@3000000:codec_plat-5096000.codec 5096000.codec-0 :  : playback 1
+  01-00: 5097000.ahub_dam_plat-snd-soc-dummy-dai snd-soc-dummy-dai-0 :
+  02-00: ahub_plat-snd-soc-dummy-dai snd-soc-dummy-dai-0 :  : playback 1 : capture 1
+
+设备树与属性：
+
+  /sys/firmware/devicetree/base/soc@3000000/codec_mach/soundcard-mach,playback-only
+  dmic_codec/status=disabled
+  sounddmic/status=disabled
+  vendor.audio.input.active=AUDIO_CODEC
+  vendor.audio.output.active=AUDIO_HDMI,AUDIO_I2S0
+
+`audiocodec` 只注册 playback PCM，codec machine 明确为 playback-only，两个 DMIC 节点
+均禁用。card 2 的 capture 来自 AHUB dummy DAI，不能作为内置麦克风采集节点。Android
+音频策略仍发布 Built-In Mic，因此形成策略层存在、内核采集端不可用的不一致。
+
+证据边界
+--------
+
+播放头推进只证明 Android 播放栈接受并消费 PCM，不证明扬声器、功放、声压、频响、失真、
+可懂度或现场可听输出。测试未使用外部麦克风或声学测量仪器。麦克风结果证明当前 H618
+BSP 无法提供非零内置麦克风 PCM，不能用于 WebRTC 双向通话、录音、语音消息或回声测试。
+需要厂商提供启用实际采集端的 BSP、音频原理图和完整麦克风、扬声器及功放样机后复测。
+该失败不改变既有 43/43 项非音频板端仪器测试结果，也不关闭 OQ-002。

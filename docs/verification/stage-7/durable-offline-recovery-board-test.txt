@@ -1,0 +1,132 @@
+H618 持久队列离线进程重启恢复测试
+==================================
+
+验证日期：2026-08-11
+设备序列号：2c001031774186e21d3
+设备型号：QUAD-CORE H618 p1
+Android：12，API 31
+恢复测试包：com.example.helmet.service.runtime.test
+数据层测试包：com.example.helmet.data.local.test
+测试 APK SHA-256：b0a6e5068a3276b53ba6951c9ae16820eabedeba7891b5f675ffabcea992c83f
+数据层测试 APK SHA-256：012b94459858e82fba91684f67a0b2ccf80a31321a55e69612ab02d8d315ecab
+主应用 APK SHA-256：e4d2d29c3a8afe0ca8ebba0dc8dd3971f68a679e9284e061570562802cd0a035
+
+命令
+----
+
+工作树干净且 HEAD 包含上述实现提交时执行：
+
+  ./tools/run-board-durable-offline-recovery.sh \
+    --adb-serial 2c001031774186e21d3
+
+脚本构建并安装独立 service-runtime 仪器测试包。该包使用与主应用相同的 Room、轨迹、
+媒体、告警、WorkManager 调度和 Worker 生产代码，但拥有独立应用数据，不修改主应用
+数据库。测试结束后，脚本清理测试包、隔离后台、临时数据目录和 ADB reverse。
+
+阶段一：建立失败记录和等待任务
+------------------------------
+
+1. 测试先卸载旧测试包并重新安装，确保数据库为空。
+2. 在 H618 上写入一条可信坐标轨迹、一份 300000 字节私有媒体文件和一条带位置及媒体
+   关联的模拟近电告警。
+3. 后台地址设置为设备本机不可达的 127.0.0.1:1，直接执行三个 Worker 一次，以确定性
+   建立 FAILED、attemptCount=1 的持久状态；媒体正文保留在应用私有目录。
+4. 后台地址改为 https://unreachable.invalid，通过正式 enqueue 接口调度轨迹、媒体和告警
+   的远端路由 WorkManager 任务。
+5. H618 的 Android 默认网络为 none，三个远端路由任务均保持 ENQUEUED，没有执行上传。
+6. 测试把记录标识和当前 PID 写入独立 SharedPreferences 后结束，结果 1/1 通过，耗时
+   1.369 秒。
+
+进程边界
+--------
+
+主机对测试包执行 am force-stop。恢复阶段读取前一阶段 PID，并断言当前 PID 不同，证明
+第二阶段运行在新进程中。两个阶段是两次独立 am instrument 调用，不共享内存数据库或
+测试对象。
+
+阶段二：切换路由后自动恢复
+--------------------------
+
+1. 主机在 127.0.0.1:18080 启动使用临时 SQLite、本地对象目录和开发令牌的隔离后台，
+   并通过 ADB reverse 提供给 H618。
+2. 新进程重新打开 Room，确认三条记录仍为 FAILED、attemptCount=1，媒体正文仍存在。
+3. 后台地址改为精确回环地址 127.0.0.1:18080，仅调用轨迹、媒体和告警的正式 enqueue
+   接口，不直接执行 Worker。
+4. 三个旧远端路由任务转为 CANCELLED，三个回环路由任务由 WorkManager 执行并转为
+   SUCCEEDED。
+5. 轨迹、媒体和告警均转为 DELIVERED，attemptCount=2。后台回读分别核对轨迹
+   messageId、告警 evidence.relatedEventId 和媒体 mediaId。
+6. 再次直接运行三个 Worker 作幂等检查，attemptCount 仍为 2，证明已交付记录不会重复
+   尝试。
+7. 后台日志观察到轨迹批量 POST、媒体完成 POST 和告警 POST 各 1 次，均返回 200。
+8. 恢复阶段结果 1/1 通过，耗时 1.603 秒。
+
+批次续传
+--------
+
+1. 同一测试包写入 201 条轨迹、101 条合成近电告警和 101 条合成通话记录，仅分别调用
+   一次轨迹、告警和通信正式 enqueue 接口。
+2. 轨迹 Worker 单批上限为 200，告警 Worker 单批上限为 100，通信 Worker 一次最多处理
+   100 条待上传通话记录。三个唯一任务均追加后续任务，最后一条记录转为 DELIVERED。
+3. 测试核对全部记录已交付且至少尝试一次，并确认每类任务至少有两个新增 SUCCEEDED 记录。
+4. 后台日志累计观察到 3 次轨迹批量 POST、102 次告警 POST、102 次通话 POST 和 1 次
+   媒体完成 POST。计数包含前述离线恢复阶段。
+5. 另写入 101 条位于媒体私有目录之外的无效媒体记录。首批 100 条和第二批 1 条均转为
+   REJECTED，且媒体唯一任务至少产生两个新增 SUCCEEDED 记录。该用例只验证无网络 I/O
+   时的媒体批次调度，不证明 101 个有效媒体文件上传。
+6. UploadBatchContinuationInstrumentedTest 结果 1/1 通过，耗时 10.246 秒；
+   MediaBatchContinuationInstrumentedTest 结果 1/1 通过，耗时 3.559 秒。
+
+通信队列进程恢复
+----------------
+
+1. 测试通过生产 Store 写入一条待发送通话、一条已应用但确认待发送的文字广播命令，以及
+   一条播放状态为 FAILED、最终回执待发送的广播。广播保留原始播放错误
+   DURABLE_PLAYBACK_FAILURE。
+2. 后台预先保存对应广播和命令。测试把通信后台地址改为远端地址，仅调用一次正式
+   enqueue，确认 H618 无默认网络时任务保持 ENQUEUED。
+3. 主机强制终止测试包。恢复阶段断言 PID 已变化，并重新打开 Room 核对三条待发送状态和
+   尝试次数仍为 0。
+4. 恢复阶段切换到 ADB 回环后台，仅调用正式 enqueue。WorkManager 上传通话和命令确认，
+   并根据持久时间按 RECEIVED、FAILED 顺序重放广播回执。
+5. 三类记录均转为 DELIVERED，广播 lastError 仍为 DURABLE_PLAYBACK_FAILURE。旧远端任务
+   转为 CANCELLED，新回环任务转为 SUCCEEDED。
+6. 入队阶段结果 1/1 通过，耗时 0.688 秒；恢复阶段结果 1/1 通过，耗时 1.163 秒。
+7. 后台累计观察到 102 次通话 POST、1 次命令确认 POST 和 2 次该广播的回执 POST，均返回
+   200。计数中的通话包含前述 101 条批次用例。
+
+补充验证
+--------
+
+- H618 上执行 DatabaseMigrationInstrumentedTest 和 EventStoreInstrumentedTest，结果 3/3
+  通过，耗时 1.113 秒。测试确认 1→8 迁移保留事件、版本 8 事件表只保留五个日志字段，
+  并确认重复 messageId 幂等。
+- H618 上执行 CommunicationStoreInstrumentedTest，结果 3/3 通过，耗时 14 秒。测试确认
+  回执传输失败只改变投递状态，不覆盖 TTS 等原始播放错误。
+- 主应用保留原有数据覆盖安装后完成 7→8 迁移。HelmetService 保持前台运行，运行日志
+  在迁移时显示 persistedEventCount=38，未出现 Room 校验或迁移错误，且不再输出
+  pendingOutboxCount。安装广播回执恢复版本后，服务仍为前台，日志显示 persistedEventCount=43，
+  pendingTrack、pendingMedia、pendingCall、pendingBroadcastReceipt 和 pendingSafetyAlert 均为 0；
+  设备仅保留 com.example.helmet 主包，ADB reverse 为空。
+- Android 全量测试和 Lint 通过，共 738 个 Gradle 任务，耗时 38 秒；主应用构建通过。
+- 后台 70 项测试通过，耗时 19.488 秒。
+- 工具 10 项测试和 31 项需求矩阵校验通过。
+
+普通套件边界
+------------
+
+离线恢复测试只有显式传入 durableRecoveryPhase=enqueue 或 recover 时执行，通信恢复测试
+只有显式传入 durableCommunicationPhase=enqueue 或 recover 时执行。无阶段参数的普通仪器
+测试调用以 AssumptionViolated 跳过，不创建记录，也不依赖后台。
+
+证据边界
+--------
+
+该结果证明相同生产 Room、WorkManager 调度和 Worker 代码在 H618 的真实进程退出边界
+后，能保留轨迹、私有媒体和安全告警，并在路由切换后自动完成幂等上传；队列超过单次
+Worker 上限时也会追加任务。阶段一直接执行 Worker 只用于建立确定的失败状态；阶段二
+的恢复和批次续传由 WorkManager 完成。通信恢复用例通过生产 Store 建立待发送记录，证明
+Room 和 Worker 恢复，不证明前台服务实际播放。测试包不是主应用包。后台使用 HTTP、开发
+令牌、临时 SQLite、本地对象目录和 ADB reverse，轨迹、告警、通话和广播均为夹具。媒体
+批次用例使用无效路径验证调度，没有传输媒体正文。该记录不证明生产 4G/5G 网络、MQTT
+Broker 重启、真实相机、GNSS、传感器、外部模块、断网时钟保持或最终整机端到端验收。

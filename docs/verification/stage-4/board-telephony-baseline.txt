@@ -1,0 +1,114 @@
+last known state:
+  Phone Id=0
+    mCallState=0
+    mRingingCallState=0
+    mForegroundCallState=0
+    mBackgroundCallState=0
+    mPreciseCallState=Ringing call state: -1, Foreground call state: -1, Background call state: -1, Disconnect cause: -1, Precise disconnect cause: -1
+    mCallDisconnectCause=-1
+    mCallIncomingNumber=
+    mServiceState={mVoiceRegState=1(OUT_OF_SERVICE), mDataRegState=1(OUT_OF_SERVICE), mChannelNumber=0, duplexMode()=0, mCellBandwidths=[], mOperatorAlphaLong=null, mOperatorAlphaShort=null, isManualNetworkSelection=false(automatic), getRilVoiceRadioTechnology=0(Unknown), getRilDataRadioTechnology=0(Unknown), mCssIndicator=unsupported, mNetworkId=0, mSystemId=0, mCdmaRoamingIndicator=0, mCdmaDefaultRoamingIndicator=0, mIsEmergencyOnly=false, isUsingCarrierAggregation=false, mArfcnRsrpBoost=0, mNetworkRegistrationInfos=[], mNrFrequencyRange=0, mOperatorAlphaLongRaw=null, mOperatorAlphaShortRaw=null, mIsDataRoamingFromRegistration=false, mIsIwlanPreferred=false}
+    mVoiceActivationState= 0
+    mDataActivationState= 0
+    mUserMobileDataState= false
+    mSignalStrength=null
+    mMessageWaiting=false
+    mCallForwarding=false
+    mDataActivity=0
+    mDataConnectionState=0
+    mCellIdentity=null
+    mCellInfo=null
+    mImsCallDisconnectCause=null
+    mSrvccState=-1
+    mCallPreciseDisconnectCause=-1
+    mCallQuality=CallQuality: {downlinkCallQualityLevel=0 uplinkCallQualityLevel=0 callDuration=0 numRtpPacketsTransmitted=0 numRtpPacketsReceived=0 numRtpPacketsTransmittedLost=0 numRtpPacketsNotReceived=0 averageRelativeJitter=0 maxRelativeJitter=0 averageRoundTripTime=0 codecType=0 rtpInactivityDetected=false txSilenceDetected=false rxSilenceDetected=false}
+    mCallAttributes=mPreciseCallState=Ringing call state: -1, Foreground call state: -1, Background call state: -1, Disconnect cause: -1, Precise disconnect cause: -1 mNetworkType=0 mCallQuality=CallQuality: {downlinkCallQualityLevel=0 uplinkCallQualityLevel=0 callDuration=0 numRtpPacketsTransmitted=0 numRtpPacketsReceived=0 numRtpPacketsTransmittedLost=0 numRtpPacketsNotReceived=0 averageRelativeJitter=0 maxRelativeJitter=0 averageRoundTripTime=0 codecType=0 rtpInactivityDetected=false txSilenceDetected=false rxSilenceDetected=false}
+    mCallNetworkType=0
+    mPreciseDataConnectionStates={}
+    mOutgoingCallEmergencyNumber=null
+    mOutgoingSmsEmergencyNumber=null
+    mBarringInfo=BarringInfo {mCellIdentity=null, mBarringServiceInfos={}}
+    mTelephonyDisplayInfo=TelephonyDisplayInfo {network=UNKNOWN, override=NONE}
+    mIsDataEnabled=[Z@885e390
+    mDataEnabledReason=[I@db7f489
+    mAllowedNetworkTypeReason=-1
+    mAllowedNetworkTypeValue=-1
+    mPhysicalChannelConfigs=[]
+    mLinkCapacityEstimateList=[]
+  mCarrierNetworkChangeState=false
+  mPhoneCapability=mMaxActiveVoiceSubscriptions=1 mMaxActiveDataSubscriptions=1 mNetworkValidationBeforeSwitchSupported=false mDeviceNrCapability []
+  mActiveDataSubId=-1
+  mRadioPowerState=2
+  mEmergencyNumberList={}
+  mDefaultPhoneId=-1
+  mDefaultSubId=-1
+local logs:
+  2026-07-29T14:13:10.723 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WWAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, fota, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.726 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WWAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, ims, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.728 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WWAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, cbs, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.730 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WWAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, ia, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.732 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WWAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, emergency, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.734 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WWAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, mcx, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.736 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WWAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, xcap, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.740 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WWAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, enterprise, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.742 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WWAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, mms, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.745 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WWAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, supl, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.747 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WWAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, dun, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.749 - onDataConnectionStateChanged(DISCONNECTED, UNKNOWN) subId=-1, phoneId=0
+  2026-07-29T14:13:10.750 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WWAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, hipri, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.753 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WWAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, hipri | default, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.772 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WLAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, fota, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.774 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WLAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, ims, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.779 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WLAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, cbs, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.784 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WLAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, ia, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.789 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WLAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, emergency, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.792 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WLAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, mcx, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.794 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WLAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, xcap, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.796 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WLAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, enterprise, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.798 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WLAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, mms, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.800 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WLAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, supl, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.802 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WLAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, dun, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.805 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WLAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, hipri, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:10.809 - notifyDataConnectionForSubscriber: phoneId=0 subId=-1  state: DISCONNECTED, transport: WLAN, id: -1, network type: UNKNOWN, APN Setting: [ApnSettingV7] null, 0, null, null, null, null, null, null, null, 0, hipri | default, null, null, false, 0, false, 0, 0, 0, 0, null, null, false, 0, 0, -1, -1, link properties: null, fail cause: NONE
+  2026-07-29T14:13:12.167 - notifyDisplayInfoChanged: PhoneId=0 subId=-1 telephonyDisplayInfo=TelephonyDisplayInfo {network=UNKNOWN, override=NONE}
+listen logs:
+  2026-07-29T14:13:06.043 - listen: E pkg=android uid=1000 events=[23] notifyNow=false subId=2147483647 myUserId=0 callerUserId=0
+  2026-07-29T14:13:06.117 - listen: E pkg=android uid=1000 events=[36] notifyNow=false subId=2147483647 myUserId=0 callerUserId=0
+  2026-07-29T14:13:06.677 - listen: E pkg=android uid=1000 events=[1, 7, 8, 9] notifyNow=false subId=2147483647 myUserId=0 callerUserId=0
+  2026-07-29T14:13:06.681 - listen: E pkg=android uid=1000 events=[29] notifyNow=false subId=2147483647 myUserId=0 callerUserId=0
+  2026-07-29T14:13:06.682 - listen: E pkg=android uid=1000 events=[6] notifyNow=false subId=2147483647 myUserId=0 callerUserId=0
+  2026-07-29T14:13:06.981 - listen: E pkg=android uid=1000 events=[23] notifyNow=false subId=2147483647 myUserId=0 callerUserId=0
+  2026-07-29T14:13:07.507 - listen: E pkg=android uid=1000 events=[23] notifyNow=false subId=2147483647 myUserId=0 callerUserId=0
+  2026-07-29T14:13:09.382 - listen: E pkg=com.android.systemui uid=10082 events=[1, 6, 23] notifyNow=false subId=2147483647 myUserId=0 callerUserId=0
+  2026-07-29T14:13:09.705 - listen: E pkg=com.android.networkstack.tethering uid=1073 events=[23] notifyNow=false subId=2147483647 myUserId=0 callerUserId=0
+  2026-07-29T14:13:10.834 - listen: E pkg=com.android.phone uid=1001 events=[23, 9] notifyNow=false subId=-1 myUserId=0 callerUserId=0
+  2026-07-29T14:13:11.050 - listen: E pkg=com.android.phone uid=1001 events=[1, 23] notifyNow=true subId=2147483647 myUserId=0 callerUserId=0
+  2026-07-29T14:13:12.937 - listen: E pkg=android uid=1000 events=[1] notifyNow=true subId=2147483647 myUserId=0 callerUserId=0
+  2026-07-29T14:13:44.233 - listen: E pkg=android uid=1000 events=[] notifyNow=true subId=2147483647 myUserId=0 callerUserId=0
+registrations: count=26
+  {callingPackage=android callerUid=1000 binder=android.telephony.TelephonyRegistryManager$1@ecb0c8e callback=null onSubscriptionsChangedListenererCallback=android.telephony.TelephonyRegistryManager$1@ecb0c8e onOpportunisticSubscriptionsChangedListenererCallback=null subId=-1 phoneId=-1 events={}}
+  {callingPackage=android callerUid=1000 binder=android.telephony.TelephonyCallback$IPhoneStateListenerStub@e1bccaf callback=android.telephony.TelephonyCallback$IPhoneStateListenerStub@e1bccaf onSubscriptionsChangedListenererCallback=null onOpportunisticSubscriptionsChangedListenererCallback=null subId=2147483647 phoneId=-1 events=[23]}
+  {callingPackage=android callerUid=1000 binder=android.telephony.PhoneStateListener$IPhoneStateListenerStub@88da8bc callback=android.telephony.PhoneStateListener$IPhoneStateListenerStub@88da8bc onSubscriptionsChangedListenererCallback=null onOpportunisticSubscriptionsChangedListenererCallback=null subId=2147483647 phoneId=-1 events=[36]}
+  {callingPackage=android callerUid=1000 binder=android.telephony.PhoneStateListener$IPhoneStateListenerStub@b225045 callback=android.telephony.PhoneStateListener$IPhoneStateListenerStub@b225045 onSubscriptionsChangedListenererCallback=null onOpportunisticSubscriptionsChangedListenererCallback=null subId=2147483647 phoneId=-1 events=[1, 7, 8, 9]}
+  {callingPackage=android callerUid=1000 binder=android.telephony.TelephonyCallback$IPhoneStateListenerStub@c6f639a callback=android.telephony.TelephonyCallback$IPhoneStateListenerStub@c6f639a onSubscriptionsChangedListenererCallback=null onOpportunisticSubscriptionsChangedListenererCallback=null subId=2147483647 phoneId=-1 events=[29]}
+  {callingPackage=android callerUid=1000 binder=android.telephony.TelephonyCallback$IPhoneStateListenerStub@ee284cb callback=android.telephony.TelephonyCallback$IPhoneStateListenerStub@ee284cb onSubscriptionsChangedListenererCallback=null onOpportunisticSubscriptionsChangedListenererCallback=null subId=2147483647 phoneId=-1 events=[6]}
+  {callingPackage=android callerUid=1000 binder=android.telephony.PhoneStateListener$IPhoneStateListenerStub@aea94a8 callback=android.telephony.PhoneStateListener$IPhoneStateListenerStub@aea94a8 onSubscriptionsChangedListenererCallback=null onOpportunisticSubscriptionsChangedListenererCallback=null subId=2147483647 phoneId=-1 events=[23]}
+  {callingPackage=android callerUid=1000 binder=android.telephony.TelephonyRegistryManager$1@11cabc1 callback=null onSubscriptionsChangedListenererCallback=android.telephony.TelephonyRegistryManager$1@11cabc1 onOpportunisticSubscriptionsChangedListenererCallback=null subId=-1 phoneId=-1 events={}}
+  {callingPackage=android callerUid=1000 binder=android.telephony.TelephonyRegistryManager$1@dd01f66 callback=null onSubscriptionsChangedListenererCallback=android.telephony.TelephonyRegistryManager$1@dd01f66 onOpportunisticSubscriptionsChangedListenererCallback=null subId=-1 phoneId=-1 events={}}
+  {callingPackage=android callerUid=1000 binder=android.telephony.TelephonyRegistryManager$1@a12a2a7 callback=null onSubscriptionsChangedListenererCallback=android.telephony.TelephonyRegistryManager$1@a12a2a7 onOpportunisticSubscriptionsChangedListenererCallback=null subId=-1 phoneId=-1 events={}}
+  {callingPackage=android callerUid=1000 binder=android.telephony.TelephonyCallback$IPhoneStateListenerStub@ba85354 callback=android.telephony.TelephonyCallback$IPhoneStateListenerStub@ba85354 onSubscriptionsChangedListenererCallback=null onOpportunisticSubscriptionsChangedListenererCallback=null subId=2147483647 phoneId=-1 events=[23]}
+  {callingPackage=android callerUid=1000 binder=android.telephony.TelephonyRegistryManager$1@70742fd callback=null onSubscriptionsChangedListenererCallback=android.telephony.TelephonyRegistryManager$1@70742fd onOpportunisticSubscriptionsChangedListenererCallback=null subId=-1 phoneId=-1 events={}}
+  {callingPackage=android callerUid=1000 binder=android.telephony.TelephonyRegistryManager$1@12ecbf2 callback=null onSubscriptionsChangedListenererCallback=android.telephony.TelephonyRegistryManager$1@12ecbf2 onOpportunisticSubscriptionsChangedListenererCallback=null subId=-1 phoneId=-1 events={}}
+  {callingPackage=com.android.systemui callerUid=10082 binder=android.os.BinderProxy@23cc243 callback=null onSubscriptionsChangedListenererCallback=com.android.internal.telephony.IOnSubscriptionsChangedListener$Stub$Proxy@9e150c0 onOpportunisticSubscriptionsChangedListenererCallback=null subId=-1 phoneId=-1 events={}}
+  {callingPackage=com.android.systemui callerUid=10082 binder=android.os.BinderProxy@a11f9 callback=com.android.internal.telephony.IPhoneStateListener$Stub$Proxy@559b53e onSubscriptionsChangedListenererCallback=null onOpportunisticSubscriptionsChangedListenererCallback=null subId=2147483647 phoneId=-1 events=[1, 6, 23]}
+  {callingPackage=com.android.phone callerUid=1001 binder=android.os.BinderProxy@85f3f9f callback=null onSubscriptionsChangedListenererCallback=com.android.internal.telephony.IOnSubscriptionsChangedListener$Stub$Proxy@9eab8ec onOpportunisticSubscriptionsChangedListenererCallback=null subId=-1 phoneId=-1 events={}}
+  {callingPackage=com.android.networkstack.tethering callerUid=1073 binder=android.os.BinderProxy@fd0d4b5 callback=com.android.internal.telephony.IPhoneStateListener$Stub$Proxy@5b7e74a onSubscriptionsChangedListenererCallback=null onOpportunisticSubscriptionsChangedListenererCallback=null subId=2147483647 phoneId=-1 events=[23]}
+  {callingPackage=com.android.phone callerUid=1001 binder=android.os.BinderProxy@50236bb callback=null onSubscriptionsChangedListenererCallback=com.android.internal.telephony.IOnSubscriptionsChangedListener$Stub$Proxy@e4077d8 onOpportunisticSubscriptionsChangedListenererCallback=null subId=-1 phoneId=-1 events={}}
+  {callingPackage=com.android.phone callerUid=1001 binder=android.os.BinderProxy@f070731 callback=null onSubscriptionsChangedListenererCallback=com.android.internal.telephony.IOnSubscriptionsChangedListener$Stub$Proxy@b152e16 onOpportunisticSubscriptionsChangedListenererCallback=null subId=-1 phoneId=-1 events={}}
+  {callingPackage=com.android.phone callerUid=1001 binder=android.os.BinderProxy@7138397 callback=null onSubscriptionsChangedListenererCallback=com.android.internal.telephony.IOnSubscriptionsChangedListener$Stub$Proxy@3313984 onOpportunisticSubscriptionsChangedListenererCallback=null subId=-1 phoneId=-1 events={}}
+  {callingPackage=com.android.phone callerUid=1001 binder=android.os.BinderProxy@b93e56d callback=com.android.internal.telephony.IPhoneStateListener$Stub$Proxy@d2e15a2 onSubscriptionsChangedListenererCallback=null onOpportunisticSubscriptionsChangedListenererCallback=null subId=2147483647 phoneId=-1 events=[23, 9]}
+  {callingPackage=com.android.phone callerUid=1001 binder=android.os.BinderProxy@482c233 callback=null onSubscriptionsChangedListenererCallback=com.android.internal.telephony.IOnSubscriptionsChangedListener$Stub$Proxy@94a69f0 onOpportunisticSubscriptionsChangedListenererCallback=null subId=-1 phoneId=-1 events={}}
+  {callingPackage=com.android.phone callerUid=1001 binder=android.os.BinderProxy@966b69 callback=null onSubscriptionsChangedListenererCallback=com.android.internal.telephony.IOnSubscriptionsChangedListener$Stub$Proxy@fbe9ee onOpportunisticSubscriptionsChangedListenererCallback=null subId=-1 phoneId=-1 events={}}
+  {callingPackage=com.android.phone callerUid=1001 binder=android.os.BinderProxy@89d4e8f callback=null onSubscriptionsChangedListenererCallback=com.android.internal.telephony.IOnSubscriptionsChangedListener$Stub$Proxy@a84351c onOpportunisticSubscriptionsChangedListenererCallback=null subId=-1 phoneId=-1 events={}}
+  {callingPackage=com.android.phone callerUid=1001 binder=android.os.BinderProxy@2215525 callback=null onSubscriptionsChangedListenererCallback=com.android.internal.telephony.IOnSubscriptionsChangedListener$Stub$Proxy@fc0b6fa onOpportunisticSubscriptionsChangedListenererCallback=null subId=-1 phoneId=-1 events={}}
+  {callingPackage=com.android.phone callerUid=1001 binder=android.os.BinderProxy@c2a44ab callback=com.android.internal.telephony.IPhoneStateListener$Stub$Proxy@62d8708 onSubscriptionsChangedListenererCallback=null onOpportunisticSubscriptionsChangedListenererCallback=null subId=2147483647 phoneId=-1 events=[1, 23]}

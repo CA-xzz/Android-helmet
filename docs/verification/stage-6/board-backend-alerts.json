@@ -1,0 +1,41 @@
+{
+    "alerts": [
+        {
+            "active": true,
+            "alertId": "alert-57a4a43e-06ab-4dce-ac8a-4b5accba0a01",
+            "configVersion": 3,
+            "deviceId": "135dc211-da56-49a8-814b-4861b523ecb5",
+            "evidence": {
+                "mediaAssetId": null,
+                "relatedEventId": "message-57a4a43e-06ab-4dce-ac8a-4b5accba0a01"
+            },
+            "localActions": 7,
+            "location": {
+                "fixType": "STANDARD",
+                "horizontalAccuracyMeters": 2,
+                "latitude": 31.2304,
+                "longitude": 121.4737
+            },
+            "occurredAtEpochMillis": 1785318395636,
+            "presentation": {
+                "mapMarker": true,
+                "sound": true,
+                "visualPriority": "CRITICAL"
+            },
+            "requiresAttention": true,
+            "sampleReference": 77,
+            "sensorFaults": 0,
+            "sensorSnapshot": {
+                "electricFieldBaselineMilliVolts": 100,
+                "electricFieldExposureMilliVoltMillis": 82000,
+                "electricFieldMilliVolts": 920
+            },
+            "severity": "CRITICAL",
+            "simulated": true,
+            "type": "NEAR_ELECTRIC",
+            "updatedAtEpochMillis": 1786365199249,
+            "workflowSequence": 1,
+            "workflowState": "OPEN"
+        }
+    ]
+}

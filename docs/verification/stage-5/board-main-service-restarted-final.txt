@@ -1,0 +1,4 @@
+  * ServiceRecord{fa0288a u0 com.example.helmet/.service.runtime.HelmetService}
+    processName=com.example.helmet
+    isForeground=true foregroundId=1001 foregroundNoti=Notification(channel=helmet-runtime shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x62 color=0x00000000 vis=PRIVATE)
+    startRequested=true delayedStop=false stopIfKilled=false callStart=true lastStartId=1

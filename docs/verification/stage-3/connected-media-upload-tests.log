@@ -1,0 +1,94 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.9/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :device-android:core-model:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:media-sync:checkKotlinGradlePluginConfigurationErrors
+> Task :device-android:core-model:preBuild UP-TO-DATE
+> Task :device-android:media-sync:preBuild UP-TO-DATE
+> Task :device-android:core-model:preDebugBuild UP-TO-DATE
+> Task :device-android:media-sync:preDebugBuild UP-TO-DATE
+> Task :device-android:media-sync:generateDebugResValues UP-TO-DATE
+> Task :device-android:core-model:generateDebugResValues UP-TO-DATE
+> Task :device-android:core-model:generateDebugResources UP-TO-DATE
+> Task :device-android:media-sync:generateDebugResources UP-TO-DATE
+> Task :device-android:media-sync:packageDebugResources UP-TO-DATE
+> Task :device-android:core-model:packageDebugResources UP-TO-DATE
+> Task :device-android:media-sync:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:core-model:parseDebugLocalResources UP-TO-DATE
+> Task :device-android:core-model:generateDebugRFile UP-TO-DATE
+> Task :device-android:media-sync:generateDebugRFile UP-TO-DATE
+> Task :device-android:media-sync:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:media-sync:preDebugAndroidTestBuild UP-TO-DATE
+> Task :device-android:media-sync:writeDebugAarMetadata UP-TO-DATE
+> Task :device-android:media-sync:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:media-sync:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :device-android:core-model:compileDebugKotlin UP-TO-DATE
+> Task :device-android:core-model:javaPreCompileDebug UP-TO-DATE
+> Task :device-android:core-model:compileDebugJavaWithJavac NO-SOURCE
+> Task :device-android:core-model:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :device-android:media-sync:mapDebugAndroidTestSourceSetPaths UP-TO-DATE
+> Task :device-android:core-model:compileDebugLibraryResources UP-TO-DATE
+> Task :device-android:core-model:writeDebugAarMetadata UP-TO-DATE
+> Task :device-android:core-model:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:core-model:processDebugManifest UP-TO-DATE
+> Task :device-android:core-model:mergeDebugShaders UP-TO-DATE
+> Task :device-android:core-model:compileDebugShaders NO-SOURCE
+> Task :device-android:core-model:generateDebugAssets UP-TO-DATE
+> Task :device-android:core-model:packageDebugAssets UP-TO-DATE
+> Task :device-android:core-model:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :device-android:core-model:processDebugJavaRes UP-TO-DATE
+> Task :device-android:core-model:bundleLibRuntimeToDirDebug UP-TO-DATE
+> Task :device-android:core-model:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:media-sync:compileDebugKotlin UP-TO-DATE
+> Task :device-android:core-model:mergeDebugNativeLibs NO-SOURCE
+> Task :device-android:media-sync:compileDebugJavaWithJavac NO-SOURCE
+> Task :device-android:core-model:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :device-android:media-sync:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :device-android:media-sync:checkDebugAndroidTestAarMetadata UP-TO-DATE
+> Task :device-android:media-sync:generateDebugAndroidTestResources UP-TO-DATE
+> Task :device-android:media-sync:mergeDebugAndroidTestResources UP-TO-DATE
+> Task :device-android:media-sync:extractDeepLinksDebug UP-TO-DATE
+> Task :device-android:media-sync:processDebugManifest UP-TO-DATE
+> Task :device-android:media-sync:processDebugAndroidTestManifest UP-TO-DATE
+> Task :device-android:media-sync:processDebugAndroidTestResources UP-TO-DATE
+> Task :device-android:media-sync:javaPreCompileDebugAndroidTest UP-TO-DATE
+> Task :device-android:media-sync:mergeDebugAndroidTestShaders UP-TO-DATE
+> Task :device-android:media-sync:compileDebugAndroidTestShaders NO-SOURCE
+> Task :device-android:media-sync:generateDebugAndroidTestAssets UP-TO-DATE
+> Task :device-android:media-sync:mergeDebugShaders UP-TO-DATE
+> Task :device-android:media-sync:compileDebugShaders NO-SOURCE
+> Task :device-android:media-sync:generateDebugAssets UP-TO-DATE
+> Task :device-android:media-sync:packageDebugAssets UP-TO-DATE
+> Task :device-android:media-sync:mergeDebugAndroidTestAssets UP-TO-DATE
+> Task :device-android:media-sync:compressDebugAndroidTestAssets UP-TO-DATE
+> Task :device-android:media-sync:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :device-android:media-sync:desugarDebugAndroidTestFileDependencies UP-TO-DATE
+> Task :device-android:media-sync:processDebugJavaRes UP-TO-DATE
+> Task :device-android:media-sync:checkDebugAndroidTestDuplicateClasses UP-TO-DATE
+> Task :device-android:media-sync:mergeExtDexDebugAndroidTest UP-TO-DATE
+> Task :device-android:media-sync:bundleLibRuntimeToDirDebug UP-TO-DATE
+> Task :device-android:media-sync:mergeDebugJniLibFolders UP-TO-DATE
+> Task :device-android:media-sync:mergeDebugNativeLibs NO-SOURCE
+> Task :device-android:media-sync:mergeLibDexDebugAndroidTest UP-TO-DATE
+> Task :device-android:media-sync:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :device-android:media-sync:mergeDebugAndroidTestJniLibFolders UP-TO-DATE
+> Task :device-android:media-sync:mergeDebugAndroidTestNativeLibs NO-SOURCE
+> Task :device-android:media-sync:stripDebugAndroidTestDebugSymbols NO-SOURCE
+> Task :device-android:media-sync:validateSigningDebugAndroidTest UP-TO-DATE
+> Task :device-android:media-sync:writeDebugAndroidTestSigningConfigVersions UP-TO-DATE
+> Task :device-android:media-sync:compileDebugAndroidTestKotlin
+> Task :device-android:media-sync:compileDebugAndroidTestJavaWithJavac NO-SOURCE
+> Task :device-android:media-sync:dexBuilderDebugAndroidTest
+> Task :device-android:media-sync:mergeDebugAndroidTestGlobalSynthetics UP-TO-DATE
+> Task :device-android:media-sync:processDebugAndroidTestJavaRes UP-TO-DATE
+> Task :device-android:media-sync:mergeDebugAndroidTestJavaResource UP-TO-DATE
+> Task :device-android:media-sync:mergeProjectDexDebugAndroidTest
+> Task :device-android:media-sync:packageDebugAndroidTest
+> Task :device-android:media-sync:createDebugAndroidTestApkListingFileRedirect UP-TO-DATE
+
+> Task :device-android:media-sync:connectedDebugAndroidTest
+Starting 1 tests on QUAD-CORE H618 p1 - 12
+
+Finished 1 tests on QUAD-CORE H618 p1 - 12
+
+BUILD SUCCESSFUL in 17s
+67 actionable tasks: 7 executed, 60 up-to-date

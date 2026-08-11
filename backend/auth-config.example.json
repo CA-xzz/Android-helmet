@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 2,
+  "organizations": [
+    {
+      "organizationId": "organization-a",
+      "deviceIds": ["helmet-a-001"]
+    },
+    {
+      "organizationId": "organization-b",
+      "deviceIds": ["helmet-b-001"]
+    }
+  ],
+  "principals": [
+    {
+      "tokenSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "principalId": "admin-a",
+      "role": "ADMIN",
+      "organizationId": "organization-a"
+    },
+    {
+      "tokenSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "principalId": "dispatcher-a",
+      "role": "DISPATCHER",
+      "organizationId": "organization-a"
+    },
+    {
+      "tokenSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "principalId": "viewer-a",
+      "role": "VIEWER",
+      "organizationId": "organization-a"
+    },
+    {
+      "tokenSha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "principalId": "device-a-001",
+      "role": "DEVICE",
+      "organizationId": "organization-a",
+      "deviceIds": ["helmet-a-001"]
+    },
+    {
+      "tokenSha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "principalId": "admin-b",
+      "role": "ADMIN",
+      "organizationId": "organization-b"
+    },
+    {
+      "tokenSha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "principalId": "device-b-001",
+      "role": "DEVICE",
+      "organizationId": "organization-b",
+      "deviceIds": ["helmet-b-001"]
+    }
+  ]
+}

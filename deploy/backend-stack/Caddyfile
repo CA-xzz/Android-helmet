@@ -1,0 +1,30 @@
+{
+    http_port 8080
+    https_port 8443
+    servers {
+        protocols h1 h2
+    }
+}
+
+{$HELMET_PUBLIC_HOST} {
+    tls {$HELMET_ACME_EMAIL}
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer"
+        -Server
+    }
+
+    reverse_proxy backend:18080 {
+        health_uri /ready
+        health_interval 15s
+        health_timeout 5s
+    }
+
+    log {
+        output stdout
+        format json
+    }
+}

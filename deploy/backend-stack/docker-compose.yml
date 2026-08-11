@@ -1,0 +1,242 @@
+name: helmet-backend-stack
+
+services:
+  postgres:
+    image: postgres:16.4-alpine3.20
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: helmet
+      POSTGRES_USER: helmet
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - source: postgres_password
+        target: postgres_password
+        uid: "70"
+        gid: "70"
+        mode: 0400
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U helmet -d helmet"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      - persistence
+    security_opt:
+      - no-new-privileges:true
+
+  mqtt:
+    image: eclipse-mosquitto:2.0.22
+    restart: unless-stopped
+    read_only: true
+    user: "1883:1883"
+    ports:
+      - "8883:8883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto.acl:/mosquitto/config/acl:ro
+      - mqtt_data:/mosquitto/data
+    secrets:
+      - source: mqtt_ca
+        target: mqtt_ca
+        uid: "1883"
+        gid: "1883"
+        mode: 0444
+      - source: mqtt_crl
+        target: mqtt_crl
+        uid: "1883"
+        gid: "1883"
+        mode: 0444
+      - source: mqtt_server_certificate
+        target: mqtt_server_certificate
+        uid: "1883"
+        gid: "1883"
+        mode: 0444
+      - source: mqtt_server_private_key
+        target: mqtt_server_private_key
+        uid: "1883"
+        gid: "1883"
+        mode: 0400
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8883"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      application:
+        aliases:
+          - ${HELMET_MQTT_PUBLIC_HOST:?set HELMET_MQTT_PUBLIC_HOST}
+      edge:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  backend:
+    image: helmet-backend:${HELMET_BACKEND_IMAGE_TAG:-development}
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    environment:
+      HELMET_DATA_DIR: /var/lib/helmet
+      HELMET_POSTGRES_HOST: postgres
+      HELMET_POSTGRES_PORT: "5432"
+      HELMET_POSTGRES_DB: helmet
+      HELMET_POSTGRES_USER: helmet
+      HELMET_DATABASE_SSLMODE: disable
+      HELMET_POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      HELMET_S3_ENDPOINT: ${HELMET_S3_ENDPOINT:?set HELMET_S3_ENDPOINT}
+      HELMET_S3_BUCKET: ${HELMET_S3_BUCKET:?set HELMET_S3_BUCKET}
+      HELMET_S3_REGION: ${HELMET_S3_REGION:?set HELMET_S3_REGION}
+      HELMET_S3_PREFIX: ${HELMET_S3_PREFIX:-helmet-media}
+      HELMET_S3_SSE: ${HELMET_S3_SSE:-AES256}
+      HELMET_S3_ACCESS_KEY_FILE: /run/secrets/s3_access_key
+      HELMET_S3_SECRET_KEY_FILE: /run/secrets/s3_secret_key
+      HELMET_STUN_URLS: ${HELMET_STUN_URLS:?set HELMET_STUN_URLS}
+      HELMET_TURN_URLS: ${HELMET_TURN_URLS:?set HELMET_TURN_URLS}
+      HELMET_TURN_SECRET_FILE: /run/secrets/turn_shared_secret
+      HELMET_MAP_TILE_URL_TEMPLATE: ${HELMET_MAP_TILE_URL_TEMPLATE:?set HELMET_MAP_TILE_URL_TEMPLATE}
+      HELMET_MAP_ATTRIBUTION: ${HELMET_MAP_ATTRIBUTION:?set HELMET_MAP_ATTRIBUTION}
+      HELMET_MAP_MIN_ZOOM: ${HELMET_MAP_MIN_ZOOM:-3}
+      HELMET_MAP_MAX_ZOOM: ${HELMET_MAP_MAX_ZOOM:-19}
+      HELMET_MQTT_HOST: ${HELMET_MQTT_PUBLIC_HOST:?set HELMET_MQTT_PUBLIC_HOST}
+      HELMET_MQTT_PORT: "8883"
+      HELMET_MQTT_CA_FILE: /run/secrets/mqtt_ca
+      HELMET_MQTT_CERTIFICATE_FILE: /run/secrets/mqtt_backend_certificate
+      HELMET_MQTT_PRIVATE_KEY_FILE: /run/secrets/mqtt_backend_private_key
+      HELMET_MQTT_CLIENT_ID: backend-gateway
+    secrets:
+      - source: helmet_auth_config
+        target: helmet_auth_config
+        uid: "10001"
+        gid: "10001"
+        mode: 0400
+      - source: postgres_password
+        target: postgres_password
+        uid: "10001"
+        gid: "10001"
+        mode: 0400
+      - source: s3_access_key
+        target: s3_access_key
+        uid: "10001"
+        gid: "10001"
+        mode: 0400
+      - source: s3_secret_key
+        target: s3_secret_key
+        uid: "10001"
+        gid: "10001"
+        mode: 0400
+      - source: turn_shared_secret
+        target: turn_shared_secret
+        uid: "10001"
+        gid: "10001"
+        mode: 0400
+      - source: mqtt_ca
+        target: mqtt_ca
+        uid: "10001"
+        gid: "10001"
+        mode: 0444
+      - source: mqtt_backend_certificate
+        target: mqtt_backend_certificate
+        uid: "10001"
+        gid: "10001"
+        mode: 0444
+      - source: mqtt_backend_private_key
+        target: mqtt_backend_private_key
+        uid: "10001"
+        gid: "10001"
+        mode: 0400
+    volumes:
+      - backend_state:/var/lib/helmet
+    expose:
+      - "18080"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18080/ready', timeout=3).read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mqtt:
+        condition: service_healthy
+    networks:
+      - persistence
+      - application
+      - egress
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  caddy:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    read_only: true
+    environment:
+      HELMET_PUBLIC_HOST: ${HELMET_PUBLIC_HOST:?set HELMET_PUBLIC_HOST}
+      HELMET_ACME_EMAIL: ${HELMET_ACME_EMAIL:?set HELMET_ACME_EMAIL}
+    ports:
+      - "80:8080"
+      - "443:8443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - application
+      - edge
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+networks:
+  persistence:
+    internal: true
+  application:
+    internal: true
+  egress:
+  edge:
+
+volumes:
+  postgres_data:
+  backend_state:
+  mqtt_data:
+  caddy_data:
+  caddy_config:
+
+secrets:
+  helmet_auth_config:
+    file: ${HELMET_AUTH_CONFIG_FILE:?set HELMET_AUTH_CONFIG_FILE}
+  postgres_password:
+    file: ${HELMET_POSTGRES_PASSWORD_FILE:?set HELMET_POSTGRES_PASSWORD_FILE}
+  s3_access_key:
+    file: ${HELMET_S3_ACCESS_KEY_FILE:?set HELMET_S3_ACCESS_KEY_FILE}
+  s3_secret_key:
+    file: ${HELMET_S3_SECRET_KEY_FILE:?set HELMET_S3_SECRET_KEY_FILE}
+  turn_shared_secret:
+    file: ${HELMET_TURN_SECRET_FILE:?set HELMET_TURN_SECRET_FILE}
+  mqtt_ca:
+    file: ${HELMET_MQTT_CA_FILE:?set HELMET_MQTT_CA_FILE}
+  mqtt_crl:
+    file: ${HELMET_MQTT_CRL_FILE:?set HELMET_MQTT_CRL_FILE}
+  mqtt_server_certificate:
+    file: ${HELMET_MQTT_SERVER_CERTIFICATE_FILE:?set HELMET_MQTT_SERVER_CERTIFICATE_FILE}
+  mqtt_server_private_key:
+    file: ${HELMET_MQTT_SERVER_PRIVATE_KEY_FILE:?set HELMET_MQTT_SERVER_PRIVATE_KEY_FILE}
+  mqtt_backend_certificate:
+    file: ${HELMET_MQTT_BACKEND_CERTIFICATE_FILE:?set HELMET_MQTT_BACKEND_CERTIFICATE_FILE}
+  mqtt_backend_private_key:
+    file: ${HELMET_MQTT_BACKEND_PRIVATE_KEY_FILE:?set HELMET_MQTT_BACKEND_PRIVATE_KEY_FILE}

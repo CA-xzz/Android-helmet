@@ -1,0 +1,26 @@
+
+== Service global info: ==
+
+Number of camera devices: 0
+Number of normal camera devices: 0
+Number of public camera devices visible to API1: 0
+Active Camera Clients:
+[]
+Allowed user IDs: 0
+
+== Camera service events log (most recent at top): ==
+  07-29 14:13:07 : USER_SWITCH previous allowed user IDs: <None>, current allowed user IDs: 0
+
+== Camera Provider HAL external/0-0 (v2.5, remote) static info: 0 devices: ==
+
+== Vendor tags: ==
+
+  Dumping vendor tag descriptors for vendor with id 15055940602041719656 
+  Dumping configured vendor tag descriptors: None set
+
+== Camera error traces (0): ==
+  No camera traces collected.
+
+**********Dumpsys from previous open session**********
+
+**********End of Dumpsys from previous open session**********
