@@ -6,7 +6,7 @@
 
 ## 结论
 
-阶段 5 软件门禁通过。呼叫状态、WebRTC 信令、短期 TURN 凭据、HTTP 设备命令自动轮询、文字广播回执、语音消息权限，以及专用 LoRa 语音模块入组、密钥槽、半双工 PTT、状态和质量遥测均有自动测试或开发板夹具记录。新增夹具证据见 `../stage-7/rtk-local-intercom-board-test.txt`。开发板没有摄像头、可用音频采集节点、已验证扬声器、远端浏览器、生产 TURN 或专用无线语音硬件，因此真实双向音视频、弱网恢复、距离、穿透、时延和可懂度尚未验收。
+阶段 5 软件门禁通过。呼叫状态、WebRTC 信令、短期 TURN 凭据、HTTP 设备命令自动轮询、文字广播回执、语音消息权限，以及专用 LoRa 语音模块入组、密钥槽、半双工 PTT、状态和质量遥测均有自动测试或开发板夹具记录。新增夹具证据见 `../stage-7/rtk-local-intercom-board-test.txt`。`webrtc-bandwidth-policy-board-test.txt` 进一步验证初始网络快照、通话建立前弱网策略保留和 PeerConnection 带宽模式切换。开发板没有摄像头、可用音频采集节点、已验证扬声器、远端浏览器、生产 TURN 或专用无线语音硬件，因此真实双向音视频、弱网恢复、距离、穿透、时延和可懂度尚未验收。
 
 WebRTC 依赖为 `io.github.webrtc-sdk:android:144.7559.09`。arm64 原生库可在开发板加载。板端探针明确设置 `captureAudio=false`，只验证 PeerConnection 初始化、DTLS-SRTP SDP Offer 和释放流程。
 
@@ -29,6 +29,7 @@ WebRTC 依赖为 `io.github.webrtc-sdk:android:144.7559.09`。arm64 原生库可
 | `board-main-service-restarted-final.txt` | 最终 APK 重启后的前台服务状态 |
 | `board-install-final.txt` | 最终 APK 覆盖安装结果 |
 | `apk-sha256-final.txt` | APK SHA-256：`0708ba64454d801a07c8c16db7f5c3f29dc109da17a62b220216a687a2ec3641` |
+| `webrtc-bandwidth-policy-board-test.txt` | H618 验证初始无网络快照入库、WebRTC 原生库、DTLS-SRTP Offer、低带宽与普通模式切换；当前 APK SHA-256 为 `5b4626026569958cb8d554c803099a7975f534c90e246401ce1baf68c59dd9a1` |
 
 文字广播在没有 TTS 引擎的开发板上按序产生 `RECEIVED`、`PLAYING` 和 `FAILED` 回执，失败原因为 `TTS_UNAVAILABLE`。该结果证明失败可观测，不证明扬声器播放。
 

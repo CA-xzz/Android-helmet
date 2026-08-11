@@ -1,0 +1,57 @@
+WebRTC 弱网策略开发板验证
+
+验证日期：2026-08-11
+设备：QUAD-CORE H618 p1
+Android：12
+ADB 序列号：2c001031774186e21d3
+运行修复提交：9ecddea
+构建环境提交：5784ea8
+APK SHA-256：5b4626026569958cb8d554c803099a7975f534c90e246401ce1baf68c59dd9a1
+
+一、自动测试与构建
+
+命令：sh tools/test-android.sh --console=plain
+结果：BUILD SUCCESSFUL in 5s
+任务：738 actionable tasks: 40 executed, 698 up-to-date
+
+命令：sh tools/build-android.sh --console=plain
+结果：BUILD SUCCESSFUL in 5s
+任务：354 actionable tasks: 24 executed, 330 up-to-date
+
+CallBandwidthPolicyTest 覆盖以下策略：
+- 网络不可用、计费网络、漫游网络进入低带宽模式。
+- 下行低于 1000 Kbps 或上行低于 500 Kbps 进入低带宽模式。
+- 下行 1000 Kbps 且上行 500 Kbps 时恢复普通模式。
+- 通话引擎尚未创建时保留最新策略，创建后再应用。
+
+二、H618 WebRTC 仪器测试
+
+任务：:device-android:webrtc-runtime:connectedDebugAndroidTest
+测试类：com.example.helmet.webrtc.WebRtcCallEngineInstrumentedTest
+结果：2 tests, 0 failures, 0 errors, 0 skipped
+耗时：2.291 s
+
+测试项：
+- nativeLibraryLoadsOnTargetAbi：arm64 WebRTC 原生库加载成功。
+- audioOfferContainsDtlsSrtpFingerprint：生成含 DTLS-SRTP fingerprint 的音频 Offer，并在同一 PeerConnection 上成功切换低带宽和普通带宽模式。
+
+三、正式应用启动路径
+
+最终 APK 覆盖安装后，强制停止并仅启动 HelmetService。开发板当时没有默认网络。Room 表 helmet_events 的最新启动期记录为：
+
+eventType=NETWORK_STATUS_CHANGED
+payloadJson={"state":"UNAVAILABLE","transports":[],"metered":false,"roaming":false,"interfaceName":null,"downstreamKbps":null,"upstreamKbps":null,"dnsServers":[]}
+occurredAtEpochMillis=1785397669003
+
+查询时开发板时钟为 1785397704，事件在查询前约 35 秒写入。该结果证明 StateFlow 的初始网络快照已由正式前台服务处理，不再被 drop(1) 丢弃。开发板系统时间仍落后于主机日期。
+
+服务恢复状态：
+- process=com.example.helmet，PID 23054
+- isForeground=true
+- startRequested=true
+- 设备仅安装 package:com.example.helmet
+- adb reverse 列表为空
+
+四、结论与边界
+
+初始网络状态、弱网分类、通话建立前策略保留，以及现有 PeerConnection 的码率模式切换均已验证。当前开发板没有麦克风、摄像头、生产 TURN 和真实 4G/5G 弱网环境。本记录不证明双向音视频、NAT 穿透、实际码率、丢包恢复、重连时延或通话质量。上述项目仍需真实硬件和网络验收。
