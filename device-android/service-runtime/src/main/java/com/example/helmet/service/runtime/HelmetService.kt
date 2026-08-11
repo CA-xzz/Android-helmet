@@ -11,8 +11,9 @@ import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
-import com.example.helmet.core.model.EventSeverity
+import com.example.helmet.core.model.CallSession
 import com.example.helmet.core.model.CallState
+import com.example.helmet.core.model.EventSeverity
 import com.example.helmet.core.model.HelmetOperationalState
 import com.example.helmet.core.model.HelmetStateMachine
 import com.example.helmet.data.local.DeviceIdentityStore
@@ -100,6 +101,22 @@ internal fun httpCommandPollFlow(intervalMillis: Long): Flow<Unit> = flow {
     }
 }
 
+internal class CallStateObservationGate {
+    private var initialized = false
+    private var lastKey: Triple<String, CallState, Long>? = null
+
+    fun shouldHandle(call: CallSession?): Boolean {
+        val initial = !initialized
+        initialized = true
+        if (call == null) return false
+        val key = Triple(call.callId, call.state, call.stateSequence)
+        if (key == lastKey) return false
+        lastKey = key
+        if (call.state == CallState.REQUESTED) return false
+        return !initial || call.state == CallState.ACCEPTED || call.state == CallState.CONNECTING
+    }
+}
+
 class HelmetService : LifecycleService() {
     private lateinit var eventStore: EventStore
     private lateinit var mediaStore: MediaStore
@@ -128,6 +145,8 @@ class HelmetService : LifecycleService() {
     private val stateMachine = HelmetStateMachine()
     private val mediaActionMutex = Mutex()
     private val statusPublishMutex = Mutex()
+    private val callStateHandlingMutex = Mutex()
+    private var lastHandledCallStateKey: Triple<String, CallState, Long>? = null
     private var eventCollector: Job? = null
     private var statusCollector: Job? = null
     private var statusHeartbeatJob: Job? = null
@@ -138,6 +157,7 @@ class HelmetService : LifecycleService() {
     private var rtkStatusCollector: Job? = null
     private var localIntercomStatusCollector: Job? = null
     private var networkStatusCollector: Job? = null
+    private var callStateCollector: Job? = null
     private var httpCommandPollJob: Job? = null
     private var mqttSessionJob: Job? = null
     private var mqttSession: MqttDeviceSession? = null
@@ -282,6 +302,7 @@ class HelmetService : LifecycleService() {
             stateMachine.transitionTo(
                 if (networkAvailable) HelmetOperationalState.IDLE else HelmetOperationalState.OFFLINE_READY,
             )
+            startCallStateMonitoring()
             eventStore.record(
                 eventType = "RUNTIME_STARTED",
                 severity = EventSeverity.INFO,
@@ -420,6 +441,7 @@ class HelmetService : LifecycleService() {
         rtkStatusCollector?.cancel()
         localIntercomStatusCollector?.cancel()
         networkStatusCollector?.cancel()
+        callStateCollector?.cancel()
         httpCommandPollJob?.cancel()
         mqttSessionJob?.cancel()
         mqttSession?.let { session ->
@@ -1378,37 +1400,53 @@ class HelmetService : LifecycleService() {
         CommunicationWorker.enqueue(this)
     }
 
-    private suspend fun handleCallStateSignal(callId: String, state: CallState) {
-        val target = when (state) {
-            CallState.REQUESTED, CallState.RINGING -> HelmetOperationalState.CALLING
-            CallState.ACCEPTED, CallState.CONNECTING, CallState.CONNECTED -> HelmetOperationalState.IN_CALL
-            CallState.REJECTED, CallState.ENDED, CallState.FAILED -> idleState()
-        }
-        val current = stateMachine.current()
-        if (state !in setOf(CallState.REJECTED, CallState.ENDED, CallState.FAILED) ||
-            current == HelmetOperationalState.CALLING || current == HelmetOperationalState.IN_CALL
-        ) {
-            stateMachine.transitionTo(target)
-        }
-        recordCallStatePromptRequest(callId, state)
-        when (state) {
-            CallState.ACCEPTED -> runCatching {
-                callMediaCoordinator.start(callId, RuntimeConfigStore(this).load())
-            }.onFailure { error ->
-                eventStore.record(
-                    eventType = "WEBRTC_START_REJECTED",
-                    severity = EventSeverity.HIGH,
-                    payloadJson = JSONObject(
-                        mapOf("callId" to callId, "error" to error.toString()),
-                    ).toString(),
-                )
+    private fun startCallStateMonitoring() {
+        val gate = CallStateObservationGate()
+        callStateCollector = lifecycleScope.launch(Dispatchers.IO) {
+            callStore.observeRecent(1).collect { recent ->
+                val call = recent.firstOrNull()
+                if (call != null && gate.shouldHandle(call)) handleCallStateSignal(call.callId, call.state)
             }
-            CallState.REJECTED, CallState.ENDED, CallState.FAILED ->
-                callMediaCoordinator.stop(callId, "CALL_${state.name}")
-            else -> Unit
         }
-        publishStatus("CALL_${state.name}")
     }
+
+    private suspend fun handleCallStateSignal(callId: String, state: CallState) =
+        callStateHandlingMutex.withLock {
+            val call = callStore.find(callId) ?: return@withLock
+            if (call.state != state) return@withLock
+            val key = Triple(call.callId, call.state, call.stateSequence)
+            if (key == lastHandledCallStateKey) return@withLock
+            lastHandledCallStateKey = key
+            val target = when (state) {
+                CallState.REQUESTED, CallState.RINGING -> HelmetOperationalState.CALLING
+                CallState.ACCEPTED, CallState.CONNECTING, CallState.CONNECTED -> HelmetOperationalState.IN_CALL
+                CallState.REJECTED, CallState.ENDED, CallState.FAILED -> idleState()
+            }
+            val current = stateMachine.current()
+            if (state !in setOf(CallState.REJECTED, CallState.ENDED, CallState.FAILED) ||
+                current == HelmetOperationalState.CALLING || current == HelmetOperationalState.IN_CALL
+            ) {
+                stateMachine.transitionTo(target)
+            }
+            recordCallStatePromptRequest(callId, state)
+            when (state) {
+                CallState.ACCEPTED, CallState.CONNECTING -> runCatching {
+                    callMediaCoordinator.start(callId, RuntimeConfigStore(this).load())
+                }.onFailure { error ->
+                    eventStore.record(
+                        eventType = "WEBRTC_START_REJECTED",
+                        severity = EventSeverity.HIGH,
+                        payloadJson = JSONObject(
+                            mapOf("callId" to callId, "error" to error.toString()),
+                        ).toString(),
+                    )
+                }
+                CallState.REJECTED, CallState.ENDED, CallState.FAILED ->
+                    callMediaCoordinator.stop(callId, "CALL_${state.name}")
+                else -> Unit
+            }
+            publishStatus("CALL_${state.name}")
+        }
 
     private fun recordCallStatePromptRequest(callId: String, state: CallState) {
         lifecycleScope.launch(Dispatchers.IO) {
