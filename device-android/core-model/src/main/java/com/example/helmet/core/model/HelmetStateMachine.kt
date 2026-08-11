@@ -36,13 +36,11 @@ class HelmetStateMachine(
                 HelmetOperationalState.FAULT,
             ),
             HelmetOperationalState.OFFLINE_READY to activeStates + setOf(
-                HelmetOperationalState.UPDATING,
                 HelmetOperationalState.FAULT,
                 HelmetOperationalState.SHUTTING_DOWN,
             ),
             HelmetOperationalState.IDLE to activeStates + setOf(
                 HelmetOperationalState.OFFLINE_READY,
-                HelmetOperationalState.UPDATING,
                 HelmetOperationalState.FAULT,
                 HelmetOperationalState.SHUTTING_DOWN,
             ),
@@ -69,11 +67,6 @@ class HelmetStateMachine(
                 HelmetOperationalState.IDLE,
                 HelmetOperationalState.OFFLINE_READY,
                 HelmetOperationalState.IN_CALL,
-                HelmetOperationalState.FAULT,
-            ),
-            HelmetOperationalState.UPDATING to setOf(
-                HelmetOperationalState.IDLE,
-                HelmetOperationalState.OFFLINE_READY,
                 HelmetOperationalState.FAULT,
             ),
             HelmetOperationalState.FAULT to setOf(

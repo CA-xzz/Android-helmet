@@ -27,6 +27,7 @@
 - H618 在没有 Android 默认网络时，轨迹、媒体和告警的远端路由任务保持等待；测试进程终止并切换 ADB 回环路由后，旧任务被取消，新任务由 WorkManager 自动上传。记录见 `docs/verification/stage-7/durable-offline-recovery-board-test.txt`。该记录不替代真实 4G/5G 断网恢复测试。
 - H618 已验证超过单次 Worker 上限的队列续传。一次调度可处理 201 条轨迹、101 条合成近电告警和 101 条通话记录；101 条无效媒体记录用于验证媒体任务能追加第二批。记录见 `docs/verification/stage-7/durable-offline-recovery-board-test.txt`。
 - H618 已验证通信持久队列的进程重启恢复。待发送通话、命令确认和广播最终回执在强制终止测试进程后由 WorkManager 送达；广播回执按 RECEIVED、FAILED 顺序重放，原始播放错误保持不变。记录见 `docs/verification/stage-7/durable-offline-recovery-board-test.txt`。
+- H618 已验证生产启动路径自动恢复持久队列。测试先写入 attemptCount 为 0 的轨迹、媒体、合成近电告警和通话，强制停止主应用后只启动应用进程；HelmetApplication 和 HelmetService 自动调度四类 Worker 并全部送达。测试不调用 Worker 或其 enqueue 方法，记录见 `docs/verification/stage-7/automatic-startup-queue-recovery-board-test.txt`。
 - 主应用已删除没有传输实现的通用事件上传任务。运行状态显示本地持久事件数，不再把本地事件日志标为待发送队列。
 - Room 版本 8 已删除本地事件日志中无用途的投递状态列。H618 上 1→8 迁移测试通过，主应用保留原有数据完成 7→8 覆盖升级，事件内容继续保留。
 - H618 在没有 Android 默认网络时，通过 ADB 回环验证了前台服务自动上报启动状态、服务器校时状态和 60 秒心跳，测试不直接调用 Worker，记录见 `docs/verification/stage-7/automatic-status-heartbeat-board-test.txt`。

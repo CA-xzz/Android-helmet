@@ -9,7 +9,6 @@ enum class HelmetOperationalState {
     IN_CALL,
     RECORDING,
     SOS,
-    UPDATING,
     FAULT,
     SHUTTING_DOWN,
 }

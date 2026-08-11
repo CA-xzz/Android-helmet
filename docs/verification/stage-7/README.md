@@ -8,6 +8,7 @@
 - `data-local-board-tests.log`：Room 数据和迁移。
 - `hardware-process-board-regression.txt`：独立硬件进程与 UART 用户态访问。
 - `durable-offline-recovery-board-test.txt`：轨迹、媒体和告警在无默认网络时保留远端路由任务，进程重启并切换回环路由后取消旧任务并由 WorkManager 自动补传；验证轨迹、媒体、告警和通信队列超过单次 Worker 上限后继续处理；验证通话、命令确认和广播回执跨进程恢复及有序重放；同时记录 Room 8 事件日志清理和保留数据升级。
+- `automatic-startup-queue-recovery-board-test.txt`：主应用被强制停止后，由应用初始化和前台服务启动自动恢复轨迹、媒体、告警和通信队列；测试不调用 Worker 或其 enqueue 方法。
 - `device-status-board-test.log`：设备状态、回执和服务器校时。
 - `automatic-status-heartbeat-board-test.txt`：前台服务自动上报启动状态、服务器校时状态和 60 秒心跳，测试不直接调用 Worker。
 - `automatic-safety-alert-upload-board-test.txt`：前台服务接收模拟跌倒输入后自动持久化样本和告警，并通过 SafetyAlertWorker 上传，测试不直接创建告警或调用 Worker。

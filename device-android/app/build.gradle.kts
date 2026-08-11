@@ -40,7 +40,7 @@ android {
     }
 
     lint {
-        // The product is a dedicated Android 12/API 31 system image, not a Play app.
+        // Android 12/API 31 is the fixed migration target for this device app.
         disable += "ExpiredTargetSdkVersion"
     }
 

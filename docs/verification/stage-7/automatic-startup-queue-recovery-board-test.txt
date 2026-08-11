@@ -1,0 +1,49 @@
+# H618 应用启动自动恢复持久队列
+
+验证日期：2026-08-11（Asia/Shanghai）
+开发板：QUAD-CORE H618 p1，Android 12/API 31
+ADB 序列号：2c001031774186e21d3
+
+## 验证方法
+
+1. 安装 Debug APK 和 AndroidTest APK。
+2. 第一阶段停止 HelmetService 并取消现有 WorkManager 任务，直接向 Room 写入一条待发送轨迹、一条 64 KiB 合成照片、一条合成近电告警和一条待发送通话。
+3. 确认四条记录的 attemptCount 均为 0，保存回环后台配置后结束第一阶段。
+4. 主机强制停止 com.example.helmet，启动隔离后台并建立 ADB reverse。
+5. 第二阶段只通过 AndroidJUnitRunner 启动应用进程。HelmetApplication 自动启动 HelmetService，测试代码不调用 TrackUploadWorker、MediaUploadWorker、SafetyAlertWorker、CommunicationWorker 或其 enqueue 方法。
+6. 等待 Room 中四条记录变为 DELIVERED，并从后台逐条查询轨迹、媒体、告警和通话。
+
+测试轨迹坐标、照片字节和告警均为队列恢复夹具，不是 GNSS、摄像头或近电传感器证据。
+
+## 结果
+
+seed 阶段：
+
+```text
+Time: 1.429
+OK (1 test)
+```
+
+主应用被强制停止后，recover 阶段由应用初始化自动启动前台服务：
+
+```text
+Time: 2.521
+OK (1 test)
+PASS: application startup recovered track, media, safety, and communication queues
+backend_track_posts=1 backend_media_completes=1 backend_alert_posts=1 backend_call_posts=1
+```
+
+第二阶段断言进程 PID 与第一阶段不同。四类本地记录的 attemptCount 均由 0 增加，deliveryState 或 transferState 均变为 DELIVERED。隔离后台各收到一条对应写入。
+
+## 清理后状态
+
+- 设备只保留 com.example.helmet，测试包已卸载。
+- ADB reverse 列表为空。
+- HelmetService 继续以前台服务运行，进程 PID 为 15593。
+- 最近 300 行日志未发现 com.example.helmet 的 FATAL EXCEPTION 或 ANR。
+- Debug APK SHA-256：4885055601ca64930e30ade55f6dd1fef72eaa09107da8f031f6962126a6cb6b。
+- AndroidTest APK SHA-256：fa3077c5c54d1fdc5ee458f45c1996edbd758c7b010aab917ce5b13126bf83a9。
+
+## 结论与边界
+
+H618 已证明主应用进程被终止后，应用初始化和前台服务启动会自动调度轨迹、媒体、告警和通信持久队列，不依赖测试显式调用 Worker。ADB 回环不替代真实 4G/5G 网络恢复、真实定位、真实摄像或真实传感器验收。
