@@ -1,0 +1,12 @@
+captured_host_utc=2026-08-19T14:33:28Z
+adb_serial=2c001031774186e21d3
+debug_gpio_unavailable
+sys_class_gpio:
+/sys/class/gpio
+/sys/class/gpio/export
+/sys/class/gpio/gpio203
+/sys/class/gpio/gpiochip0
+/sys/class/gpio/gpiochip352
+/sys/class/gpio/unexport
+
+command_exit=0

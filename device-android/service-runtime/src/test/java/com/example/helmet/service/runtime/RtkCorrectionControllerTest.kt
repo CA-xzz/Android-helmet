@@ -1,9 +1,13 @@
 package com.example.helmet.service.runtime
 
 import com.example.helmet.core.model.RtkRuntimeConfig
+import com.example.helmet.core.model.LocationFix
+import com.example.helmet.core.model.LocationSource
+import com.example.helmet.core.model.FixQuality
 import com.example.helmet.core.protocol.Rtcm3FrameCodec
 import com.example.helmet.hardware.api.HardwareStatus
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -48,6 +52,52 @@ class RtkCorrectionControllerTest {
         assertEquals(0L, controller.status.value.receiverSentences)
         assertEquals(RtkCorrectionState.WAITING_HARDWARE, controller.status.value.state)
         assertTrue(controller.status.value.lastError!!.contains("simulated hardware"))
+    }
+
+    @Test
+    fun burstFixQueueRejectsWithAnObservableCounterInsteadOfSilentLoss() = runBlocking {
+        val queue = RtkFixQueue(capacity = 1)
+        val first = LocationFix(
+            fixId = "first",
+            deviceId = "device-1",
+            occurredAtEpochMillis = 1,
+            elapsedRealtimeNanos = 1,
+            source = LocationSource.EXTERNAL_NMEA,
+            quality = FixQuality.RTK_FIXED,
+            latitude = 31.0,
+            longitude = 121.0,
+        )
+
+        assertTrue(queue.offer(first).accepted)
+        val rejected = queue.offer(first.copy(fixId = "second"))
+        assertEquals(false, rejected.accepted)
+        assertEquals(1L, rejected.overflowCount)
+        assertEquals(first, queue.fixes.first())
+        assertTrue(queue.offer(first.copy(fixId = "third")).accepted)
+        queue.close()
+        Unit
+    }
+
+    @Test
+    fun receiverNoFixUpdatesObservableQualityAndClearsCorrectionGga() = runBlocking {
+        val controller = RtkCorrectionController(
+            scope = this,
+            deviceId = "rtk-no-fix",
+            config = RtkRuntimeConfig(enabled = false),
+            hardwareStatus = { HardwareStatus(connected = true, simulated = false) },
+            correctionSink = { error("must not send") },
+        )
+        try {
+            controller.acceptReceiverBytes((sentence(
+                "GNGGA,123519,3112.0000,N,12124.0000,E,4,18,0.7,12.3,M,8.1,M,0.8,0042",
+            ) + "\r\n").toByteArray())
+            assertEquals(FixQuality.RTK_FIXED, controller.status.value.lastFixQuality)
+
+            controller.acceptReceiverBytes((sentence("GNGGA,123520,,,,,0,00,99.9,,,,,,") + "\r\n").toByteArray())
+            assertEquals(FixQuality.NO_FIX, controller.status.value.lastFixQuality)
+        } finally {
+            controller.close()
+        }
     }
 
     private fun sentence(body: String): String {

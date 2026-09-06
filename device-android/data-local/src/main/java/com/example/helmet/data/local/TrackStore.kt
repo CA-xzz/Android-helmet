@@ -11,12 +11,25 @@ import kotlinx.coroutines.flow.map
 class TrackStore(
     private val database: HelmetDatabase,
     private val wallClock: () -> Long = System::currentTimeMillis,
+    private val maxRetainedTerminalPointsPerDevice: Int = DEFAULT_MAX_RETAINED_TERMINAL_POINTS,
 ) {
+    init {
+        require(maxRetainedTerminalPointsPerDevice > 0)
+    }
+
     suspend fun record(fix: LocationFix, messageId: String = UUID.randomUUID().toString()): TrackPoint? {
         require(fix.hasPosition) { "cannot record a location without a position" }
         require(!fix.isMock) { "mock locations cannot enter the production track queue" }
         return database.withTransaction {
-            val sequence = database.trackPointDao().nextSequence(fix.deviceId)
+            database.trackPointDao().find(messageId)?.let { existing ->
+                require(existing.deviceId == fix.deviceId && existing.toModel().fix == fix) {
+                    "track message ID conflicts with stored content"
+                }
+                return@withTransaction null
+            }
+            val maximumSequence = database.trackPointDao().maxSequence(fix.deviceId)
+            check(maximumSequence < Long.MAX_VALUE) { "track sequence is exhausted" }
+            val sequence = maximumSequence + 1L
             val point = TrackPoint(
                 messageId = messageId,
                 deviceId = fix.deviceId,
@@ -25,8 +38,10 @@ class TrackStore(
                 deliveryState = DeliveryState.PENDING,
                 attemptCount = 0,
             )
-            val rowId = database.trackPointDao().insert(point.toEntity(wallClock()))
-            if (rowId == -1L) null else point
+            check(database.trackPointDao().insert(point.toEntity(wallClock())) != -1L) {
+                "track insert conflicted after sequence allocation"
+            }
+            point
         }
     }
 
@@ -44,13 +59,36 @@ class TrackStore(
         database.trackPointDao().markAttempt(messageId, attemptAt) == 1
 
     suspend fun markDelivered(messageId: String, deliveredAt: Long): Boolean =
-        database.trackPointDao().markDelivered(messageId, deliveredAt) == 1
+        database.withTransaction {
+            val changed = database.trackPointDao().markDelivered(messageId, deliveredAt) == 1
+            if (changed) {
+                val deviceId = requireNotNull(database.trackPointDao().find(messageId)).deviceId
+                database.trackPointDao().pruneTerminal(
+                    deviceId,
+                    maxRetainedTerminalPointsPerDevice,
+                )
+            }
+            changed
+        }
 
     suspend fun markFailed(messageId: String, error: String): Boolean =
         database.trackPointDao().markFailed(messageId, error.take(MAX_ERROR_LENGTH)) == 1
 
     suspend fun markRejected(messageId: String, error: String): Boolean =
-        database.trackPointDao().markRejected(messageId, error.take(MAX_ERROR_LENGTH)) == 1
+        database.withTransaction {
+            val changed = database.trackPointDao().markRejected(
+                messageId,
+                error.take(MAX_ERROR_LENGTH),
+            ) == 1
+            if (changed) {
+                val deviceId = requireNotNull(database.trackPointDao().find(messageId)).deviceId
+                database.trackPointDao().pruneTerminal(
+                    deviceId,
+                    maxRetainedTerminalPointsPerDevice,
+                )
+            }
+            changed
+        }
 
     private fun TrackPoint.toEntity(recordedAt: Long): TrackPointEntity = TrackPointEntity(
         messageId = messageId,
@@ -89,5 +127,6 @@ class TrackStore(
 
     companion object {
         private const val MAX_ERROR_LENGTH = 1_024
+        const val DEFAULT_MAX_RETAINED_TERMINAL_POINTS = 20_000
     }
 }

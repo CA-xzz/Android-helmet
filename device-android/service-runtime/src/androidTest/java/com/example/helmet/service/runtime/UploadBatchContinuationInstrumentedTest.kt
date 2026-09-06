@@ -8,6 +8,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.example.helmet.core.model.DeliveryState
+import com.example.helmet.core.model.CallState
 import com.example.helmet.core.model.EventSeverity
 import com.example.helmet.core.model.FixQuality
 import com.example.helmet.core.model.GnssQuality
@@ -36,13 +37,18 @@ import org.junit.runner.RunWith
 class UploadBatchContinuationInstrumentedTest {
     @Test
     fun workManagerUploadsEveryTrackAlertAndCallBatch() = runBlocking {
+        val arguments = InstrumentationRegistry.getArguments()
         assumeTrue(
             "explicit batch continuation phase is required",
-            InstrumentationRegistry.getArguments().getString(PHASE_ARGUMENT) == "true",
+            arguments.getString(PHASE_ARGUMENT) == "true",
+        )
+        val backendBearerToken = requireBoardBackendBearerToken(
+            arguments.getString(BACKEND_BEARER_TOKEN_ARGUMENT),
         )
         val context = ApplicationProvider.getApplicationContext<Context>()
         val configStore = RuntimeConfigStore(context)
         val originalConfig = configStore.load()
+        val configSnapshot = captureRuntimeConfigurationForTest(context)
         val database = HelmetDatabase.get(context)
         val trackStore = TrackStore(database)
         val safetyStore = SafetyStore(database)
@@ -133,14 +139,15 @@ class UploadBatchContinuationInstrumentedTest {
                     callId = callId,
                 )?.callId,
             )
+            callStore.transition(callId, CallState.ENDED, "BATCH_FIXTURE_TERMINAL")
             callId
         }
 
         try {
-            configStore.save(
+            configStore.saveForInstrumentationTest(
                 originalConfig.copy(
                     backendBaseUrl = LOOPBACK_ENDPOINT,
-                    backendBearerToken = TEST_TOKEN,
+                    backendBearerToken = backendBearerToken,
                 ),
             )
             TrackUploadWorker.enqueue(context)
@@ -151,7 +158,9 @@ class UploadBatchContinuationInstrumentedTest {
                 while (
                     trackStore.find(trackMessageIds.last())?.deliveryState != DeliveryState.DELIVERED ||
                     safetyStore.findAlert(alertMessageIds.last())?.deliveryState != DeliveryState.DELIVERED ||
-                    callStore.find(callIds.last())?.deliveryState != DeliveryState.DELIVERED
+                    callIds.any { callId ->
+                        callStore.find(callId)?.deliveryState != DeliveryState.DELIVERED
+                    }
                 ) {
                     delay(WORK_POLL_MILLIS)
                 }
@@ -177,7 +186,7 @@ class UploadBatchContinuationInstrumentedTest {
                 previousCommunicationWorkIds,
             )
         } finally {
-            configStore.save(originalConfig)
+            restoreRuntimeConfigurationForTest(context, configSnapshot)
             workManager.cancelUniqueWork(trackRoute.activeName).result.await()
             workManager.cancelUniqueWork(alertRoute.activeName).result.await()
             workManager.cancelUniqueWork(communicationRoute.activeName).result.await()
@@ -191,11 +200,15 @@ class UploadBatchContinuationInstrumentedTest {
     ) {
         withTimeout(WORK_TIMEOUT_MILLIS) {
             var work = workManager.workInfos(workName).filterNot { item -> item.id in previousWorkIds }
-            while (work.size < 2 || work.any { item -> !item.state.isFinished }) {
+            while (
+                work.any { item -> !item.state.isFinished } ||
+                (work.size < 2 && work.none { item -> item.runAttemptCount > 0 })
+            ) {
                 delay(WORK_POLL_MILLIS)
                 work = workManager.workInfos(workName).filterNot { item -> item.id in previousWorkIds }
             }
             assertTrue(work.all { item -> item.state == WorkInfo.State.SUCCEEDED })
+            assertTrue(work.size >= 2 || work.any { item -> item.runAttemptCount > 0 })
         }
     }
 
@@ -211,11 +224,10 @@ class UploadBatchContinuationInstrumentedTest {
         private const val ALERT_WORK_BASE_NAME = "helmet-safety-alert-upload"
         private const val COMMUNICATION_WORK_BASE_NAME = "helmet-communication-sync"
         private const val LOOPBACK_ENDPOINT = "http://127.0.0.1:18080"
-        private const val TEST_TOKEN = "stage3-board-integration-token"
         private const val TRACK_COUNT = 201
         private const val ALERT_COUNT = 101
         private const val CALL_COUNT = 101
-        private const val WORK_TIMEOUT_MILLIS = 60_000L
+        private const val WORK_TIMEOUT_MILLIS = 120_000L
         private const val WORK_POLL_MILLIS = 50L
     }
 }

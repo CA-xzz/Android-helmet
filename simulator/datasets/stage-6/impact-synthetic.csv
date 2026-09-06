@@ -1,0 +1,8 @@
+# dataset_id=impact-synthetic-v1
+# sample_rate_hz=20
+# source=synthetic
+# final_hardware_evidence=false
+sample_ref,monotonic_ms,accel_x_mg,accel_y_mg,accel_z_mg,gyro_x_mdps,gyro_y_mdps,gyro_z_mdps,electric_mv,pressure_pa,temperature_centi_c,altitude_mm,label
+1,50,0,0,1000,0,0,0,,,,,NONE
+2,100,3200,0,0,0,0,0,,,,,IMPACT
+3,150,0,0,1000,0,0,0,,,,,NONE

@@ -48,22 +48,35 @@ import org.junit.runner.RunWith
 class DurableOfflineRecoveryInstrumentedTest {
     @Test
     fun durableUploadsRecoverAfterProcessRestart() = runBlocking {
-        val phase = InstrumentationRegistry.getArguments().getString(PHASE_ARGUMENT).orEmpty()
+        val arguments = InstrumentationRegistry.getArguments()
+        val phase = arguments.getString(PHASE_ARGUMENT).orEmpty()
         assumeTrue("explicit enqueue or recover phase is required", phase in setOf(PHASE_ENQUEUE, PHASE_RECOVER))
+        val backendBearerToken = requireBoardBackendBearerToken(
+            arguments.getString(BACKEND_BEARER_TOKEN_ARGUMENT),
+        )
         when (phase) {
-            PHASE_ENQUEUE -> enqueueWhileBackendIsUnavailable()
-            PHASE_RECOVER -> recoverAfterProcessRestart()
+            PHASE_ENQUEUE -> enqueueWhileBackendIsUnavailable(backendBearerToken)
+            PHASE_RECOVER -> recoverAfterProcessRestart(backendBearerToken)
         }
     }
 
-    private suspend fun enqueueWhileBackendIsUnavailable() {
+    private suspend fun enqueueWhileBackendIsUnavailable(backendBearerToken: String) {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val evidence = context.getSharedPreferences(EVIDENCE_PREFERENCES, Context.MODE_PRIVATE)
+        evidence.getString(KEY_CONFIG_SNAPSHOT, null)?.let { staleSnapshot ->
+            restorePreferenceFilesForRecoveryTest(context, staleSnapshot)
+            check(evidence.edit().clear().commit()) { "failed to clear stale recovery metadata" }
+        }
         check(!evidence.getBoolean(KEY_READY, false)) {
             "a previous recovery phase is incomplete; reinstall the test package"
         }
         val configStore = RuntimeConfigStore(context)
         val originalConfig = configStore.load()
+        val configSnapshot = capturePreferenceFilesForRecoveryTest(context, CONFIG_PREFERENCE_FILES)
+        check(evidence.edit().putString(KEY_CONFIG_SNAPSHOT, configSnapshot).commit()) {
+            "failed to persist encrypted configuration snapshot"
+        }
+        try {
         val database = HelmetDatabase.get(context)
         val trackStore = TrackStore(database)
         val mediaStore = MediaStore(database)
@@ -138,7 +151,7 @@ class DurableOfflineRecoveryInstrumentedTest {
             sampleReference = 77,
             monotonicMillis = 12_345,
             occurredAtEpochMillis = now,
-            localActions = 7,
+            localActions = 2,
             sensorFaults = 0,
             simulated = true,
             sensorSnapshotJson = JSONObject(
@@ -158,10 +171,10 @@ class DurableOfflineRecoveryInstrumentedTest {
         )
         assertTrue(safetyStore.recordAlert(alert))
 
-        configStore.save(
-            originalConfig.copy(
-                backendBaseUrl = OFFLINE_ENDPOINT,
-                backendBearerToken = TEST_TOKEN,
+        configStore.saveForInstrumentationTest(
+                originalConfig.copy(
+                    backendBaseUrl = OFFLINE_ENDPOINT,
+                    backendBearerToken = backendBearerToken,
             ),
         )
         assertWorkerResult<ListenableWorker.Result.Retry, TrackUploadWorker>(context)
@@ -174,10 +187,10 @@ class DurableOfflineRecoveryInstrumentedTest {
         assertEquals(DeliveryState.FAILED, safetyStore.findAlert(alertMessageId)?.deliveryState)
         assertEquals(1, safetyStore.findAlert(alertMessageId)?.attemptCount)
 
-        configStore.save(
-            originalConfig.copy(
-                backendBaseUrl = STALE_NETWORK_ENDPOINT,
-                backendBearerToken = TEST_TOKEN,
+        configStore.saveForInstrumentationTest(
+                originalConfig.copy(
+                    backendBaseUrl = STALE_NETWORK_ENDPOINT,
+                    backendBearerToken = backendBearerToken,
             ),
         )
         TrackUploadWorker.enqueue(context)
@@ -195,47 +208,52 @@ class DurableOfflineRecoveryInstrumentedTest {
                 .putString(KEY_ALERT_MESSAGE_ID, alertMessageId)
                 .putString(KEY_ALERT_ID, alertId)
                 .putString(KEY_MEDIA_PATH, mediaFile.absolutePath)
-                .putString(KEY_ORIGINAL_BASE_URL, originalConfig.backendBaseUrl)
-                .putString(KEY_ORIGINAL_TOKEN, originalConfig.backendBearerToken)
                 .commit(),
         ) { "failed to persist recovery phase metadata" }
+        } catch (error: Throwable) {
+            restorePreferenceFilesForRecoveryTest(context, configSnapshot)
+            check(evidence.edit().clear().commit()) { "failed to clear recovery phase metadata" }
+            throw error
+        }
     }
 
-    private suspend fun recoverAfterProcessRestart() {
+    private suspend fun recoverAfterProcessRestart(backendBearerToken: String) {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val evidence = context.getSharedPreferences(EVIDENCE_PREFERENCES, Context.MODE_PRIVATE)
-        check(evidence.getBoolean(KEY_READY, false)) { "enqueue phase metadata is missing" }
-        assertNotEquals(evidence.getInt(KEY_PROCESS_ID, Process.myPid()), Process.myPid())
-        val deviceId = requireEvidence(evidence.getString(KEY_DEVICE_ID, null), KEY_DEVICE_ID)
-        val trackMessageId = requireEvidence(evidence.getString(KEY_TRACK_MESSAGE_ID, null), KEY_TRACK_MESSAGE_ID)
-        val mediaId = requireEvidence(evidence.getString(KEY_MEDIA_ID, null), KEY_MEDIA_ID)
-        val alertMessageId = requireEvidence(
-            evidence.getString(KEY_ALERT_MESSAGE_ID, null),
-            KEY_ALERT_MESSAGE_ID,
-        )
-        val alertId = requireEvidence(evidence.getString(KEY_ALERT_ID, null), KEY_ALERT_ID)
-        val mediaPath = requireEvidence(evidence.getString(KEY_MEDIA_PATH, null), KEY_MEDIA_PATH)
-        val originalBaseUrl = evidence.getString(KEY_ORIGINAL_BASE_URL, "").orEmpty()
-        val originalToken = evidence.getString(KEY_ORIGINAL_TOKEN, "").orEmpty()
-        val configStore = RuntimeConfigStore(context)
-        val offlineConfig = configStore.load()
-        val database = HelmetDatabase.get(context)
-        val trackStore = TrackStore(database)
-        val mediaStore = MediaStore(database)
-        val safetyStore = SafetyStore(database)
-        assertEquals(DeliveryState.FAILED, trackStore.find(trackMessageId)?.deliveryState)
-        assertEquals(1, trackStore.find(trackMessageId)?.attemptCount)
-        assertEquals(MediaTransferState.FAILED, mediaStore.find(mediaId)?.transferState)
-        assertEquals(1, mediaStore.find(mediaId)?.attemptCount)
-        assertEquals(DeliveryState.FAILED, safetyStore.findAlert(alertMessageId)?.deliveryState)
-        assertEquals(1, safetyStore.findAlert(alertMessageId)?.attemptCount)
-        assertTrue(File(mediaPath).isFile)
-
+        val configSnapshot = requireEvidence(evidence.getString(KEY_CONFIG_SNAPSHOT, null), KEY_CONFIG_SNAPSHOT)
         try {
-            configStore.save(
+            check(evidence.getBoolean(KEY_READY, false)) { "enqueue phase metadata is missing" }
+            assertNotEquals(evidence.getInt(KEY_PROCESS_ID, Process.myPid()), Process.myPid())
+            val deviceId = requireEvidence(evidence.getString(KEY_DEVICE_ID, null), KEY_DEVICE_ID)
+            val trackMessageId = requireEvidence(
+                evidence.getString(KEY_TRACK_MESSAGE_ID, null),
+                KEY_TRACK_MESSAGE_ID,
+            )
+            val mediaId = requireEvidence(evidence.getString(KEY_MEDIA_ID, null), KEY_MEDIA_ID)
+            val alertMessageId = requireEvidence(
+                evidence.getString(KEY_ALERT_MESSAGE_ID, null),
+                KEY_ALERT_MESSAGE_ID,
+            )
+            val alertId = requireEvidence(evidence.getString(KEY_ALERT_ID, null), KEY_ALERT_ID)
+            val mediaPath = requireEvidence(evidence.getString(KEY_MEDIA_PATH, null), KEY_MEDIA_PATH)
+            val configStore = RuntimeConfigStore(context)
+            val offlineConfig = configStore.load()
+            val database = HelmetDatabase.get(context)
+            val trackStore = TrackStore(database)
+            val mediaStore = MediaStore(database)
+            val safetyStore = SafetyStore(database)
+            assertEquals(DeliveryState.FAILED, trackStore.find(trackMessageId)?.deliveryState)
+            assertEquals(1, trackStore.find(trackMessageId)?.attemptCount)
+            assertEquals(MediaTransferState.FAILED, mediaStore.find(mediaId)?.transferState)
+            assertEquals(1, mediaStore.find(mediaId)?.attemptCount)
+            assertEquals(DeliveryState.FAILED, safetyStore.findAlert(alertMessageId)?.deliveryState)
+            assertEquals(1, safetyStore.findAlert(alertMessageId)?.attemptCount)
+            assertTrue(File(mediaPath).isFile)
+
+            configStore.saveForInstrumentationTest(
                 offlineConfig.copy(
                     backendBaseUrl = ONLINE_ENDPOINT,
-                    backendBearerToken = TEST_TOKEN,
+                    backendBearerToken = backendBearerToken,
                 ),
             )
             TrackUploadWorker.enqueue(context)
@@ -249,13 +267,16 @@ class DurableOfflineRecoveryInstrumentedTest {
             assertEquals(DeliveryState.DELIVERED, safetyStore.findAlert(alertMessageId)?.deliveryState)
             assertEquals(2, safetyStore.findAlert(alertMessageId)?.attemptCount)
 
-            val tracks = getJson("/v1/tracks?deviceId=$deviceId&afterSequence=0&limit=10")
+            val tracks = getJson(
+                "/v1/tracks?deviceId=$deviceId&afterSequence=0&limit=10",
+                backendBearerToken,
+            )
                 .getJSONArray("points")
             assertTrue((0 until tracks.length()).any { tracks.getJSONObject(it).getString("messageId") == trackMessageId })
-            val storedAlert = getJson("/v1/alerts/$alertId")
+            val storedAlert = getJson("/v1/alerts/$alertId", backendBearerToken)
             assertEquals(alertId, storedAlert.getString("alertId"))
             assertEquals(alertMessageId, storedAlert.getJSONObject("evidence").getString("relatedEventId"))
-            assertEquals(mediaId, getJson("/v1/media/$mediaId").getString("mediaId"))
+            assertEquals(mediaId, getJson("/v1/media/$mediaId", backendBearerToken).getString("mediaId"))
 
             assertWorkerResult<ListenableWorker.Result.Success, TrackUploadWorker>(context)
             assertWorkerResult<ListenableWorker.Result.Success, MediaUploadWorker>(context)
@@ -265,14 +286,9 @@ class DurableOfflineRecoveryInstrumentedTest {
             assertEquals(2, safetyStore.findAlert(alertMessageId)?.attemptCount)
             assertRoutesReconciled(context)
             assertTrue(File(mediaPath).delete())
-            check(evidence.edit().clear().commit()) { "failed to clear recovery phase metadata" }
         } finally {
-            configStore.save(
-                offlineConfig.copy(
-                    backendBaseUrl = originalBaseUrl,
-                    backendBearerToken = originalToken,
-                ),
-            )
+            restorePreferenceFilesForRecoveryTest(context, configSnapshot)
+            check(evidence.edit().clear().commit()) { "failed to clear recovery phase metadata" }
         }
     }
 
@@ -332,12 +348,12 @@ class DurableOfflineRecoveryInstrumentedTest {
         assertEquals(ResultType::class.java, result.javaClass)
     }
 
-    private suspend fun getJson(path: String): JSONObject = withContext(Dispatchers.IO) {
+    private suspend fun getJson(path: String, backendBearerToken: String): JSONObject = withContext(Dispatchers.IO) {
         val connection = (URL(ONLINE_ENDPOINT + path).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 5_000
             readTimeout = 10_000
-            setRequestProperty("Authorization", "Bearer $TEST_TOKEN")
+            setRequestProperty("Authorization", "Bearer $backendBearerToken")
             setRequestProperty("X-Actor-Id", "durable-recovery-host")
             setRequestProperty("X-Actor-Role", "DISPATCHER")
         }
@@ -368,12 +384,10 @@ class DurableOfflineRecoveryInstrumentedTest {
         private const val KEY_ALERT_MESSAGE_ID = "alert_message_id"
         private const val KEY_ALERT_ID = "alert_id"
         private const val KEY_MEDIA_PATH = "media_path"
-        private const val KEY_ORIGINAL_BASE_URL = "original_base_url"
-        private const val KEY_ORIGINAL_TOKEN = "original_token"
+        private const val KEY_CONFIG_SNAPSHOT = "encrypted_config_snapshot"
         private const val OFFLINE_ENDPOINT = "http://127.0.0.1:1"
         private const val STALE_NETWORK_ENDPOINT = "https://unreachable.invalid"
         private const val ONLINE_ENDPOINT = "http://127.0.0.1:18080"
-        private const val TEST_TOKEN = "stage3-board-integration-token"
         private const val MEDIA_BYTES = 300_000
         private const val WORK_TIMEOUT_MILLIS = 30_000L
         private const val WORK_POLL_MILLIS = 100L
@@ -381,6 +395,11 @@ class DurableOfflineRecoveryInstrumentedTest {
             "helmet-track-upload",
             "helmet-media-upload",
             "helmet-safety-alert-upload",
+        )
+        private val CONFIG_PREFERENCE_FILES = listOf(
+            "helmet_runtime_config",
+            "helmet_backend_credentials",
+            "helmet_rtk_credentials",
         )
     }
 }

@@ -21,6 +21,18 @@ enum class HardwareAlarmOrigin {
     SIMULATOR,
 }
 
+enum class HardwareOperationalState(val wireValue: Int) {
+    INITIALIZING(0),
+    OFFLINE_READY(1),
+    IDLE(2),
+    CALLING(3),
+    IN_CALL(4),
+    RECORDING(5),
+    SOS(6),
+    FAULT(7),
+    SHUTTING_DOWN(8),
+}
+
 sealed interface HardwareEvent {
     val monotonicMillis: Long
 
@@ -28,9 +40,23 @@ sealed interface HardwareEvent {
         override val monotonicMillis: Long,
     ) : HardwareEvent
 
+    data class ModuleHello(
+        override val monotonicMillis: Long,
+        val contractVersion: HardwareContractVersion,
+        val capabilityMask: Long,
+        val firmwareVersion: String,
+        val hardwareRevision: Int,
+        val bootSessionId: Long,
+        val compatible: Boolean,
+        val missingCapabilityMask: Long,
+    ) : HardwareEvent
+
     data class Key(
         override val monotonicMillis: Long,
         val input: SimulatedInput,
+        val eventId: Long? = null,
+        val sequence: Int? = null,
+        val acknowledgement: HardwareAcknowledgement? = null,
     ) : HardwareEvent
 
     data class Alarm(
@@ -47,6 +73,7 @@ sealed interface HardwareEvent {
         val sequence: Int? = null,
         val embeddedSample: SensorSample? = null,
         val origin: HardwareAlarmOrigin = HardwareAlarmOrigin.EXTERNAL_MODULE,
+        val acknowledgement: HardwareAcknowledgement? = null,
     ) : HardwareEvent
 
     data class SensorSample(
@@ -64,6 +91,8 @@ sealed interface HardwareEvent {
         val temperatureCentiCelsius: Int?,
         val altitudeMillimetres: Int?,
         val simulated: Boolean,
+        val sequence: Int? = null,
+        val acknowledgement: HardwareAcknowledgement? = null,
     ) : HardwareEvent
 
     data class ProtocolFrame(
@@ -76,11 +105,58 @@ sealed interface HardwareEvent {
     ) : HardwareEvent
 }
 
+/**
+ * Process-local capability for acknowledging one frame on the provider transport that delivered it.
+ * The wire sequence remains public for durable identity and diagnostics; only hardware-api can bind
+ * it to a provider epoch.
+ */
+class HardwareAcknowledgement internal constructor(
+    val sequence: Int,
+    internal val transportEpoch: ProviderTransportEpoch,
+) {
+    init {
+        require(sequence in 0..0xFFFF)
+    }
+}
+
 data class HardwareCommand(
     val type: Int,
     val flags: Int,
     val sequence: Int,
     val payload: ByteArray,
+)
+
+enum class HardwareCommandOutcome {
+    SENT,
+    ACKNOWLEDGED,
+    REJECTED,
+    TIMED_OUT,
+    SEND_FAILED,
+}
+
+enum class HardwareAcknowledgementResult(val wireValue: Int) {
+    SUCCESS(0),
+    UNSUPPORTED_VERSION(1),
+    UNSUPPORTED_TYPE(2),
+    INVALID_LENGTH(3),
+    FIELD_OUT_OF_RANGE(4),
+}
+
+data class HardwareCommandResult(
+    val outcome: HardwareCommandOutcome,
+    val type: Int,
+    val businessSequence: Int,
+    val wireSequence: Int,
+    val resultCode: Int? = null,
+    val detailSize: Int = 0,
+) {
+    val accepted: Boolean
+        get() = outcome == HardwareCommandOutcome.SENT || outcome == HardwareCommandOutcome.ACKNOWLEDGED
+}
+
+class HardwareCommandException(val result: HardwareCommandResult) : IllegalStateException(
+    "hardware command failed: outcome=${result.outcome} type=${result.type} " +
+        "wireSequence=${result.wireSequence} resultCode=${result.resultCode}",
 )
 
 data class HardwareStatus(
@@ -89,13 +165,30 @@ data class HardwareStatus(
     val lastHeartbeatMillis: Long? = null,
     val linkState: String = "DISCONNECTED",
     val lastError: String? = null,
+    val eventQueueOverflowCount: Long = 0,
+    val moduleSessionGeneration: Long = 0,
+    val compatibility: HardwareCompatibility = HardwareCompatibility.AWAITING_HELLO,
+    val moduleContractVersion: String? = null,
+    val moduleFirmwareVersion: String? = null,
+    val moduleCapabilityMask: Long = 0,
+    val missingCapabilityMask: Long = 0,
+    val moduleHardwareRevision: Int? = null,
+    val moduleBootSessionId: Long? = null,
 )
 
+enum class HardwareCompatibility {
+    AWAITING_HELLO,
+    COMPATIBLE,
+    CONTRACT_VERSION_MISMATCH,
+    REQUIRED_CAPABILITIES_MISSING,
+    NOT_APPLICABLE,
+}
+
 internal fun HardwareStatus.afterHeartbeat(monotonicMillis: Long): HardwareStatus = copy(
-    connected = true,
+    connected = compatibility == HardwareCompatibility.COMPATIBLE,
     lastHeartbeatMillis = monotonicMillis,
-    linkState = "CONNECTED",
-    lastError = null,
+    linkState = if (compatibility == HardwareCompatibility.COMPATIBLE) "CONNECTED" else "AWAITING_COMPATIBILITY",
+    lastError = lastError.takeUnless { compatibility == HardwareCompatibility.COMPATIBLE },
 )
 
 interface HardwareGateway {
@@ -105,5 +198,15 @@ interface HardwareGateway {
     suspend fun start()
     suspend fun stop()
     suspend fun send(command: HardwareCommand)
-    suspend fun acknowledge(acknowledgedSequence: Int, resultCode: Int) = Unit
+    suspend fun sendForResult(command: HardwareCommand): HardwareCommandResult {
+        send(command)
+        return HardwareCommandResult(
+            outcome = HardwareCommandOutcome.SENT,
+            type = command.type,
+            businessSequence = command.sequence,
+            wireSequence = command.sequence,
+        )
+    }
+    suspend fun acknowledge(acknowledgement: HardwareAcknowledgement, resultCode: Int) = Unit
+    fun updateOperationalState(state: HardwareOperationalState) = Unit
 }

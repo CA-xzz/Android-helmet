@@ -27,42 +27,137 @@ APP_PACKAGE=com.example.helmet
 TEST_PACKAGE=com.example.helmet.test
 TEST_RUNNER=androidx.test.runner.AndroidJUnitRunner
 TEST_CLASS=com.example.helmet.AutomaticStartupQueueRecoveryInstrumentedTest
+SERVICE_COMPONENT=com.example.helmet/com.example.helmet.service.runtime.HelmetService
 APP_APK="$PROJECT_ROOT/device-android/app/build/outputs/apk/debug/app-debug.apk"
 TEST_APK="$PROJECT_ROOT/device-android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
-TEST_TOKEN=startup-recovery-board-token
+generate_test_token() {
+    if command -v openssl >/dev/null 2>&1; then
+        openssl rand -hex 32
+    elif command -v uuidgen >/dev/null 2>&1; then
+        uuidgen
+    else
+        echo "ERROR: openssl or uuidgen is required to create an ephemeral test token" >&2
+        return 69
+    fi
+}
+TEST_TOKEN=$(generate_test_token)
 TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/helmet-startup-recovery.XXXXXX")
 BACKEND_PID=
+RECOVERY_PENDING=false
+
+restore_helmet_service() {
+    if ! adb -s "$ADB_SERIAL" shell am start-foreground-service --user 0 \
+        -n "$SERVICE_COMPONENT" >/dev/null 2>&1
+    then
+        echo "ERROR: failed to request HelmetService restart" >&2
+        return 1
+    fi
+
+    ATTEMPT=0
+    LAST_PID=
+    LAST_SERVICE_DUMP=
+    while [ "$ATTEMPT" -lt 20 ]; do
+        ATTEMPT=$((ATTEMPT + 1))
+        LAST_PID=$(adb -s "$ADB_SERIAL" shell pidof "$APP_PACKAGE" 2>/dev/null | tr -d '\r' || true)
+        LAST_SERVICE_DUMP=$(adb -s "$ADB_SERIAL" shell dumpsys activity services "$SERVICE_COMPONENT" 2>/dev/null | tr -d '\r' || true)
+        if [ -n "$LAST_PID" ] && \
+            printf '%s\n' "$LAST_SERVICE_DUMP" | rg -q 'com\.example\.helmet/\.service\.runtime\.HelmetService' && \
+            printf '%s\n' "$LAST_SERVICE_DUMP" | rg -q 'isForeground=true'
+        then
+            printf 'helmet_service_pid=%s helmet_service_foreground=true\n' "$LAST_PID"
+            return 0
+        fi
+        sleep 0.25
+    done
+
+    echo "ERROR: HelmetService did not recover as a foreground service" >&2
+    printf 'helmet_service_pid=%s\n' "${LAST_PID:-missing}" >&2
+    return 1
+}
 
 cleanup() {
+    EXIT_STATUS=$?
+    trap - EXIT HUP INT TERM
+    set +e
+    if [ "$RECOVERY_PENDING" = true ] && \
+        adb -s "$ADB_SERIAL" get-state 2>/dev/null | tr -d '\r' | rg -q '^device$'
+    then
+        if run_recovery_cleanup; then
+            RECOVERY_PENDING=false
+        else
+            echo "WARNING: startup recovery cleanup phase did not complete" >&2
+        fi
+    fi
     adb -s "$ADB_SERIAL" reverse --remove tcp:18084 >/dev/null 2>&1 || true
     if [ -n "$BACKEND_PID" ] && kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
         kill "$BACKEND_PID" >/dev/null 2>&1 || true
         wait "$BACKEND_PID" 2>/dev/null || true
     fi
     adb -s "$ADB_SERIAL" uninstall "$TEST_PACKAGE" >/dev/null 2>&1 || true
+    if ! restore_helmet_service && [ "$EXIT_STATUS" -eq 0 ]; then
+        EXIT_STATUS=1
+    fi
     case "$TEST_ROOT" in
         "${TMPDIR:-/tmp}"/helmet-startup-recovery.*)
-            rm -rf -- "$TEST_ROOT"
+            if ! rm -rf -- "$TEST_ROOT" && [ "$EXIT_STATUS" -eq 0 ]; then
+                EXIT_STATUS=1
+            fi
             ;;
         *)
             echo "WARNING: refusing to remove unexpected test directory: $TEST_ROOT" >&2
+            if [ "$EXIT_STATUS" -eq 0 ]; then
+                EXIT_STATUS=1
+            fi
             ;;
     esac
+    exit "$EXIT_STATUS"
 }
-trap cleanup EXIT HUP INT TERM
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+run_single_instrumentation() {
+    NAME=$1
+    shift
+    RAW_OUTPUT="$TEST_ROOT/$NAME.raw.log"
+    OUTPUT="$TEST_ROOT/$NAME.log"
+    if adb -s "$ADB_SERIAL" shell am instrument -w -r \
+        "$@" \
+        "$TEST_PACKAGE/$TEST_RUNNER" >"$RAW_OUTPUT" 2>&1
+    then
+        INSTRUMENT_STATUS=0
+    else
+        INSTRUMENT_STATUS=$?
+    fi
+    tr -d '\r' <"$RAW_OUTPUT" >"$OUTPUT"
+    cat "$OUTPUT"
+    OK_LINES=$(rg -c '^OK \(1 test\)$' "$OUTPUT" 2>/dev/null || true)
+    if [ "$INSTRUMENT_STATUS" -ne 0 ] || [ "${OK_LINES:-0}" -ne 1 ] || \
+        rg -q 'FAILURES!!!|INSTRUMENTATION_FAILED|INSTRUMENTATION_ABORTED' "$OUTPUT"
+    then
+        return 1
+    fi
+}
+
+run_recovery_cleanup() {
+    run_single_instrumentation cleanup-recover \
+        -e automaticStartupRecoveryPhase cleanup \
+        -e backendBearerToken "$TEST_TOKEN" \
+        -e class "$TEST_CLASS"
+}
 
 run_phase() {
     PHASE=$1
-    OUTPUT="$TEST_ROOT/$PHASE.log"
-    adb -s "$ADB_SERIAL" shell am instrument -w -r \
+    if ! run_single_instrumentation "$PHASE" \
         -e automaticStartupRecoveryPhase "$PHASE" \
-        -e class "$TEST_CLASS" \
-        "$TEST_PACKAGE/$TEST_RUNNER" | tee "$OUTPUT"
-    rg -q 'OK \(1 test\)' "$OUTPUT" || {
+        -e backendBearerToken "$TEST_TOKEN" \
+        -e class "$TEST_CLASS"
+    then
         echo "ERROR: automatic startup recovery $PHASE phase failed"
         [ ! -f "$TEST_ROOT/backend.log" ] || tail -80 "$TEST_ROOT/backend.log"
         exit 1
-    }
+    fi
 }
 
 adb -s "$ADB_SERIAL" get-state | rg -q '^device$' || {
@@ -90,35 +185,43 @@ BACKEND_PID=$!
 
 READY=false
 for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+    if ! kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
+        break
+    fi
     if curl --fail --silent --show-error http://127.0.0.1:18084/ready >/dev/null 2>&1; then
         READY=true
         break
     fi
     sleep 0.25
 done
-[ "$READY" = true ] || {
+[ "$READY" = true ] && kill -0 "$BACKEND_PID" >/dev/null 2>&1 || {
     echo "ERROR: isolated backend did not become ready"
     sed -n '1,200p' "$TEST_ROOT/backend.log"
     exit 1
 }
 
 adb -s "$ADB_SERIAL" reverse tcp:18084 tcp:18084
+RECOVERY_PENDING=true
 run_phase seed
 adb -s "$ADB_SERIAL" shell am force-stop "$APP_PACKAGE"
 run_phase recover
+RECOVERY_PENDING=false
 
-TRACK_POSTS=$(rg -c 'POST /v1/tracks:batch HTTP/1.1" 200' "$TEST_ROOT/backend.log" || true)
-MEDIA_CHUNKS=$(rg -c 'PUT /v1/media/sessions/.+/chunks HTTP/1.1" 200' "$TEST_ROOT/backend.log" || true)
-MEDIA_COMPLETES=$(rg -c 'POST /v1/media/sessions/.+/complete HTTP/1.1" 200' "$TEST_ROOT/backend.log" || true)
-ALERT_POSTS=$(rg -c 'POST /v1/alerts HTTP/1.1" 200' "$TEST_ROOT/backend.log" || true)
-CALL_POSTS=$(rg -c 'POST /v1/calls HTTP/1.1" 200' "$TEST_ROOT/backend.log" || true)
+TRACK_POSTS=$(rg -c 'request method=POST path=/v1/tracks:batch status=200' "$TEST_ROOT/backend.log" || true)
+MEDIA_CHUNKS=$(rg -c 'request method=PUT path=/v1/media/sessions/[^/ ]+/chunks status=200' "$TEST_ROOT/backend.log" || true)
+MEDIA_COMPLETES=$(rg -c 'request method=POST path=/v1/media/sessions/[^/ ]+/complete status=200' "$TEST_ROOT/backend.log" || true)
+ALERT_POSTS=$(rg -c 'request method=POST path=/v1/alerts status=200' "$TEST_ROOT/backend.log" || true)
+CALL_POSTS=$(rg -c 'request method=POST path=/v1/calls status=200' "$TEST_ROOT/backend.log" || true)
 : "${TRACK_POSTS:=0}"
 : "${MEDIA_CHUNKS:=0}"
 : "${MEDIA_COMPLETES:=0}"
 : "${ALERT_POSTS:=0}"
 : "${CALL_POSTS:=0}"
-[ "$TRACK_POSTS" -ge 1 ] && [ "$MEDIA_CHUNKS" -eq 4 ] && [ "$MEDIA_COMPLETES" -ge 1 ] && \
+[ "$TRACK_POSTS" -ge 1 ] && [ "$MEDIA_CHUNKS" -ge 4 ] && [ "$MEDIA_COMPLETES" -ge 1 ] && \
     [ "$ALERT_POSTS" -ge 1 ] && [ "$CALL_POSTS" -ge 1 ] || {
+    printf 'backend_track_posts=%s backend_media_chunks=%s backend_media_completes=%s\n' \
+        "$TRACK_POSTS" "$MEDIA_CHUNKS" "$MEDIA_COMPLETES"
+    printf 'backend_alert_posts=%s backend_call_posts=%s\n' "$ALERT_POSTS" "$CALL_POSTS"
     echo "ERROR: backend did not observe every automatically recovered queue"
     exit 1
 }

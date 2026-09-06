@@ -1,6 +1,7 @@
 package com.example.helmet.feature.location
 
 import com.example.helmet.core.model.CircleGeofence
+import com.example.helmet.core.model.FixQuality
 import com.example.helmet.core.model.GeofenceTransition
 import com.example.helmet.core.model.GeofenceTransitionType
 import com.example.helmet.core.model.LocationFix
@@ -34,10 +35,32 @@ class GeofenceEngine(geofences: Collection<CircleGeofence>) {
                 geofence.centerLongitude,
             )
             val state = states.getValue(geofence.geofenceId)
-            val candidate = if (!state.initialized || !state.inside) {
-                distance <= geofence.radiusMeters - geofence.hysteresisMeters
-            } else {
-                distance <= geofence.radiusMeters + geofence.hysteresisMeters
+            val accuracy = conservativeHorizontalUncertaintyMeters(fix) ?: return@mapNotNull null
+            val minimumDistance = (distance - accuracy).coerceAtLeast(0.0)
+            val maximumDistance = distance + accuracy
+            val innerBoundary = geofence.radiusMeters - geofence.hysteresisMeters
+            val outerBoundary = geofence.radiusMeters + geofence.hysteresisMeters
+            val candidate = when {
+                !state.initialized -> when {
+                    maximumDistance <= geofence.radiusMeters -> true
+                    minimumDistance > geofence.radiusMeters -> false
+                    else -> null
+                }
+                state.inside -> when {
+                    minimumDistance > outerBoundary -> false
+                    maximumDistance <= outerBoundary -> true
+                    else -> null
+                }
+                else -> when {
+                    maximumDistance <= innerBoundary -> true
+                    minimumDistance > innerBoundary -> false
+                    else -> null
+                }
+            }
+            if (candidate == null) {
+                state.candidateInside = null
+                state.candidateSamples = 0
+                return@mapNotNull null
             }
             if (state.initialized && candidate == state.inside) {
                 state.candidateInside = null
@@ -88,6 +111,21 @@ class GeofenceEngine(geofences: Collection<CircleGeofence>) {
     }
 
     companion object {
+        internal fun conservativeHorizontalUncertaintyMeters(fix: LocationFix): Double? {
+            fix.horizontalAccuracyMeters?.let { return it.toDouble() }
+            val qualityFloor = when (fix.quality) {
+                FixQuality.RTK_FIXED -> 0.5
+                FixQuality.RTK_FLOAT -> 2.0
+                FixQuality.DIFFERENTIAL -> 5.0
+                FixQuality.STANDARD -> 10.0
+                FixQuality.NO_FIX,
+                FixQuality.UNVALIDATED,
+                FixQuality.DEAD_RECKONING,
+                -> return null
+            }
+            return fix.gnss.hdop?.times(5.0)?.coerceAtLeast(qualityFloor) ?: qualityFloor
+        }
+
         fun distanceMeters(
             latitudeA: Double,
             longitudeA: Double,

@@ -15,18 +15,18 @@ import com.example.helmet.data.local.SafetyStore
 import com.example.helmet.hardware.api.SimulatedInput
 import com.example.helmet.service.runtime.HelmetService
 import com.example.helmet.service.runtime.RuntimeStatus
+import com.example.helmet.testfixture.PersistentPreferencesTestGuard
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,23 +34,32 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AutomaticSafetyAlertUploadInstrumentedTest {
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
+    private val backendBearerToken = requireNonBlankBoardTestArgument(
+        InstrumentationRegistry.getArguments().getString(BACKEND_BEARER_TOKEN_ARGUMENT),
+        BACKEND_BEARER_TOKEN_ARGUMENT,
+    )
 
     @Test
     fun foregroundServicePersistsAndAutomaticallyUploadsSimulatedSafetyAlerts() = runBlocking {
+        PersistentPreferencesTestGuard.restoreStale(context, RECOVERY_EVIDENCE_PREFERENCES)
         val configStore = RuntimeConfigStore(context)
-        val originalConfig = configStore.load()
+        val configGuard = PersistentPreferencesTestGuard.capture(
+            context,
+            RECOVERY_EVIDENCE_PREFERENCES,
+            CONFIG_PREFERENCE_FILES,
+        )
         val deviceId = DeviceIdentityStore(context).getOrCreateDeviceId()
         val safetyStore = SafetyStore(HelmetDatabase.get(context))
-        val testConfig = originalConfig.copy(
-            revision = originalConfig.revision + 1,
-            simulatorEnabled = true,
-            backendBaseUrl = TEST_ENDPOINT,
-            backendBearerToken = TEST_TOKEN,
-            mqttBrokerUri = "",
-            mqttClientCertificateAlias = "",
-        )
         try {
-            configStore.save(testConfig)
+            val testConfig = configStore.update { current ->
+                current.copy(
+                    simulatorEnabled = true,
+                    backendBaseUrl = TEST_ENDPOINT,
+                    backendBearerToken = backendBearerToken,
+                    mqttBrokerUri = "",
+                    mqttClientCertificateAlias = "",
+                )
+            }
             context.stopService(HelmetService.startIntent(context))
             delay(SERVICE_RESTART_DELAY_MILLIS)
             ContextCompat.startForegroundService(context, HelmetService.startIntent(context))
@@ -72,9 +81,13 @@ class AutomaticSafetyAlertUploadInstrumentedTest {
                 input = SimulatedInput.FALL,
                 expectedType = "FALL",
             )
-            assertCommonAlert(fall, expectedSeverity = "HIGH")
+            assertCommonAlert(fall, expectedSeverity = "CRITICAL")
             assertEquals(0x0001, fall.uploaded.getJSONObject("sensorSnapshot").getInt("validFlags"))
             assertEquals(2_400, fall.uploaded.getJSONObject("sensorSnapshot").getInt("accelerationXMilliG"))
+            assertEquals(
+                "ANDROID_DETECTION",
+                fall.uploaded.getJSONObject("sensorSnapshot").getString("detectionOrigin"),
+            )
 
             val electric = uploadAndAwait(
                 deviceId = deviceId,
@@ -86,7 +99,7 @@ class AutomaticSafetyAlertUploadInstrumentedTest {
             val electricSnapshot = electric.uploaded.getJSONObject("sensorSnapshot")
             assertEquals(0x0002, electricSnapshot.getInt("validFlags"))
             assertEquals(920, electricSnapshot.getInt("electricFieldMilliVolts"))
-            assertEquals("SIMULATOR", electricSnapshot.getString("detectionOrigin"))
+            assertEquals("ANDROID_DETECTION", electricSnapshot.getString("detectionOrigin"))
             assertEquals(
                 electricSnapshot.getLong("sampleReference"),
                 JSONObject(electric.local.sensorSnapshotJson).getLong("sampleReference"),
@@ -100,19 +113,24 @@ class AutomaticSafetyAlertUploadInstrumentedTest {
             )
             assertCommonAlert(height, expectedSeverity = "HIGH")
             val heightSnapshot = height.uploaded.getJSONObject("sensorSnapshot")
-            assertEquals(0x0004, heightSnapshot.getInt("validFlags"))
-            assertEquals(101_325L, heightSnapshot.getLong("pressurePascals"))
-            assertEquals(2_200, heightSnapshot.getInt("altitudeMillimetres"))
-            assertEquals("SIMULATOR", heightSnapshot.getString("detectionOrigin"))
+            assertEquals(0x0010, heightSnapshot.getInt("validFlags"))
+            assertEquals(101_285L, heightSnapshot.getLong("pressurePascals"))
+            assertTrue(heightSnapshot.isNull("altitudeMillimetres"))
+            assertEquals("ANDROID_DETECTION", heightSnapshot.getString("detectionOrigin"))
             assertEquals(
                 heightSnapshot.getLong("sampleReference"),
                 JSONObject(height.local.sensorSnapshotJson).getLong("sampleReference"),
             )
         } finally {
-            configStore.save(originalConfig)
-            context.stopService(HelmetService.startIntent(context))
-            delay(SERVICE_RESTART_DELAY_MILLIS)
-            ContextCompat.startForegroundService(context, HelmetService.startIntent(context))
+            withContext(NonCancellable) {
+                context.stopService(HelmetService.startIntent(context))
+                delay(SERVICE_RESTART_DELAY_MILLIS)
+                try {
+                    configGuard.restore()
+                } finally {
+                    ContextCompat.startForegroundService(context, HelmetService.startIntent(context))
+                }
+            }
         }
     }
 
@@ -122,56 +140,50 @@ class AutomaticSafetyAlertUploadInstrumentedTest {
         input: SimulatedInput,
         expectedType: String,
     ): UploadedAlert {
-        val baselineAlertIds = getAlerts(deviceId).ids()
+        val baselineMessageIds = safetyStore.latestActiveAlerts(deviceId)
+            .mapTo(mutableSetOf(), SafetyAlertRecord::messageId)
         Log.i(TEST_LOG_TAG, "sending simulated $expectedType to foreground service")
         sendSimulatedInput(input)
-        var uploadedResult: JSONObject? = null
-        withTimeout(AUTOMATIC_UPLOAD_TIMEOUT_MILLIS) {
-            while (uploadedResult == null) {
-                uploadedResult = getAlerts(deviceId).values()
-                    .firstOrNull { alert ->
-                        alert.getString("type") == expectedType &&
-                            alert.getString("alertId") !in baselineAlertIds
-                    }
-                if (uploadedResult == null) delay(POLL_INTERVAL_MILLIS)
-            }
-        }
-        val uploaded = checkNotNull(uploadedResult)
-        val alertId = uploaded.getString("alertId")
         var deliveredResult: SafetyAlertRecord? = null
         withTimeout(AUTOMATIC_UPLOAD_TIMEOUT_MILLIS) {
             while (deliveredResult?.deliveryState != DeliveryState.DELIVERED) {
-                deliveredResult = safetyStore.latestAlert(alertId)
+                deliveredResult = safetyStore.latestActiveAlerts(deviceId)
+                    .firstOrNull { alert ->
+                        alert.alarmType == expectedType &&
+                            alert.simulated &&
+                            alert.messageId !in baselineMessageIds
+                    }
                 if (deliveredResult?.deliveryState != DeliveryState.DELIVERED) {
                     delay(POLL_INTERVAL_MILLIS)
                 }
             }
         }
-        return UploadedAlert(uploaded, checkNotNull(deliveredResult))
+        val local = checkNotNull(deliveredResult)
+        val uploaded = getAlert(local.alertId)
+        assertEquals(local.alertId, uploaded.getString("alertId"))
+        assertEquals(local.alarmType, uploaded.getString("type"))
+        return UploadedAlert(uploaded, local)
     }
 
     private fun assertCommonAlert(result: UploadedAlert, expectedSeverity: String) {
         assertEquals(expectedSeverity, result.uploaded.getString("severity"))
-        assertEquals("OPEN", result.uploaded.getString("workflowState"))
         assertTrue(result.uploaded.getBoolean("active"))
         assertTrue(result.uploaded.getBoolean("simulated"))
-        assertTrue(result.uploaded.getBoolean("requiresAttention"))
-        assertTrue(result.uploaded.getJSONObject("presentation").getBoolean("sound"))
-        assertFalse(result.uploaded.getJSONObject("presentation").getBoolean("mapMarker"))
+        assertEquals("ACTIVATED", result.uploaded.getJSONArray("events").getJSONObject(0).getString("kind"))
         assertEquals("NO_FIX", result.uploaded.getJSONObject("location").getString("fixType"))
         assertEquals(DeliveryState.DELIVERED, result.local.deliveryState)
         assertTrue(requireNotNull(result.local.sampleReference) > 0)
     }
 
-    private suspend fun getAlerts(deviceId: String): JSONArray = withContext(Dispatchers.IO) {
+    private suspend fun getAlert(alertId: String): JSONObject = withContext(Dispatchers.IO) {
         val connection = (
-            URL("$TEST_ENDPOINT/v1/alerts?deviceId=$deviceId&limit=100").openConnection() as HttpURLConnection
+            URL("$TEST_ENDPOINT/v1/alerts/$alertId").openConnection() as HttpURLConnection
             ).apply {
             requestMethod = "GET"
             connectTimeout = 5_000
             readTimeout = 10_000
             doInput = true
-            setRequestProperty("Authorization", "Bearer $TEST_TOKEN")
+            setRequestProperty("Authorization", "Bearer $backendBearerToken")
             setRequestProperty("X-Actor-Id", "automatic-safety-board")
             setRequestProperty("X-Actor-Role", "DISPATCHER")
         }
@@ -180,7 +192,7 @@ class AutomaticSafetyAlertUploadInstrumentedTest {
             val text = (if (status in 200..299) connection.inputStream else connection.errorStream)
                 .bufferedReader().use { it.readText() }
             check(status in 200..299) { "backend HTTP $status: $text" }
-            JSONObject(text).getJSONArray("alerts")
+            JSONObject(text)
         } finally {
             connection.disconnect()
         }
@@ -198,12 +210,6 @@ class AutomaticSafetyAlertUploadInstrumentedTest {
         check("Starting service" in output) { "simulation service intent failed: $output" }
     }
 
-    private fun JSONArray.values(): List<JSONObject> =
-        (0 until length()).map(::getJSONObject)
-
-    private fun JSONArray.ids(): Set<String> =
-        values().mapTo(mutableSetOf()) { value -> value.getString("alertId") }
-
     private data class UploadedAlert(
         val uploaded: JSONObject,
         val local: SafetyAlertRecord,
@@ -211,12 +217,18 @@ class AutomaticSafetyAlertUploadInstrumentedTest {
 
     companion object {
         private const val TEST_ENDPOINT = "http://127.0.0.1:18083"
-        private const val TEST_TOKEN = "automatic-safety-board-token"
+        private const val BACKEND_BEARER_TOKEN_ARGUMENT = "backendBearerToken"
         private const val TEST_LOG_TAG = "AutomaticSafetyTest"
+        private const val RECOVERY_EVIDENCE_PREFERENCES = "automatic_safety_test_recovery"
         private const val SERVICE_START_TIMEOUT_MILLIS = 30_000L
         private const val AUTOMATIC_UPLOAD_TIMEOUT_MILLIS = 30_000L
         private const val SERVICE_RESTART_DELAY_MILLIS = 500L
         private const val SERVICE_READY_SETTLE_MILLIS = 1_000L
         private const val POLL_INTERVAL_MILLIS = 250L
+        private val CONFIG_PREFERENCE_FILES = listOf(
+            "helmet_runtime_config",
+            "helmet_backend_credentials",
+            "helmet_rtk_credentials",
+        )
     }
 }

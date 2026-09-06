@@ -1,36 +1,39 @@
 package com.example.helmet
 
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
-import android.os.IBinder
 import android.os.SystemClock
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.helmet.core.model.CircleGeofence
 import com.example.helmet.core.model.DeliveryState
 import com.example.helmet.core.model.SafetyAlertRecord
+import com.example.helmet.core.protocol.HslFlags
+import com.example.helmet.core.protocol.HslCapability
+import com.example.helmet.core.protocol.HslHelloCodec
+import com.example.helmet.core.protocol.HslMessageType
+import com.example.helmet.core.protocol.HslModuleHello
+import com.example.helmet.core.protocol.HslStreamDecoder
 import com.example.helmet.data.local.DeviceIdentityStore
 import com.example.helmet.data.local.HelmetDatabase
 import com.example.helmet.data.local.RuntimeConfigStore
 import com.example.helmet.data.local.SafetyStore
 import com.example.helmet.data.local.TrackStore
-import com.example.helmet.hardware.api.BoundHardwareGateway
+import com.example.helmet.hardware.api.HardwareProviderConnection
 import com.example.helmet.service.runtime.HelmetService
 import com.example.helmet.service.runtime.RuntimeStatus
+import com.example.helmet.testfixture.PersistentPreferencesTestGuard
+import com.example.helmet.testfixture.AndroidTestPtyFixture
 import java.io.Closeable
 import java.io.FileInputStream
 import java.net.HttpURLConnection
-import java.net.Socket
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.Locale
 import java.util.UUID
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -52,11 +55,20 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AutomaticGeofenceAlertUploadInstrumentedTest {
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
+    private val backendBearerToken = requireNonBlankBoardTestArgument(
+        InstrumentationRegistry.getArguments().getString(BACKEND_BEARER_TOKEN_ARGUMENT),
+        BACKEND_BEARER_TOKEN_ARGUMENT,
+    )
 
     @Test
     fun uartNmeaTrackAndGeofenceEventsArePersistedAndAutomaticallyUploaded() = runBlocking {
+        PersistentPreferencesTestGuard.restoreStale(context, RECOVERY_EVIDENCE_PREFERENCES)
         val configStore = RuntimeConfigStore(context)
-        val originalConfig = configStore.load()
+        val configGuard = PersistentPreferencesTestGuard.capture(
+            context,
+            RECOVERY_EVIDENCE_PREFERENCES,
+            CONFIG_PREFERENCE_FILES,
+        )
         val deviceId = DeviceIdentityStore(context).getOrCreateDeviceId()
         val database = HelmetDatabase.get(context)
         val safetyStore = SafetyStore(database)
@@ -65,36 +77,39 @@ class AutomaticGeofenceAlertUploadInstrumentedTest {
             .firstOrNull()
             ?.sequence
             ?: 0L
-        val geofenceId = "board-uart-fixture-${originalConfig.revision + 1}"
+        val geofenceId = "board-uart-fixture-${UUID.randomUUID()}"
         val alertId = stableGeofenceAlertId(deviceId, geofenceId)
-        val testConfig = originalConfig.copy(
-            revision = originalConfig.revision + 1,
-            simulatorEnabled = false,
-            hardwareDevicePath = TEST_UART_PATH,
-            hardwareBaudRate = 115_200,
-            backendBaseUrl = TEST_ENDPOINT,
-            backendBearerToken = TEST_TOKEN,
-            mqttBrokerUri = "",
-            mqttClientCertificateAlias = "",
-            geofences = listOf(
-                CircleGeofence(
-                    geofenceId = geofenceId,
-                    centerLatitude = CENTER_LATITUDE,
-                    centerLongitude = CENTER_LONGITUDE,
-                    radiusMeters = 100.0,
-                    hysteresisMeters = 10.0,
-                    confirmationSamples = 2,
-                ),
-            ),
-        )
         var fixture: UartFixture? = null
         var heartbeatJob: Job? = null
+        var reliableCommandResponderJob: Job? = null
         try {
-            val activeFixture = withContext(Dispatchers.IO) {
-                UartFixture(TEST_UART_BRIDGE_HOST, TEST_UART_BRIDGE_PORT)
+            startHelmetService()
+            withTimeout(SERVICE_START_TIMEOUT_MILLIS) {
+                while (!isHelmetServiceForeground()) delay(100)
             }
+            val activeFixture = withContext(Dispatchers.IO) { UartFixture() }
             fixture = activeFixture
-            configStore.save(testConfig)
+            val testConfig = configStore.update { current ->
+                current.copy(
+                    simulatorEnabled = false,
+                    hardwareDevicePath = activeFixture.devicePath,
+                    hardwareBaudRate = 115_200,
+                    backendBaseUrl = TEST_ENDPOINT,
+                    backendBearerToken = backendBearerToken,
+                    mqttBrokerUri = "",
+                    mqttClientCertificateAlias = "",
+                    geofences = listOf(
+                        CircleGeofence(
+                            geofenceId = geofenceId,
+                            centerLatitude = CENTER_LATITUDE,
+                            centerLongitude = CENTER_LONGITUDE,
+                            radiusMeters = 100.0,
+                            hysteresisMeters = 10.0,
+                            confirmationSamples = 2,
+                        ),
+                    ),
+                )
+            }
             context.stopService(HelmetService.startIntent(context))
             delay(SERVICE_RESTART_DELAY_MILLIS)
             startHelmetService()
@@ -102,8 +117,18 @@ class AutomaticGeofenceAlertUploadInstrumentedTest {
                 RuntimeStatus.snapshot.first { snapshot ->
                     snapshot.configRevision == testConfig.revision &&
                         snapshot.hardwareMode == "UART" &&
-                        snapshot.hardwareLinkState == "AWAITING_HEARTBEAT" &&
+                        snapshot.hardwareLinkState == "AWAITING_HELLO" &&
                         snapshot.activeGeofenceCount == 1
+                }
+            }
+            reliableCommandResponderJob = launch(Dispatchers.IO) {
+                while (isActive) activeFixture.acknowledgeOutgoingReliableFrames()
+            }
+            activeFixture.sendHello(sequence = 0x0100)
+            withTimeout(HARDWARE_CONNECT_TIMEOUT_MILLIS) {
+                RuntimeStatus.snapshot.first { snapshot ->
+                    snapshot.hardwareCompatibility == "COMPATIBLE" &&
+                        snapshot.hardwareLinkState == "AWAITING_HEARTBEAT"
                 }
             }
 
@@ -122,7 +147,9 @@ class AutomaticGeofenceAlertUploadInstrumentedTest {
                 }
             }
             delay(SAFETY_CONFIG_SETTLE_MILLIS)
-            activeFixture.sendAcknowledgement(testConfig.safetyThresholds.version, sequence = 100)
+            withTimeout(HARDWARE_CONNECT_TIMEOUT_MILLIS) {
+                while (activeFixture.acknowledgedReliableCommandCount == 0) delay(25)
+            }
 
             sendConfirmedPosition(activeFixture, INSIDE_LATITUDE, sequence = 200)
             sendConfirmedPosition(activeFixture, OUTSIDE_LATITUDE, sequence = 210)
@@ -132,9 +159,7 @@ class AutomaticGeofenceAlertUploadInstrumentedTest {
             assertEquals("GEOFENCE", exitBackend.getString("type"))
             assertEquals("HIGH", exitBackend.getString("severity"))
             assertFalse(exitBackend.getBoolean("simulated"))
-            assertTrue(exitBackend.getBoolean("requiresAttention"))
-            assertTrue(exitBackend.getJSONObject("presentation").getBoolean("sound"))
-            assertTrue(exitBackend.getJSONObject("presentation").getBoolean("mapMarker"))
+            assertTrue(exitBackend.getBoolean("active"))
             assertEquals("RTK_FIXED", exitBackend.getJSONObject("location").getString("fixType"))
             assertEquals(OUTSIDE_LATITUDE, exitBackend.getJSONObject("location").getDouble("latitude"), 0.000_001)
             assertEquals(CENTER_LONGITUDE, exitBackend.getJSONObject("location").getDouble("longitude"), 0.000_001)
@@ -150,8 +175,7 @@ class AutomaticGeofenceAlertUploadInstrumentedTest {
             val returnBackend = awaitBackendAlert(alertId, active = false)
             val returnLocal = awaitLocalAlert(safetyStore, alertId, active = false)
             assertEquals("INFO", returnBackend.getString("severity"))
-            assertEquals("OPEN", returnBackend.getString("workflowState"))
-            assertFalse(returnBackend.getBoolean("requiresAttention"))
+            assertFalse(returnBackend.getBoolean("active"))
             assertEquals(DeliveryState.DELIVERED, returnLocal.deliveryState)
             assertFalse(returnLocal.active)
             val returnSnapshot = returnBackend.getJSONObject("sensorSnapshot")
@@ -193,12 +217,27 @@ class AutomaticGeofenceAlertUploadInstrumentedTest {
                 assertTrue(local.attemptCount >= 1)
             }
         } finally {
-            heartbeatJob?.cancelAndJoin()
-            fixture?.close()
-            context.stopService(HelmetService.startIntent(context))
-            configStore.save(originalConfig)
-            delay(SERVICE_RESTART_DELAY_MILLIS)
-            startHelmetService()
+            withContext(NonCancellable) {
+                try {
+                    heartbeatJob?.cancelAndJoin()
+                } finally {
+                    try {
+                        reliableCommandResponderJob?.cancelAndJoin()
+                    } finally {
+                        try {
+                            fixture?.close()
+                        } finally {
+                            context.stopService(HelmetService.startIntent(context))
+                            try {
+                                configGuard.restore()
+                            } finally {
+                                delay(SERVICE_RESTART_DELAY_MILLIS)
+                                startHelmetService()
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -211,6 +250,16 @@ class AutomaticGeofenceAlertUploadInstrumentedTest {
                 FileInputStream(descriptor.fileDescriptor).bufferedReader().use { it.readText() }
             }
         check(!output.contains("Error", ignoreCase = true)) { output.trim() }
+    }
+
+    private fun isHelmetServiceForeground(): Boolean {
+        val output = InstrumentationRegistry.getInstrumentation().uiAutomation
+            .executeShellCommand(
+                "dumpsys activity services $PACKAGE_NAME/${HelmetService::class.java.name}",
+            ).use { descriptor ->
+                FileInputStream(descriptor.fileDescriptor).bufferedReader().use { it.readText() }
+            }
+        return output.contains("isForeground=true")
     }
 
     private suspend fun sendConfirmedPosition(fixture: UartFixture, latitude: Double, sequence: Int) {
@@ -279,7 +328,7 @@ class AutomaticGeofenceAlertUploadInstrumentedTest {
             connectTimeout = 5_000
             readTimeout = 10_000
             doInput = true
-            setRequestProperty("Authorization", "Bearer $TEST_TOKEN")
+            setRequestProperty("Authorization", "Bearer $backendBearerToken")
             setRequestProperty("X-Actor-Id", "automatic-geofence-board")
             setRequestProperty("X-Actor-Role", "DISPATCHER")
         }
@@ -303,7 +352,7 @@ class AutomaticGeofenceAlertUploadInstrumentedTest {
             connectTimeout = 5_000
             readTimeout = 10_000
             doInput = true
-            setRequestProperty("Authorization", "Bearer $TEST_TOKEN")
+            setRequestProperty("Authorization", "Bearer $backendBearerToken")
             setRequestProperty("X-Actor-Id", "automatic-geofence-board")
             setRequestProperty("X-Actor-Role", "DISPATCHER")
         }
@@ -331,9 +380,39 @@ class AutomaticGeofenceAlertUploadInstrumentedTest {
     private fun stableGeofenceAlertId(deviceId: String, geofenceId: String): String =
         "geofence-${UUID.nameUUIDFromBytes("$deviceId\n$geofenceId".toByteArray(Charsets.UTF_8))}"
 
-    private class UartFixture(host: String, port: Int) : Closeable {
-        private val socket = Socket(host, port).apply { tcpNoDelay = true }
-        private val output = socket.getOutputStream()
+    private class UartFixture : Closeable {
+        private val pty = AndroidTestPtyFixture()
+        private val outgoingDecoder = HslStreamDecoder()
+        private val responseSequence = AtomicInteger(0x4000)
+        private val reliableAcknowledgements = AtomicInteger()
+
+        val devicePath: String
+            get() = pty.slavePath
+
+        val acknowledgedReliableCommandCount: Int
+            get() = reliableAcknowledgements.get()
+
+        fun sendHello(sequence: Int) {
+            val payload = HslHelloCodec.encode(
+                HslModuleHello(
+                    contractMajor = 1,
+                    contractMinor = 0,
+                    contractPatch = 0,
+                    capabilityMask = HslCapability.KNOWN_MASK,
+                    firmwareMajor = 1,
+                    firmwareMinor = 0,
+                    firmwarePatch = 0,
+                    hardwareRevision = 1,
+                    bootSessionId = 1,
+                ),
+            )
+            sendFrame(
+                type = HslMessageType.HELLO,
+                flags = HslFlags.ACK_REQUIRED,
+                sequence = sequence,
+                payload = payload,
+            )
+        }
 
         fun sendHeartbeat(sequence: Int) {
             val payload = ByteArray(8).also { bytes ->
@@ -352,6 +431,17 @@ class AutomaticGeofenceAlertUploadInstrumentedTest {
                 0,
             )
             sendFrame(type = 0x7F, flags = 0x02, sequence = sequence, payload = payload)
+        }
+
+        fun acknowledgeOutgoingReliableFrames() {
+            val bytes = pty.read(maximumBytes = 4_096, timeoutMillis = 100)
+            outgoingDecoder.feed(bytes).forEach { frame ->
+                if (frame.type != HslMessageType.ACK && frame.flags and HslFlags.ACK_REQUIRED != 0) {
+                    val sequence = responseSequence.getAndUpdate { current -> (current + 1) and 0xFFFF }
+                    sendAcknowledgement(frame.sequence, sequence)
+                    reliableAcknowledgements.incrementAndGet()
+                }
+            }
         }
 
         fun sendNmea(sentence: String, sequence: Int) {
@@ -374,13 +464,10 @@ class AutomaticGeofenceAlertUploadInstrumentedTest {
             putU16Le(bytes, 7, payload.size)
             payload.copyInto(bytes, destinationOffset = 9)
             putU16Le(bytes, bytes.size - 2, crc16Ccitt(bytes, offset = 2, length = 7 + payload.size))
-            synchronized(output) {
-                output.write(bytes)
-                output.flush()
-            }
+            pty.writeFully(bytes)
         }
 
-        override fun close() = socket.close()
+        override fun close() = pty.close()
 
         private fun putU16Le(bytes: ByteArray, offset: Int, value: Int) {
             bytes[offset] = (value and 0xFF).toByte()
@@ -405,7 +492,7 @@ class AutomaticGeofenceAlertUploadInstrumentedTest {
 
     companion object {
         private val bootstrapContext: Context = InstrumentationRegistry.getInstrumentation().targetContext
-        private lateinit var bootstrapConnection: ServiceConnection
+        private lateinit var bootstrapConnection: HardwareProviderConnection
 
         @JvmStatic
         @BeforeClass
@@ -423,37 +510,19 @@ class AutomaticGeofenceAlertUploadInstrumentedTest {
             SystemClock.sleep(ACTIVITY_BOOTSTRAP_DELAY_MILLIS)
             bootstrapContext.stopService(HelmetService.startIntent(bootstrapContext))
             SystemClock.sleep(SERVICE_RESTART_DELAY_MILLIS)
-            val connected = CountDownLatch(1)
-            bootstrapConnection = object : ServiceConnection {
-                override fun onServiceConnected(name: ComponentName, binder: IBinder) {
-                    connected.countDown()
-                }
-
-                override fun onServiceDisconnected(name: ComponentName) = Unit
-            }
-            val intent = Intent().addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES).setComponent(
-                ComponentName(PACKAGE_NAME, BoundHardwareGateway.HARDWARE_SERVICE_CLASS),
-            )
-            check(bootstrapContext.bindService(intent, bootstrapConnection, Context.BIND_AUTO_CREATE)) {
-                "hardware service bootstrap bind returned false"
-            }
-            check(connected.await(HARDWARE_CONNECT_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
-                "hardware service bootstrap bind timed out"
-            }
+            bootstrapConnection = HardwareProviderConnection.connect(bootstrapContext)
         }
 
         @JvmStatic
         @AfterClass
-        fun unbindHardwareServiceProcess() {
-            runCatching { bootstrapContext.unbindService(bootstrapConnection) }
+        fun releaseHardwareProviderProcess() {
+            runCatching { bootstrapConnection.close() }
         }
 
+        private const val BACKEND_BEARER_TOKEN_ARGUMENT = "backendBearerToken"
         private const val TEST_ENDPOINT = "http://127.0.0.1:18083"
-        private const val TEST_TOKEN = "automatic-geofence-board-token"
+        private const val RECOVERY_EVIDENCE_PREFERENCES = "automatic_geofence_test_recovery"
         private const val PACKAGE_NAME = "com.example.helmet"
-        private const val TEST_UART_PATH = "/dev/ttyUSB99"
-        private const val TEST_UART_BRIDGE_HOST = "127.0.0.1"
-        private const val TEST_UART_BRIDGE_PORT = 18_084
         private const val CENTER_LATITUDE = 30.0
         private const val CENTER_LONGITUDE = 114.0
         private const val INSIDE_LATITUDE = 30.000_1
@@ -469,5 +538,10 @@ class AutomaticGeofenceAlertUploadInstrumentedTest {
         private const val NMEA_SAMPLE_INTERVAL_MILLIS = 150L
         private const val NMEA_PROCESS_SETTLE_MILLIS = 500L
         private const val POLL_INTERVAL_MILLIS = 250L
+        private val CONFIG_PREFERENCE_FILES = listOf(
+            "helmet_runtime_config",
+            "helmet_backend_credentials",
+            "helmet_rtk_credentials",
+        )
     }
 }

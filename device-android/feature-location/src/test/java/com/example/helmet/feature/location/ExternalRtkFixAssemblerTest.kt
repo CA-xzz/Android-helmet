@@ -57,6 +57,38 @@ class ExternalRtkFixAssemblerTest {
         assertFalse(assembler.stats.rejectedLines == 0L)
     }
 
+    @Test
+    fun noFixAndSilenceExpireTheGgaUsedForCorrections() {
+        var monotonic = 1_000L
+        val assembler = ExternalRtkFixAssembler(
+            deviceId = "helmet-rtk-expiry",
+            monotonicClockMillis = { monotonic },
+        )
+        val valid = sentence("GNGGA,123519,3112.0000,N,12124.0000,E,4,18,0.7,12.3,M,8.1,M,0.8,0042")
+        val noFix = sentence("GNGGA,123520,,,,,0,00,99.9,,,,,,")
+
+        assembler.feed("$valid\r\n".toByteArray())
+        assertEquals(valid, assembler.latestValidGga)
+        monotonic += ExternalRtkFixAssembler.VALID_GGA_FRESHNESS_MILLIS + 1
+        assertNull(assembler.latestValidGga)
+
+        assembler.feed("$valid\r\n".toByteArray())
+        assertEquals(valid, assembler.latestValidGga)
+        assembler.feed("$noFix\r\n".toByteArray())
+        assertNull(assembler.latestValidGga)
+    }
+
+    @Test
+    fun overlongLineIsDiscardedUntilItsTerminator() {
+        val assembler = ExternalRtkFixAssembler("helmet-rtk-overlong")
+        val valid = sentence("GNGGA,123519,3112.0000,N,12124.0000,E,4,18,0.7,12.3,M,8.1,M,0.8,0042")
+
+        assertTrue(assembler.feed(("X".repeat(129) + valid + "\r\n").toByteArray()).isEmpty())
+        assertNull(assembler.latestValidGga)
+        assertEquals(1L, assembler.stats.overlongLines)
+        assertEquals(1, assembler.feed("$valid\r\n".toByteArray()).size)
+    }
+
     private fun sentence(body: String): String {
         val checksum = body.fold(0) { value, character -> value xor character.code }
         return "$" + body + "*" + checksum.toString(16).uppercase().padStart(2, '0')

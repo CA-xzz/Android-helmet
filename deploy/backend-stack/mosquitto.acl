@@ -1,6 +1,0 @@
-user backend-gateway
-topic read helmet/v1/devices/+/up/+
-topic write helmet/v1/devices/+/down/#
-
-pattern write helmet/v1/devices/%u/up/+
-pattern read helmet/v1/devices/%u/down/#

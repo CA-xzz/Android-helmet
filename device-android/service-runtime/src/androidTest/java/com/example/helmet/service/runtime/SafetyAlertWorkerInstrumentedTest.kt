@@ -28,10 +28,11 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class SafetyAlertWorkerInstrumentedTest {
     @Test
-    fun workerUploadsRichAlertAndBackendRetainsPresentationAndWorkflow() = runBlocking {
+    fun workerUploadsAlertAndBackendRetainsAppPayload() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val configStore = RuntimeConfigStore(context)
         val originalConfig = configStore.load()
+        val configSnapshot = captureRuntimeConfigurationForTest(context)
         val store = SafetyStore(HelmetDatabase.get(context))
         val deviceId = DeviceIdentityStore(context).getOrCreateDeviceId()
         val nonce = UUID.randomUUID().toString()
@@ -46,7 +47,7 @@ class SafetyAlertWorkerInstrumentedTest {
             sampleReference = 77,
             monotonicMillis = 12_345,
             occurredAtEpochMillis = System.currentTimeMillis(),
-            localActions = 7,
+            localActions = 2,
             sensorFaults = 0,
             simulated = true,
             sensorSnapshotJson = JSONObject(
@@ -66,7 +67,7 @@ class SafetyAlertWorkerInstrumentedTest {
         )
         assertTrue(store.recordAlert(alert))
         try {
-            configStore.save(
+            configStore.saveForInstrumentationTest(
                 originalConfig.copy(
                     backendBaseUrl = TEST_ENDPOINT,
                     backendBearerToken = TEST_TOKEN,
@@ -78,15 +79,13 @@ class SafetyAlertWorkerInstrumentedTest {
 
             val stored = getJson("/v1/alerts/${alert.alertId}")
             assertEquals(alert.alertId, stored.getString("alertId"))
-            assertEquals("OPEN", stored.getString("workflowState"))
-            assertTrue(stored.getBoolean("requiresAttention"))
-            assertTrue(stored.getJSONObject("presentation").getBoolean("sound"))
-            assertTrue(stored.getJSONObject("presentation").getBoolean("mapMarker"))
+            assertEquals("CRITICAL", stored.getString("severity"))
+            assertTrue(stored.getBoolean("active"))
             assertTrue(stored.getBoolean("simulated"))
             assertFalse(stored.has("finalHardwareEvidence"))
             assertEquals(alert.messageId, stored.getJSONObject("evidence").getString("relatedEventId"))
         } finally {
-            configStore.save(originalConfig)
+            restoreRuntimeConfigurationForTest(context, configSnapshot)
         }
     }
 

@@ -2,10 +2,10 @@ package com.example.helmet.service.runtime
 
 import com.example.helmet.core.model.EventSeverity
 import com.example.helmet.data.local.EventStore
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 object CrashCapture {
     @Volatile
@@ -30,18 +30,12 @@ object CrashCapture {
     ) : Thread.UncaughtExceptionHandler {
         override fun uncaughtException(thread: Thread, error: Throwable) {
             runCatching {
-                runBlocking {
-                    withContext(Dispatchers.IO) {
+                awaitCrashPersistence(CRASH_PERSIST_TIMEOUT_MILLIS) {
+                    runBlocking {
                         eventStore.record(
                             eventType = "APP_CRASH",
                             severity = EventSeverity.CRITICAL,
-                            payloadJson = JSONObject(
-                                mapOf(
-                                    "thread" to thread.name,
-                                    "exception" to error.javaClass.name,
-                                    "message" to error.message,
-                                ),
-                            ).toString(),
+                            payloadJson = crashPayload(thread.name, error),
                         )
                     }
                 }
@@ -50,4 +44,35 @@ object CrashCapture {
             previous?.uncaughtException(thread, error)
         }
     }
+
+    private const val CRASH_PERSIST_TIMEOUT_MILLIS = 750L
 }
+
+internal fun awaitCrashPersistence(timeoutMillis: Long, persist: () -> Unit): Boolean {
+    require(timeoutMillis > 0)
+    val completed = CountDownLatch(1)
+    val writer = Thread(
+        {
+            try {
+                persist()
+            } finally {
+                completed.countDown()
+            }
+        },
+        "helmet-crash-persistence",
+    ).apply { isDaemon = true }
+    writer.start()
+    return completed.await(timeoutMillis, TimeUnit.MILLISECONDS)
+}
+
+internal fun crashPayload(threadName: String, error: Throwable): String = JSONObject()
+    .put("exception", error.javaClass.name)
+    .also { payload ->
+        threadName.take(MAX_THREAD_NAME_LENGTH)
+            .takeIf(SAFE_THREAD_NAME::matches)
+            ?.let { safeName -> payload.put("thread", safeName) }
+    }
+    .toString()
+
+private const val MAX_THREAD_NAME_LENGTH = 128
+private val SAFE_THREAD_NAME = Regex("[A-Za-z0-9_.:-]{1,128}")

@@ -50,24 +50,28 @@ class HelmetStateMachine(
                 HelmetOperationalState.OFFLINE_READY,
                 HelmetOperationalState.SOS,
                 HelmetOperationalState.FAULT,
+                HelmetOperationalState.SHUTTING_DOWN,
             ),
             HelmetOperationalState.IN_CALL to setOf(
                 HelmetOperationalState.IDLE,
                 HelmetOperationalState.OFFLINE_READY,
                 HelmetOperationalState.SOS,
                 HelmetOperationalState.FAULT,
+                HelmetOperationalState.SHUTTING_DOWN,
             ),
             HelmetOperationalState.RECORDING to setOf(
                 HelmetOperationalState.IDLE,
                 HelmetOperationalState.OFFLINE_READY,
                 HelmetOperationalState.SOS,
                 HelmetOperationalState.FAULT,
+                HelmetOperationalState.SHUTTING_DOWN,
             ),
             HelmetOperationalState.SOS to setOf(
                 HelmetOperationalState.IDLE,
                 HelmetOperationalState.OFFLINE_READY,
                 HelmetOperationalState.IN_CALL,
                 HelmetOperationalState.FAULT,
+                HelmetOperationalState.SHUTTING_DOWN,
             ),
             HelmetOperationalState.FAULT to setOf(
                 HelmetOperationalState.SELF_TEST,

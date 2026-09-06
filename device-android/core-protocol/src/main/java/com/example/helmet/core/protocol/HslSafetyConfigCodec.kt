@@ -4,10 +4,12 @@ import com.example.helmet.core.model.SafetyThresholdConfig
 import java.security.MessageDigest
 
 object HslSafetyConfigCodec {
-    const val SCHEMA_VERSION = 1
-    const val ENCODED_SIZE = 96
+    const val SCHEMA_VERSION = 2
+    const val ENCODED_SIZE = 106
     private const val HEADER_SIZE = 5
-    private const val BODY_SIZE = 59
+    private const val BODY_SIZE = 69
+    private const val LEGACY_SCHEMA_VERSION = 1
+    private const val LEGACY_BODY_SIZE = 59
     private const val DIGEST_SIZE = 32
 
     fun encode(config: SafetyThresholdConfig): ByteArray {
@@ -45,6 +47,9 @@ object HslSafetyConfigCodec {
         u32(config.shakeGyroThresholdMilliDegreesPerSecond.toLong())
         u8(config.shakeDirectionChanges)
         u16(config.shakeWindowMillis)
+        u16(config.inactivityAccelerationToleranceMilliG)
+        u32(config.inactivityGyroToleranceMilliDegreesPerSecond.toLong())
+        u32(config.inactivityMinimumMillis)
         u16(config.electricCalibrationSamples)
         u16(config.electricCalibrationStabilityMilliVolts)
         u16(config.electricPresentThresholdMilliVolts)
@@ -69,13 +74,19 @@ object HslSafetyConfigCodec {
     }
 
     fun decode(payload: ByteArray): SafetyThresholdConfig {
-        require(payload.size == ENCODED_SIZE) { "safety config payload length must be $ENCODED_SIZE" }
-        require(payload[0].toInt() and 0xFF == SCHEMA_VERSION) { "unsupported safety config schema" }
-        require(payload.u16Le(3) == BODY_SIZE) { "invalid safety config body length" }
+        val schemaVersion = payload.firstOrNull()?.toInt()?.and(0xFF)
+        val bodySize = when (schemaVersion) {
+            LEGACY_SCHEMA_VERSION -> LEGACY_BODY_SIZE
+            SCHEMA_VERSION -> BODY_SIZE
+            else -> throw IllegalArgumentException("unsupported safety config schema")
+        }
+        val encodedSize = HEADER_SIZE + bodySize + DIGEST_SIZE
+        require(payload.size == encodedSize) { "safety config payload length must be $encodedSize" }
+        require(payload.u16Le(3) == bodySize) { "invalid safety config body length" }
         val expected = MessageDigest.getInstance("SHA-256")
-            .digest(payload.copyOfRange(0, HEADER_SIZE + BODY_SIZE))
+            .digest(payload.copyOfRange(0, HEADER_SIZE + bodySize))
         require(
-            MessageDigest.isEqual(expected, payload.copyOfRange(HEADER_SIZE + BODY_SIZE, ENCODED_SIZE)),
+            MessageDigest.isEqual(expected, payload.copyOfRange(HEADER_SIZE + bodySize, encodedSize)),
         ) { "safety config SHA-256 mismatch" }
         var offset = HEADER_SIZE
         fun u8(): Int = payload[offset++].toInt() and 0xFF
@@ -94,6 +105,12 @@ object HslSafetyConfigCodec {
             shakeGyroThresholdMilliDegreesPerSecond = u32().toInt(),
             shakeDirectionChanges = u8(),
             shakeWindowMillis = u16().toLong(),
+            inactivityAccelerationToleranceMilliG = if (schemaVersion >= 2) u16() else
+                SafetyThresholdConfig().inactivityAccelerationToleranceMilliG,
+            inactivityGyroToleranceMilliDegreesPerSecond = if (schemaVersion >= 2) u32().toInt() else
+                SafetyThresholdConfig().inactivityGyroToleranceMilliDegreesPerSecond,
+            inactivityMinimumMillis = if (schemaVersion >= 2) u32() else
+                SafetyThresholdConfig().inactivityMinimumMillis,
             electricCalibrationSamples = u16(),
             electricCalibrationStabilityMilliVolts = u16(),
             electricPresentThresholdMilliVolts = u16(),
@@ -111,7 +128,7 @@ object HslSafetyConfigCodec {
             heightMinimumMillimetres = i32(),
             heightMaximumMillimetres = i32(),
         )
-        check(offset == HEADER_SIZE + BODY_SIZE)
+        check(offset == HEADER_SIZE + bodySize)
         return config
     }
 

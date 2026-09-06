@@ -6,20 +6,23 @@ import com.example.helmet.core.model.RtkRuntimeConfig
 import com.example.helmet.core.protocol.HslMessageType
 import com.example.helmet.core.protocol.Rtcm3FrameCodec
 import com.example.helmet.feature.location.ExternalRtkFixAssembler
+import com.example.helmet.feature.location.NmeaSentence
 import com.example.helmet.hardware.api.HardwareCommand
 import com.example.helmet.hardware.api.HardwareStatus
 import java.io.Closeable
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
@@ -44,7 +47,31 @@ data class RtkCorrectionStatus(
     val lastFixQuality: FixQuality = FixQuality.NO_FIX,
     val lastFixAtEpochMillis: Long? = null,
     val lastError: String? = null,
+    val fixQueueOverflowCount: Long = 0,
 )
+
+internal data class RtkFixQueueOffer(val accepted: Boolean, val overflowCount: Long)
+
+internal class RtkFixQueue(capacity: Int) {
+    private val channel = Channel<LocationFix>(capacity)
+    private val overflows = AtomicLong()
+
+    init {
+        require(capacity > 0)
+    }
+
+    val fixes: Flow<LocationFix> = channel.receiveAsFlow()
+
+    fun offer(fix: LocationFix): RtkFixQueueOffer {
+        val accepted = channel.trySend(fix).isSuccess
+        return RtkFixQueueOffer(
+            accepted = accepted,
+            overflowCount = if (accepted) overflows.get() else overflows.incrementAndGet(),
+        )
+    }
+
+    fun close() = channel.close()
+}
 
 internal object RtkCorrectionPacketizer {
     const val MAX_HSL_CHUNK_BYTES = 512
@@ -65,7 +92,7 @@ class RtkCorrectionController(
 ) : Closeable {
     private val assembler = ExternalRtkFixAssembler(deviceId, epochClock)
     private val sequence = AtomicInteger()
-    private val mutableFixes = MutableSharedFlow<LocationFix>(extraBufferCapacity = 64)
+    private val fixQueue = RtkFixQueue(FIX_QUEUE_CAPACITY)
     private val mutableStatus = MutableStateFlow(
         RtkCorrectionStatus(state = if (config.enabled) RtkCorrectionState.STOPPED else RtkCorrectionState.DISABLED),
     )
@@ -74,7 +101,7 @@ class RtkCorrectionController(
     @Volatile
     private var activeClient: NtripCorrectionClient? = null
 
-    val fixes: SharedFlow<LocationFix> = mutableFixes
+    val fixes: Flow<LocationFix> = fixQueue.fixes
     val status: StateFlow<RtkCorrectionStatus> = mutableStatus
 
     fun acceptReceiverBytes(bytes: ByteArray) {
@@ -96,12 +123,25 @@ class RtkCorrectionController(
         if (updates.isEmpty()) return
         val fixes = updates.mapNotNull { it.fix }
         val latestFix = fixes.lastOrNull()
+        val latestGgaQuality = updates.asReversed()
+            .mapNotNull { (it.sentence as? NmeaSentence.Gga)?.quality }
+            .firstOrNull()
         mutableStatus.value = mutableStatus.value.copy(
             receiverSentences = mutableStatus.value.receiverSentences + updates.size,
-            lastFixQuality = latestFix?.quality ?: mutableStatus.value.lastFixQuality,
+            lastFixQuality = latestFix?.quality ?: latestGgaQuality ?: mutableStatus.value.lastFixQuality,
             lastFixAtEpochMillis = latestFix?.occurredAtEpochMillis ?: mutableStatus.value.lastFixAtEpochMillis,
         )
-        fixes.forEach(mutableFixes::tryEmit)
+        fixes.forEach { fix ->
+            val offer = fixQueue.offer(fix)
+            mutableStatus.value = if (offer.accepted) {
+                mutableStatus.value.copy(lastError = null)
+            } else {
+                mutableStatus.value.copy(
+                    lastError = "RTK fix queue full; rejected fixes=${offer.overflowCount}",
+                    fixQueueOverflowCount = offer.overflowCount,
+                )
+            }
+        }
     }
 
     fun start() {
@@ -126,7 +166,10 @@ class RtkCorrectionController(
         updateState(if (config.enabled) RtkCorrectionState.STOPPED else RtkCorrectionState.DISABLED)
     }
 
-    override fun close() = stop()
+    override fun close() {
+        stop()
+        fixQueue.close()
+    }
 
     private suspend fun runLoop(endpoint: NtripEndpoint) {
         var retryDelayMillis = INITIAL_RETRY_MILLIS
@@ -210,13 +253,14 @@ class RtkCorrectionController(
     }
 
     private fun safeError(error: Throwable): String = buildString {
-        append(error.javaClass.simpleName)
-        error.message?.takeIf(String::isNotBlank)?.let { message -> append(": ").append(message.take(240)) }
+        append(error.javaClass.name)
+        error.cause?.let { cause -> append(" cause=").append(cause.javaClass.name) }
     }
 
     companion object {
         private const val HARDWARE_POLL_MILLIS = 1_000L
         private const val INITIAL_RETRY_MILLIS = 1_000L
         private const val MAX_RETRY_MILLIS = 30_000L
+        private const val FIX_QUEUE_CAPACITY = 64
     }
 }

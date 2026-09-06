@@ -119,6 +119,30 @@ class DeviceTimeAuthorityTest {
     }
 
     @Test
+    fun calibrationSequenceReachesMaximumThenFailsClosedWithoutOverwrite() {
+        val store = MemoryStore(
+            DeviceTimeCalibration(
+                DeviceTimeSource.SERVER,
+                1_786_000_000_000,
+                0,
+                1,
+                "boot-a",
+                Long.MAX_VALUE - 1,
+            ),
+        )
+        val discipline = DeviceTimeDiscipline(store, "boot-a", { 1 }, { 100 })
+
+        assertEquals(
+            Long.MAX_VALUE,
+            discipline.calibrateFromServer(1_786_000_000_000, 0, 100).calibrationSequence,
+        )
+        assertThrows(IllegalStateException::class.java) {
+            discipline.calibrateFromServer(1_786_000_000_000, 100, 200)
+        }
+        assertEquals(Long.MAX_VALUE, store.load()?.sequence)
+    }
+
+    @Test
     fun firstServerCalibrationPublishesSignificantAdjustment() = runBlocking {
         val discipline = DeviceTimeDiscipline(MemoryStore(), "boot-a", { 1_000 }, { 1_100 })
         val authority = DeviceTimeAuthority(discipline)

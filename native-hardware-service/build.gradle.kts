@@ -17,6 +17,29 @@ android {
         }
     }
 
+    buildTypes {
+        debug {
+            buildConfigField("boolean", "ALLOW_TEST_PTY", "true")
+            externalNativeBuild {
+                cmake {
+                    arguments += "-DHELMET_ENABLE_TEST_PTY=ON"
+                }
+            }
+        }
+        release {
+            buildConfigField("boolean", "ALLOW_TEST_PTY", "false")
+            externalNativeBuild {
+                cmake {
+                    arguments += "-DHELMET_ENABLE_TEST_PTY=OFF"
+                }
+            }
+        }
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
@@ -35,4 +58,5 @@ dependencies {
     implementation(project(":device-android:core-protocol"))
     implementation(project(":device-android:hardware-api"))
     implementation("androidx.core:core-ktx:1.13.1")
+    testImplementation("junit:junit:4.13.2")
 }

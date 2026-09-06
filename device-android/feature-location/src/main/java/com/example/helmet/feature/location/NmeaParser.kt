@@ -81,6 +81,7 @@ object NmeaParser {
     private fun parseGga(talker: String, fields: List<String>): NmeaSentence.Gga? {
         if (fields.size < 15) return null
         val qualityCode = fields[6].toIntOrNull() ?: 0
+        if (qualityCode < 0) return null
         val quality = when (qualityCode) {
             0 -> FixQuality.NO_FIX
             1 -> FixQuality.STANDARD
@@ -94,17 +95,27 @@ object NmeaParser {
         val longitude = parseCoordinate(fields[4], fields[5], latitude = false)
         if (quality == FixQuality.NO_FIX && (latitude != null || longitude != null)) return null
         if (quality != FixQuality.NO_FIX && (latitude == null || longitude == null)) return null
+        val satellitesUsed = optionalNonNegativeInt(fields[7]) ?: if (fields[7].isBlank()) null else return null
+        val hdop = optionalNonNegativeDouble(fields[8]) ?: if (fields[8].isBlank()) null else return null
+        val altitudeMeters = fields[9].toDoubleOrNull()
+        if (fields[9].isNotBlank() && (altitudeMeters == null || !altitudeMeters.isFinite())) return null
+        val geoidSeparationMeters = fields[11].toDoubleOrNull()
+        if (fields[11].isNotBlank() && (geoidSeparationMeters == null || !geoidSeparationMeters.isFinite())) {
+            return null
+        }
+        val correctionAgeSeconds = optionalNonNegativeDouble(fields[13])
+            ?: if (fields[13].isBlank()) null else return null
         return NmeaSentence.Gga(
             talker = talker,
             utcSecondsOfDay = parseTimeOfDay(fields[1]),
             latitude = latitude,
             longitude = longitude,
             quality = quality,
-            satellitesUsed = fields[7].toIntOrNull(),
-            hdop = fields[8].toDoubleOrNull(),
-            altitudeMeters = fields[9].toDoubleOrNull(),
-            geoidSeparationMeters = fields[11].toDoubleOrNull(),
-            correctionAgeSeconds = fields[13].toDoubleOrNull(),
+            satellitesUsed = satellitesUsed,
+            hdop = hdop,
+            altitudeMeters = altitudeMeters,
+            geoidSeparationMeters = geoidSeparationMeters,
+            correctionAgeSeconds = correctionAgeSeconds,
             correctionStationId = fields[14].ifBlank { null },
         )
     }
@@ -115,37 +126,52 @@ object NmeaParser {
         val latitude = parseCoordinate(fields[3], fields[4], latitude = true)
         val longitude = parseCoordinate(fields[5], fields[6], latitude = false)
         if (active && (latitude == null || longitude == null)) return null
+        val speedKnots = optionalNonNegativeDouble(fields[7])
+            ?: if (fields[7].isBlank()) null else return null
+        val courseDegrees = fields[8].toDoubleOrNull()
+        if (fields[8].isNotBlank() &&
+            (courseDegrees == null || !courseDegrees.isFinite() || courseDegrees !in 0.0..360.0)
+        ) {
+            return null
+        }
         return NmeaSentence.Rmc(
             talker = talker,
             epochMillis = parseEpochMillis(fields[9], fields[1]),
             active = active,
             latitude = if (active) latitude else null,
             longitude = if (active) longitude else null,
-            speedMetersPerSecond = fields[7].toDoubleOrNull()?.times(KNOTS_TO_METERS_PER_SECOND),
-            courseDegrees = fields[8].toDoubleOrNull(),
+            speedMetersPerSecond = speedKnots?.times(KNOTS_TO_METERS_PER_SECOND),
+            courseDegrees = courseDegrees,
         )
     }
 
     private fun parseGsa(talker: String, fields: List<String>): NmeaSentence.Gsa? {
         if (fields.size < 18) return null
+        val dimension = fields[2].toIntOrNull()?.takeIf { it in 1..3 } ?: return null
+        val pdop = optionalNonNegativeDouble(fields[15]) ?: if (fields[15].isBlank()) null else return null
+        val hdop = optionalNonNegativeDouble(fields[16]) ?: if (fields[16].isBlank()) null else return null
+        val vdop = optionalNonNegativeDouble(fields[17]) ?: if (fields[17].isBlank()) null else return null
         return NmeaSentence.Gsa(
             talker = talker,
             automatic = fields[1] == "A",
-            dimension = fields[2].toIntOrNull() ?: return null,
+            dimension = dimension,
             satelliteIds = fields.subList(3, 15).filter(String::isNotBlank),
-            pdop = fields[15].toDoubleOrNull(),
-            hdop = fields[16].toDoubleOrNull(),
-            vdop = fields[17].toDoubleOrNull(),
+            pdop = pdop,
+            hdop = hdop,
+            vdop = vdop,
         )
     }
 
     private fun parseGsv(talker: String, fields: List<String>): NmeaSentence.Gsv? {
         if (fields.size < 4) return null
+        val sentenceCount = fields[1].toIntOrNull()?.takeIf { it in 1..64 } ?: return null
+        val sentenceNumber = fields[2].toIntOrNull()?.takeIf { it in 1..sentenceCount } ?: return null
+        val satellitesVisible = optionalNonNegativeInt(fields[3]) ?: return null
         return NmeaSentence.Gsv(
             talker = talker,
-            sentenceCount = fields[1].toIntOrNull() ?: return null,
-            sentenceNumber = fields[2].toIntOrNull() ?: return null,
-            satellitesVisible = fields[3].toIntOrNull() ?: return null,
+            sentenceCount = sentenceCount,
+            sentenceNumber = sentenceNumber,
+            satellitesVisible = satellitesVisible,
         )
     }
 
@@ -155,6 +181,7 @@ object NmeaParser {
         val minutes = raw - degrees * 100
         val maximumDegrees = if (latitude) 90 else 180
         if (degrees !in 0..maximumDegrees || minutes !in 0.0..<60.0) return null
+        if (degrees == maximumDegrees && minutes != 0.0) return null
         val sign = when (hemisphere) {
             "N", "E" -> 1
             "S", "W" -> -1
@@ -186,6 +213,12 @@ object NmeaParser {
             LocalDate.of(year, month, day).atTime(time).toInstant(ZoneOffset.UTC).toEpochMilli()
         }.getOrNull()
     }
+
+    private fun optionalNonNegativeDouble(value: String): Double? =
+        value.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
+
+    private fun optionalNonNegativeInt(value: String): Int? =
+        value.toIntOrNull()?.takeIf { it >= 0 }
 
     private const val KNOTS_TO_METERS_PER_SECOND = 0.514444
 }

@@ -30,4 +30,21 @@ class HelmetStateMachineTest {
         assertTrue(machine.transitionTo(HelmetOperationalState.RECORDING))
         assertTrue(machine.transitionTo(HelmetOperationalState.SOS))
     }
+
+    @Test
+    fun everyRuntimeActivityCanEnterTerminalShutdownState() {
+        listOf(
+            HelmetOperationalState.OFFLINE_READY,
+            HelmetOperationalState.IDLE,
+            HelmetOperationalState.CALLING,
+            HelmetOperationalState.IN_CALL,
+            HelmetOperationalState.RECORDING,
+            HelmetOperationalState.SOS,
+            HelmetOperationalState.FAULT,
+        ).forEach { state ->
+            val machine = HelmetStateMachine(state)
+            assertTrue("state=$state", machine.transitionTo(HelmetOperationalState.SHUTTING_DOWN))
+            assertFalse(machine.transitionTo(HelmetOperationalState.IDLE))
+        }
+    }
 }

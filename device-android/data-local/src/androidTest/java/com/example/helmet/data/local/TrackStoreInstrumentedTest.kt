@@ -10,6 +10,9 @@ import com.example.helmet.core.model.GnssQuality
 import com.example.helmet.core.model.LocationFix
 import com.example.helmet.core.model.LocationSource
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -37,7 +40,7 @@ class TrackStoreInstrumentedTest {
 
     @Test
     fun assignsStableSequenceAndPersistsQualityAndDelivery() = runBlocking {
-        val store = TrackStore(database) { 900 }
+        val store = TrackStore(database, wallClock = { 900 })
         val first = store.record(fix("fix-1", 100), "point-1")!!
         val second = store.record(fix("fix-2", 200), "point-2")!!
 
@@ -46,7 +49,10 @@ class TrackStoreInstrumentedTest {
         assertEquals(listOf(1L, 2L), store.pending().map { it.sequence })
         assertEquals(FixQuality.RTK_FIXED, store.find("point-1")?.fix?.quality)
         assertEquals(12, store.find("point-1")?.fix?.gnss?.satellitesUsed)
-        assertNull(store.record(fix("fix-duplicate", 300), "point-1"))
+        assertNull(store.record(fix("fix-1", 100), "point-1"))
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { store.record(fix("fix-conflict", 300), "point-1") }
+        }
         assertTrue(store.markAttempt("point-1", 1_000))
         assertEquals(DeliveryState.IN_FLIGHT, store.find("point-1")?.deliveryState)
         assertTrue(store.markDelivered("point-1", 1_100))
@@ -64,6 +70,132 @@ class TrackStoreInstrumentedTest {
             runBlocking { store.record(fix("mock", 100).copy(isMock = true), "mock") }
         }
         runBlocking { assertFalse(store.find("mock") != null) }
+    }
+
+    @Test
+    fun terminalRetentionPreservesPendingRowsAndSequenceHighWater() = runBlocking {
+        val store = TrackStore(
+            database = database,
+            maxRetainedTerminalPointsPerDevice = 2,
+        )
+        repeat(6) { index ->
+            val ordinal = index + 1
+            store.record(fix("fix-$ordinal", ordinal.toLong()), "point-$ordinal")
+        }
+
+        assertTrue(store.markAttempt("point-5", 100L))
+        assertTrue(store.markAttempt("point-6", 100L))
+        assertTrue(store.markFailed("point-6", "retryable"))
+        assertTrue(store.markDelivered("point-1", 101L))
+        assertTrue(store.markRejected("point-2", "permanent"))
+        assertTrue(store.markDelivered("point-3", 103L))
+
+        assertNull(store.find("point-1"))
+        assertEquals(DeliveryState.REJECTED, store.find("point-2")?.deliveryState)
+        assertEquals(DeliveryState.DELIVERED, store.find("point-3")?.deliveryState)
+        assertEquals(DeliveryState.PENDING, store.find("point-4")?.deliveryState)
+        assertEquals(DeliveryState.IN_FLIGHT, store.find("point-5")?.deliveryState)
+        assertEquals(DeliveryState.FAILED, store.find("point-6")?.deliveryState)
+        assertEquals(7L, store.record(fix("fix-7", 7L), "point-7")?.sequence)
+    }
+
+    @Test
+    fun pendingRowsDoNotConsumeTerminalRetentionAllowance() = runBlocking {
+        val store = TrackStore(database, maxRetainedTerminalPointsPerDevice = 2)
+        repeat(8) { index ->
+            val ordinal = index + 1
+            store.record(fix("fix-$ordinal", ordinal.toLong()), "point-$ordinal")
+        }
+
+        assertTrue(store.markDelivered("point-1", 101L))
+        assertTrue(store.markRejected("point-2", "permanent"))
+        assertTrue(store.markDelivered("point-3", 103L))
+
+        assertNull(store.find("point-1"))
+        assertEquals(DeliveryState.REJECTED, store.find("point-2")?.deliveryState)
+        assertEquals(DeliveryState.DELIVERED, store.find("point-3")?.deliveryState)
+        (4..8).forEach { ordinal ->
+            assertEquals(DeliveryState.PENDING, store.find("point-$ordinal")?.deliveryState)
+        }
+        assertEquals(9L, store.record(fix("fix-9", 9L), "point-9")?.sequence)
+    }
+
+    @Test
+    fun terminalRetentionIsIndependentPerDevice() = runBlocking {
+        val store = TrackStore(database, maxRetainedTerminalPointsPerDevice = 1)
+        val deviceTwoFix = fix("device-2-fix-1", 1L).copy(deviceId = "device-2")
+        val deviceTwoFix2 = fix("device-2-fix-2", 2L).copy(deviceId = "device-2")
+        store.record(fix("device-1-fix-1", 1L), "device-1-point-1")
+        store.record(fix("device-1-fix-2", 2L), "device-1-point-2")
+        store.record(deviceTwoFix, "device-2-point-1")
+        store.record(deviceTwoFix2, "device-2-point-2")
+
+        assertTrue(store.markDelivered("device-1-point-1", 11L))
+        assertTrue(store.markDelivered("device-1-point-2", 12L))
+        assertTrue(store.markDelivered("device-2-point-1", 13L))
+        assertTrue(store.markDelivered("device-2-point-2", 14L))
+
+        assertNull(store.find("device-1-point-1"))
+        assertEquals(DeliveryState.DELIVERED, store.find("device-1-point-2")?.deliveryState)
+        assertNull(store.find("device-2-point-1"))
+        assertEquals(DeliveryState.DELIVERED, store.find("device-2-point-2")?.deliveryState)
+        assertEquals(3L, store.record(fix("device-1-fix-3", 3L), "device-1-point-3")?.sequence)
+        assertEquals(
+            3L,
+            store.record(fix("device-2-fix-3", 3L).copy(deviceId = "device-2"), "device-2-point-3")?.sequence,
+        )
+    }
+
+    @Test
+    fun concurrentRecordsReceiveUniqueContiguousSequences() = runBlocking {
+        val store = TrackStore(database)
+        val points = (1..40).map { ordinal ->
+            async(Dispatchers.IO) {
+                requireNotNull(
+                    store.record(
+                        fix("concurrent-fix-$ordinal", ordinal.toLong()),
+                        "concurrent-point-$ordinal",
+                    ),
+                )
+            }
+        }.awaitAll()
+
+        assertEquals((1L..40L).toList(), points.map { it.sequence }.sorted())
+    }
+
+    @Test
+    fun lateDeliveryAcknowledgementCannotOverwritePermanentRejection() = runBlocking {
+        val store = TrackStore(database)
+        store.record(fix("rejected-fix", 1L), "rejected-point")
+
+        assertTrue(store.markRejected("rejected-point", "permanent"))
+        assertFalse(store.markDelivered("rejected-point", 2L))
+        assertEquals(DeliveryState.REJECTED, store.find("rejected-point")?.deliveryState)
+    }
+
+    @Test
+    fun maximumSequenceIsRetainedAndNeverWraps() = runBlocking {
+        val store = TrackStore(database, maxRetainedTerminalPointsPerDevice = 1)
+        store.record(fix("seed-fix", 1L), "seed-point")
+        val seed = requireNotNull(database.trackPointDao().find("seed-point"))
+        assertTrue(
+            database.trackPointDao().insert(
+                seed.copy(
+                    messageId = "maximum-point",
+                    sequence = Long.MAX_VALUE,
+                    fixId = "maximum-fix",
+                    occurredAtEpochMillis = 2L,
+                ),
+            ) != -1L,
+        )
+        assertTrue(store.markDelivered("maximum-point", 3L))
+
+        assertEquals(Long.MAX_VALUE, database.trackPointDao().maxSequence("device-1"))
+        assertEquals(DeliveryState.DELIVERED, store.find("maximum-point")?.deliveryState)
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { store.record(fix("overflow-fix", 4L), "overflow-point") }
+        }
+        assertNull(store.find("overflow-point"))
     }
 
     private fun fix(id: String, time: Long) = LocationFix(

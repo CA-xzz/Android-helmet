@@ -14,10 +14,53 @@ import com.example.helmet.data.local.HelmetDatabase
 import com.example.helmet.data.local.RuntimeConfigStore
 import com.example.helmet.data.local.TrackStore
 import com.example.helmet.location.sync.HttpTrackUploadClient
+import com.example.helmet.location.sync.TrackUploadReceipt
 import com.example.helmet.location.sync.TrackUploadException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import org.json.JSONObject
+
+internal data class TrackBatchIsolationSummary(
+    val deliveredCount: Int,
+    val rejectedCount: Int,
+    val uploadAttempts: Int,
+)
+
+internal suspend fun <T, R> uploadWithPermanentFailureIsolation(
+    items: List<T>,
+    upload: suspend (List<T>) -> R,
+    isPermanentDataFailure: (Throwable) -> Boolean,
+    markDelivered: suspend (List<T>, R) -> Unit,
+    markRejected: suspend (T, Throwable) -> Unit,
+): TrackBatchIsolationSummary {
+    require(items.isNotEmpty())
+    var deliveredCount = 0
+    var rejectedCount = 0
+    var uploadAttempts = 0
+
+    suspend fun visit(batch: List<T>) {
+        uploadAttempts += 1
+        val receipt = try {
+            upload(batch)
+        } catch (error: Throwable) {
+            if (!isPermanentDataFailure(error)) throw error
+            if (batch.size == 1) {
+                markRejected(batch.single(), error)
+                rejectedCount += 1
+            } else {
+                val midpoint = batch.size / 2
+                visit(batch.subList(0, midpoint))
+                visit(batch.subList(midpoint, batch.size))
+            }
+            return
+        }
+        markDelivered(batch, receipt)
+        deliveredCount += batch.size
+    }
+
+    visit(items)
+    return TrackBatchIsolationSummary(deliveredCount, rejectedCount, uploadAttempts)
+}
 
 class TrackUploadWorker(
     context: Context,
@@ -38,19 +81,52 @@ class TrackUploadWorker(
         val attemptedAt = wallClock()
         points.forEach { point -> trackStore.markAttempt(point.messageId, attemptedAt) }
         return try {
-            val receipt = client.upload(points)
-            val deliveredAt = wallClock()
-            points.forEach { point -> trackStore.markDelivered(point.messageId, deliveredAt) }
+            var acceptedCount = 0
+            var duplicateCount = 0
+            var lastRejection: TrackUploadException? = null
+            val summary = uploadWithPermanentFailureIsolation(
+                items = points,
+                upload = client::upload,
+                isPermanentDataFailure = { failure ->
+                    failure is TrackUploadException &&
+                        !failure.retryable &&
+                        failure.statusCode in PERMANENT_DATA_ERROR_CODES
+                },
+                markDelivered = { batch, receipt: TrackUploadReceipt ->
+                    val deliveredAt = wallClock()
+                    batch.forEach { point -> trackStore.markDelivered(point.messageId, deliveredAt) }
+                    acceptedCount += receipt.acceptedMessageIds.size
+                    duplicateCount += receipt.duplicateMessageIds.size
+                },
+                markRejected = { point, failure ->
+                    val uploadFailure = failure as TrackUploadException
+                    lastRejection = uploadFailure
+                    val persisted = persistedFailure(
+                        uploadFailure,
+                        uploadFailure.statusCode,
+                        REASON_PERMANENT_DATA_REJECTION,
+                    )
+                    trackStore.markRejected(point.messageId, persisted.asStorageText())
+                },
+            )
             eventStore.record(
-                eventType = "TRACK_UPLOAD_COMPLETED",
-                severity = EventSeverity.INFO,
+                eventType = if (summary.rejectedCount == 0) {
+                    "TRACK_UPLOAD_COMPLETED"
+                } else {
+                    "TRACK_UPLOAD_PARTIALLY_REJECTED"
+                },
+                severity = if (summary.rejectedCount == 0) EventSeverity.INFO else EventSeverity.MEDIUM,
                 payloadJson = JSONObject(
                     mapOf(
                         "firstSequence" to points.first().sequence,
                         "lastSequence" to points.last().sequence,
                         "pointCount" to points.size,
-                        "acceptedCount" to receipt.acceptedMessageIds.size,
-                        "duplicateCount" to receipt.duplicateMessageIds.size,
+                        "acceptedCount" to acceptedCount,
+                        "duplicateCount" to duplicateCount,
+                        "rejectedCount" to summary.rejectedCount,
+                        "uploadAttempts" to summary.uploadAttempts,
+                        "rejectionStatus" to lastRejection?.statusCode,
+                        "rejectionErrorType" to lastRejection?.javaClass?.name,
                     ),
                 ).toString(),
             )
@@ -58,21 +134,20 @@ class TrackUploadWorker(
             Result.success()
         } catch (error: TrackUploadException) {
             if (error.retryable) {
-                points.forEach { point -> trackStore.markFailed(point.messageId, error.toString()) }
-                recordFailure(eventStore, points, "TRACK_UPLOAD_RETRY_SCHEDULED", error)
+                val failure = persistedFailure(error, error.statusCode, REASON_RETRYABLE_FAILURE)
+                points.forEach { point -> trackStore.markFailed(point.messageId, failure.asStorageText()) }
+                recordFailure(eventStore, points, "TRACK_UPLOAD_RETRY_SCHEDULED", failure)
                 Result.retry()
-            } else if (error.statusCode in PERMANENT_DATA_ERROR_CODES) {
-                points.forEach { point -> trackStore.markRejected(point.messageId, error.toString()) }
-                recordFailure(eventStore, points, "TRACK_UPLOAD_REJECTED", error)
-                Result.failure()
             } else {
-                points.forEach { point -> trackStore.markFailed(point.messageId, error.toString()) }
-                recordFailure(eventStore, points, "TRACK_UPLOAD_CONFIGURATION_FAILED", error)
+                val failure = persistedFailure(error, error.statusCode, REASON_CONFIGURATION_FAILURE)
+                points.forEach { point -> trackStore.markFailed(point.messageId, failure.asStorageText()) }
+                recordFailure(eventStore, points, "TRACK_UPLOAD_CONFIGURATION_FAILED", failure)
                 Result.failure()
             }
         } catch (error: Throwable) {
-            points.forEach { point -> trackStore.markFailed(point.messageId, error.toString()) }
-            recordFailure(eventStore, points, "TRACK_UPLOAD_RETRY_SCHEDULED", error)
+            val failure = persistedFailure(error, null, REASON_UNEXPECTED_FAILURE)
+            points.forEach { point -> trackStore.markFailed(point.messageId, failure.asStorageText()) }
+            recordFailure(eventStore, points, "TRACK_UPLOAD_RETRY_SCHEDULED", failure)
             Result.retry()
         }
     }
@@ -81,7 +156,7 @@ class TrackUploadWorker(
         eventStore: EventStore,
         points: List<TrackPoint>,
         eventType: String,
-        error: Throwable,
+        failure: PersistedFailure,
     ) {
         eventStore.record(
             eventType = eventType,
@@ -91,7 +166,7 @@ class TrackUploadWorker(
                     "firstSequence" to points.first().sequence,
                     "lastSequence" to points.last().sequence,
                     "pointCount" to points.size,
-                    "error" to error.toString().take(MAX_ERROR_LENGTH),
+                    *failure.toEventFields().toList().toTypedArray(),
                 ),
             ).toString(),
         )
@@ -100,7 +175,10 @@ class TrackUploadWorker(
     companion object {
         private const val LEGACY_UNIQUE_WORK = "helmet-track-upload"
         private const val MAX_POINTS_PER_RUN = 200
-        private const val MAX_ERROR_LENGTH = 1_024
+        private const val REASON_RETRYABLE_FAILURE = "RETRYABLE_TRANSPORT_FAILURE"
+        private const val REASON_PERMANENT_DATA_REJECTION = "PERMANENT_DATA_REJECTION"
+        private const val REASON_CONFIGURATION_FAILURE = "TRANSPORT_CONFIGURATION_FAILURE"
+        private const val REASON_UNEXPECTED_FAILURE = "UNEXPECTED_TRANSPORT_FAILURE"
         private val PERMANENT_DATA_ERROR_CODES = setOf(400, 409, 413, 422)
         private val reconciledWorkName = AtomicReference<String?>()
 

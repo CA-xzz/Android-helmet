@@ -1,0 +1,65 @@
+captured_host_utc=2026-08-19T14:33:36Z
+adb_serial=2c001031774186e21d3
+storage_manager:
+Disks:
+
+Volumes:
+  VolumeInfo{emulated;0}:
+    type=EMULATED diskId=null partGuid= mountFlags=PRIMARY|VISIBLE mountUserId=0 state=MOUNTED 
+    fsType=null fsUuid=null fsLabel=null 
+    path=/storage/emulated internalPath=/data/media 
+
+Records:
+
+Primary storage UUID: null
+
+Internal storage (null) total size: 16000000000 (16777216000000000 MiB)
+
+Local unlocked users: [0]
+System unlocked users: [0]
+isAutomotive:false
+
+mObbMounts:
+
+mObbPathToStateMap:
+
+Last maintenance: 2026-07-29 04:06:10
+volumes:
+private mounted null
+emulated;0 mounted null
+df:
+Filesystem            Size Used Avail Use% Mounted on
+tmpfs                 968M 1.1M  967M   1% /dev
+tmpfs                 968M    0  968M   0% /mnt
+/dev/block/mmcblk0p19  11M 136K   11M   2% /metadata
+/dev/block/dm-0       1.7G 1.7G  5.3M 100% /
+/dev/block/dm-1       168M 167M  532K 100% /vendor
+/dev/block/dm-3       6.5M 6.5M   24K 100% /vendor_dlkm
+/dev/block/dm-2       236M 235M  724K 100% /product
+/dev/block/mmcblk0p23  16M    0   16M   0% /oem
+tmpfs                 968M 8.0K  968M   1% /apex
+tmpfs                 968M 576K  968M   1% /linkerconfig
+/dev/block/mmcblk0p25  11G 1.0G   10G  10% /data
+tmpfs                 968M    0  968M   0% /data_mirror
+/dev/block/mmcblk0p24  16M 2.0K   16M   1% /Reserve0
+/dev/fuse              11G 1.0G   10G  10% /mnt/user/0/emulated
+mounts:
+/dev/block/by-name/media_data /oem vfat ro,context=u:object_r:oemfs:s0,nosuid,noatime,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,utf8,errors=panic 0 0
+/dev/block/dm-0 /apex/com.android.media ext4 ro,seclabel,relatime 0 0
+/dev/block/dm-0 /apex/com.android.media.swcodec ext4 ro,seclabel,relatime 0 0
+/dev/block/dm-0 /apex/com.android.mediaprovider ext4 ro,seclabel,relatime 0 0
+/dev/block/dm-0 /apex/com.android.os.statsd ext4 ro,seclabel,relatime 0 0
+/dev/block/dm-0 /apex/com.android.sdkext ext4 ro,seclabel,relatime 0 0
+none /sys/fs/fuse/connections fusectl rw,relatime 0 0
+tmpfs /storage tmpfs rw,seclabel,nosuid,nodev,noexec,relatime,mode=755,gid=1000 0 0
+adb /dev/usb-ffs/adb functionfs rw,relatime 0 0
+mtp /dev/usb-ffs/mtp functionfs rw,relatime 0 0
+ptp /dev/usb-ffs/ptp functionfs rw,relatime 0 0
+/dev/fuse /mnt/user/0/emulated fuse rw,lazytime,nosuid,nodev,noexec,noatime,user_id=0,group_id=0,allow_other 0 0
+/dev/fuse /mnt/installer/0/emulated fuse rw,lazytime,nosuid,nodev,noexec,noatime,user_id=0,group_id=0,allow_other 0 0
+/dev/fuse /mnt/androidwritable/0/emulated fuse rw,lazytime,nosuid,nodev,noexec,noatime,user_id=0,group_id=0,allow_other 0 0
+/dev/fuse /storage/emulated fuse rw,lazytime,nosuid,nodev,noexec,noatime,user_id=0,group_id=0,allow_other 0 0
+/dev/block/by-name/userdata /storage/emulated/0/Android/data f2fs rw,lazytime,seclabel,nosuid,nodev,noatime,background_gc=on,discard,no_heap,user_xattr,inline_xattr,acl,inline_data,inline_dentry,flush_merge,extent_cache,mode=adaptive,active_logs=6,reserve_root=111841,resuid=0,resgid=1065,alloc_mode=reuse,checkpoint_merge,fsync_mode=strict 0 0
+/dev/block/by-name/userdata /storage/emulated/0/Android/obb f2fs rw,lazytime,seclabel,nosuid,nodev,noatime,background_gc=on,discard,no_heap,user_xattr,inline_xattr,acl,inline_data,inline_dentry,flush_merge,extent_cache,mode=adaptive,active_logs=6,reserve_root=111841,resuid=0,resgid=1065,alloc_mode=reuse,checkpoint_merge,fsync_mode=strict 0 0
+
+command_exit=0

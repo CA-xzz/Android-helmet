@@ -1,3 +1,0 @@
---------- beginning of main
-07-29 14:06:11.450  1650  1650 I HelmetRuntime: {"timestamp":1785305171448,"level":"INFO","event":"application_started"}
-07-29 14:06:11.777  1650  1795 I HelmetRuntime: {"timestamp":1785305171775,"level":"INFO","event":"runtime_status","state":"OFFLINE_READY","pendingOutboxCount":10,"lastEventType":"RUNTIME_STARTED"}

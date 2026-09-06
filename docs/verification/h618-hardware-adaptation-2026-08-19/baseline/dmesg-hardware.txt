@@ -1,0 +1,8 @@
+captured_host_utc=2026-08-19T14:33:32Z
+adb_serial=2c001031774186e21d3
+[  707.375116] type=1400 audit(1785298604.044:1299): avc: denied { read } for comm="pidof" scontext=u:r:toolbox:s0 tcontext=u:r:hal_camera_default:s0 tclass=file permissive=1
+[  763.395460] type=1400 audit(1785298660.064:1315): avc: denied { read } for comm="pidof" scontext=u:r:toolbox:s0 tcontext=u:r:audioserver:s0 tclass=file permissive=1
+[  763.396936] type=1400 audit(1785298660.068:1317): avc: denied { open } for comm="pidof" path="/proc/266/cmdline" dev="proc" ino=6363 scontext=u:r:toolbox:s0 tcontext=u:r:audioserver:s0 tclass=file permissive=1
+[  946.743444] type=1400 audit(1785298843.412:1473): avc: denied { read } for comm="pidof" scontext=u:r:toolbox:s0 tcontext=u:r:statsd:s0 tclass=file permissive=1
+
+command_exit=0

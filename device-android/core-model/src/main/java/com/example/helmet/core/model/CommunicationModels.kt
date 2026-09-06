@@ -10,6 +10,14 @@ enum class CallMediaMode {
     VIDEO_UPLINK,
 }
 
+enum class StreamState {
+    IDLE,
+    STARTING,
+    STREAMING,
+    STOPPING,
+    FAILED,
+}
+
 enum class CallState {
     REQUESTED,
     RINGING,
@@ -182,6 +190,8 @@ enum class DeviceCommandState {
     RECEIVED,
     APPLIED,
     FAILED,
+    /** Server history says this sequence was already acknowledged before local state was rebuilt. */
+    ACKNOWLEDGED,
 }
 
 data class DeviceCommand(

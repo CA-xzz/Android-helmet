@@ -66,7 +66,10 @@ class AndroidTextPlayback(context: Context) : TextPlayback, AutoCloseable {
             return TextPlaybackResult(false, "TTS_SPEAK_REJECTED")
         }
         return withTimeoutOrNull(PLAYBACK_TIMEOUT_MILLIS) { completion.await() }
-            ?: TextPlaybackResult(false, "TTS_PLAYBACK_TIMEOUT").also { completions.remove(utteranceId) }
+            ?: TextPlaybackResult(false, "TTS_PLAYBACK_TIMEOUT").also {
+                completions.remove(utteranceId)
+                tts.stop()
+            }
     }
 
     override fun close() {

@@ -1,0 +1,26 @@
+<resources>
+    <item name="dashboard_root" type="id" />
+    <item name="page_title" type="id" />
+    <item name="current_time" type="id" />
+    <item name="nav_overview" type="id" />
+    <item name="nav_alerts" type="id" />
+    <item name="nav_features" type="id" />
+    <item name="nav_devices" type="id" />
+    <item name="nav_maintenance" type="id" />
+    <item name="nav_debug" type="id" />
+    <item name="overall_status" type="id" />
+    <item name="refresh_detection" type="id" />
+    <item name="start_service" type="id" />
+    <item name="edit_serial" type="id" />
+    <item name="edit_backend" type="id" />
+    <item name="clear_backend" type="id" />
+    <item name="request_permissions" type="id" />
+    <item name="debug_uart_mode" type="id" />
+    <item name="debug_simulator_mode" type="id" />
+    <item name="debug_photo" type="id" />
+    <item name="debug_record" type="id" />
+    <item name="debug_call" type="id" />
+    <item name="debug_fall" type="id" />
+    <item name="debug_electric" type="id" />
+    <item name="debug_height" type="id" />
+</resources>

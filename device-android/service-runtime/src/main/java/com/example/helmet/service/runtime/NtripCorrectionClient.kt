@@ -194,11 +194,11 @@ class NtripCorrectionClient(
             while (!closed.get()) {
                 val now = monotonicClockMillis()
                 if (now >= nextGgaAt) {
-                    ggaProvider()?.let(NtripWireProtocol::normalizeGga)?.let { gga ->
-                        output.write(gga.toByteArray(StandardCharsets.US_ASCII))
-                        output.write("\r\n".toByteArray(StandardCharsets.US_ASCII))
-                        output.flush()
-                    }
+                    val gga = ggaProvider()?.let(NtripWireProtocol::normalizeGga)
+                        ?: throw NtripProtocolException("NTRIP GGA is unavailable", retryable = true)
+                    output.write(gga.toByteArray(StandardCharsets.US_ASCII))
+                    output.write("\r\n".toByteArray(StandardCharsets.US_ASCII))
+                    output.flush()
                     nextGgaAt = now + ggaIntervalMillis
                 }
                 val count = try {

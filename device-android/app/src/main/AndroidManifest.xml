@@ -8,14 +8,15 @@
         android:banner="@drawable/tv_banner"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@drawable/ic_helmet"
-        android:label="Smart Helmet Diagnostics"
+        android:label="智能安全帽"
         android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
         android:theme="@style/Theme.Helmet"
         android:usesCleartextTraffic="${cleartextTrafficPermitted}">
         <activity
             android:name=".MainActivity"
-            android:exported="${diagnosticsExported}" />
+            android:exported="${diagnosticsExported}"
+            android:screenOrientation="landscape" />
         <activity
             android:name=".HelmetLauncherActivity"
             android:excludeFromRecents="true"

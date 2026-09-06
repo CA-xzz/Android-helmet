@@ -29,15 +29,28 @@ class ExternalRtkFixAssembler(
         val sentence: T,
     )
 
+    private data class TimedRawSentence(
+        val receivedAtMillis: Long,
+        val rawSentence: String,
+    )
+
     private val lineBuffer = StringBuilder()
+    private var discardingLine = false
     private var latestRmc: TimedSentence<NmeaSentence.Rmc>? = null
     private var latestGsa: TimedSentence<NmeaSentence.Gsa>? = null
     private var latestGsv: TimedSentence<NmeaSentence.Gsv>? = null
+    @Volatile
+    private var latestValidGgaSnapshot: TimedRawSentence? = null
     private var mutableStats = ExternalRtkParserStats()
 
-    @Volatile
-    var latestValidGga: String? = null
-        private set
+    val latestValidGga: String?
+        get() {
+            val snapshot = latestValidGgaSnapshot ?: return null
+            val now = monotonicClockMillis()
+            return snapshot.rawSentence.takeIf {
+                now - snapshot.receivedAtMillis in 0..VALID_GGA_FRESHNESS_MILLIS
+            }
+        }
 
     val stats: ExternalRtkParserStats
         get() = mutableStats
@@ -47,10 +60,19 @@ class ExternalRtkFixAssembler(
         bytes.forEach { byte ->
             val value = byte.toInt() and 0xFF
             when {
-                value == '\r'.code || value == '\n'.code -> finishLine()?.let(::add)
+                value == '\r'.code || value == '\n'.code -> {
+                    if (discardingLine) {
+                        discardingLine = false
+                        lineBuffer.setLength(0)
+                    } else {
+                        finishLine()?.let(::add)
+                    }
+                }
+                discardingLine -> Unit
                 value in 0x20..0x7E -> {
                     if (lineBuffer.length >= MAX_NMEA_LINE_LENGTH) {
                         lineBuffer.setLength(0)
+                        discardingLine = true
                         mutableStats = mutableStats.copy(overlongLines = mutableStats.overlongLines + 1)
                     } else {
                         lineBuffer.append(value.toChar())
@@ -59,6 +81,7 @@ class ExternalRtkFixAssembler(
                 else -> {
                     if (lineBuffer.isNotEmpty()) {
                         lineBuffer.setLength(0)
+                        discardingLine = true
                         mutableStats = mutableStats.copy(rejectedLines = mutableStats.rejectedLines + 1)
                     }
                 }
@@ -69,10 +92,11 @@ class ExternalRtkFixAssembler(
     @Synchronized
     fun reset() {
         lineBuffer.setLength(0)
+        discardingLine = false
         latestRmc = null
         latestGsa = null
         latestGsv = null
-        latestValidGga = null
+        latestValidGgaSnapshot = null
     }
 
     private fun finishLine(): ExternalRtkUpdate? {
@@ -100,7 +124,11 @@ class ExternalRtkFixAssembler(
                 null
             }
             is NmeaSentence.Gga -> {
-                if (sentence.quality != FixQuality.NO_FIX) latestValidGga = raw
+                latestValidGgaSnapshot = if (sentence.quality != FixQuality.NO_FIX) {
+                    TimedRawSentence(now, raw)
+                } else {
+                    null
+                }
                 sentence.toLocationFix(now)
             }
         }
@@ -146,5 +174,6 @@ class ExternalRtkFixAssembler(
         const val EXTERNAL_RTK_PROVIDER = "external-rtk-uart"
         private const val MAX_NMEA_LINE_LENGTH = 128
         private const val AUXILIARY_SENTENCE_FRESHNESS_MILLIS = 2_500L
+        internal const val VALID_GGA_FRESHNESS_MILLIS = 5_000L
     }
 }

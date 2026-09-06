@@ -7,6 +7,9 @@ import androidx.core.content.ContextCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.work.WorkManager
+import com.example.helmet.core.model.CallDirection
+import com.example.helmet.core.model.CallSession
+import com.example.helmet.core.model.CallState
 import com.example.helmet.core.model.DeliveryState
 import com.example.helmet.core.model.EventSeverity
 import com.example.helmet.core.model.FixQuality
@@ -27,6 +30,8 @@ import com.example.helmet.data.local.SafetyStore
 import com.example.helmet.data.local.TrackStore
 import com.example.helmet.service.runtime.HelmetService
 import com.example.helmet.service.runtime.RuntimeStatus
+import com.example.helmet.testfixture.capturePreferenceFilesForTest
+import com.example.helmet.testfixture.restorePreferenceFilesForTest
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URLEncoder
@@ -34,6 +39,7 @@ import java.net.URL
 import java.security.MessageDigest
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -47,54 +53,71 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
+internal fun requireNonBlankBoardTestArgument(value: String?, argumentName: String): String =
+    requireNotNull(value?.takeIf(String::isNotBlank)) {
+        "instrumentation argument $argumentName is required and must not be blank"
+    }
+
 @RunWith(AndroidJUnit4::class)
 class AutomaticStartupQueueRecoveryInstrumentedTest {
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
+    private val backendBearerToken = requireNonBlankBoardTestArgument(
+        InstrumentationRegistry.getArguments().getString(BACKEND_BEARER_TOKEN_ARGUMENT),
+        BACKEND_BEARER_TOKEN_ARGUMENT,
+    )
 
     @Test
     fun applicationStartupRecoversEveryDurableQueue() = runBlocking {
         val phase = InstrumentationRegistry.getArguments().getString(PHASE_ARGUMENT).orEmpty()
-        assumeTrue("seed or recover phase is required", phase in setOf(PHASE_SEED, PHASE_RECOVER))
+        assumeTrue(
+            "seed, recover, or cleanup phase is required",
+            phase in setOf(PHASE_SEED, PHASE_RECOVER, PHASE_CLEANUP),
+        )
         when (phase) {
             PHASE_SEED -> seedPendingRecords()
             PHASE_RECOVER -> verifyAutomaticRecovery()
+            PHASE_CLEANUP -> cleanupRecoveryState()
         }
     }
 
     private suspend fun seedPendingRecords() {
         val evidence = context.getSharedPreferences(EVIDENCE_PREFERENCES, Context.MODE_PRIVATE)
+        evidence.getString(KEY_CONFIG_SNAPSHOT, null)?.let { staleSnapshot ->
+            restorePreferenceFilesForTest(context, staleSnapshot)
+        }
         check(evidence.edit().clear().commit()) { "failed to clear startup recovery metadata" }
+        val now = backendNowEpochMillis()
+        val database = HelmetDatabase.get(context)
+        val deviceId = DeviceIdentityStore(context).getOrCreateDeviceId()
+        val calls = CallStore(database) { now }
+        calls.active()?.let { active ->
+            require(isOwnedStartupTestCall(active, deviceId)) {
+                "a non-test active call prevents startup recovery seeding"
+            }
+            completeOwnedStartupTestCall(calls, active, now)
+        }
+        check(calls.active() == null) { "startup recovery test call did not become terminal" }
+        val configStore = RuntimeConfigStore(context)
+        val configSnapshot = capturePreferenceFilesForTest(context, CONFIG_PREFERENCE_FILES)
+        check(evidence.edit().putString(KEY_CONFIG_SNAPSHOT, configSnapshot).commit()) {
+            "failed to persist encrypted configuration snapshot"
+        }
+        try {
         context.stopService(HelmetService.startIntent(context))
         delay(SERVICE_STOP_DELAY_MILLIS)
         withContext(Dispatchers.IO) {
             WorkManager.getInstance(context).cancelAllWork().result.get()
         }
-
-        val configStore = RuntimeConfigStore(context)
-        val originalConfig = configStore.load()
-        val testConfig = originalConfig.copy(
-            revision = originalConfig.revision + 1,
-            simulatorEnabled = true,
-            backendBaseUrl = TEST_ENDPOINT,
-            backendBearerToken = TEST_TOKEN,
-            mqttBrokerUri = "",
-            mqttClientCertificateAlias = "",
-        )
         clearStaleStartupMediaFiles()
-        val database = HelmetDatabase.get(context)
         val tracks = TrackStore(database)
         val media = MediaStore(database)
         val alerts = SafetyStore(database)
-        val calls = CallStore(database)
-        val deviceId = DeviceIdentityStore(context).getOrCreateDeviceId()
         val nonce = UUID.randomUUID().toString()
         val trackMessageId = "startup-track-$nonce"
         val mediaId = "startup-media-$nonce"
         val alertMessageId = "startup-alert-message-$nonce"
         val alertId = "startup-alert-$nonce"
         val callId = "startup-call-$nonce"
-        val now = System.currentTimeMillis()
-
         val track = requireNotNull(
             tracks.record(
                 LocationFix(
@@ -190,7 +213,15 @@ class AutomaticStartupQueueRecoveryInstrumentedTest {
         assertEquals(0, requireNotNull(media.find(mediaId)).attemptCount)
         assertEquals(0, requireNotNull(alerts.findAlert(alertMessageId)).attemptCount)
         assertEquals(0, requireNotNull(calls.find(callId)).attemptCount)
-        configStore.save(testConfig)
+        val testConfig = configStore.update { current ->
+            current.copy(
+                simulatorEnabled = true,
+                backendBaseUrl = TEST_ENDPOINT,
+                backendBearerToken = backendBearerToken,
+                mqttBrokerUri = "",
+                mqttClientCertificateAlias = "",
+            )
+        }
         check(
             evidence.edit()
                 .putBoolean(KEY_READY, true)
@@ -203,44 +234,35 @@ class AutomaticStartupQueueRecoveryInstrumentedTest {
                 .putString(KEY_ALERT_ID, alertId)
                 .putString(KEY_CALL_ID, callId)
                 .putLong(KEY_TEST_REVISION, testConfig.revision)
-                .putLong(KEY_ORIGINAL_REVISION, originalConfig.revision)
-                .putBoolean(KEY_ORIGINAL_SIMULATOR, originalConfig.simulatorEnabled)
-                .putString(KEY_ORIGINAL_BASE_URL, originalConfig.backendBaseUrl)
-                .putString(KEY_ORIGINAL_TOKEN, originalConfig.backendBearerToken)
-                .putString(KEY_ORIGINAL_MQTT_URI, originalConfig.mqttBrokerUri)
-                .putString(KEY_ORIGINAL_MQTT_ALIAS, originalConfig.mqttClientCertificateAlias)
                 .commit(),
         ) { "failed to persist startup recovery metadata" }
+        } catch (error: Throwable) {
+            restorePreferenceFilesForTest(context, configSnapshot)
+            check(evidence.edit().clear().commit()) { "failed to clear startup recovery metadata" }
+            ContextCompat.startForegroundService(context, HelmetService.startIntent(context))
+            throw error
+        }
     }
 
     private suspend fun verifyAutomaticRecovery() {
         val evidence = context.getSharedPreferences(EVIDENCE_PREFERENCES, Context.MODE_PRIVATE)
-        check(evidence.getBoolean(KEY_READY, false)) { "startup recovery metadata is missing" }
-        assertNotEquals(evidence.getInt(KEY_PROCESS_ID, Process.myPid()), Process.myPid())
-        val deviceId = requireEvidence(evidence, KEY_DEVICE_ID)
-        val trackMessageId = requireEvidence(evidence, KEY_TRACK_MESSAGE_ID)
-        val mediaId = requireEvidence(evidence, KEY_MEDIA_ID)
-        val mediaPath = requireEvidence(evidence, KEY_MEDIA_PATH)
-        val alertMessageId = requireEvidence(evidence, KEY_ALERT_MESSAGE_ID)
-        val alertId = requireEvidence(evidence, KEY_ALERT_ID)
-        val callId = requireEvidence(evidence, KEY_CALL_ID)
-        val testRevision = evidence.getLong(KEY_TEST_REVISION, -1)
-        val configStore = RuntimeConfigStore(context)
-        val activeConfig = configStore.load()
-        val database = HelmetDatabase.get(context)
-        val tracks = TrackStore(database)
-        val media = MediaStore(database)
-        val alerts = SafetyStore(database)
-        val calls = CallStore(database)
-        val originalRevision = evidence.getLong(KEY_ORIGINAL_REVISION, activeConfig.revision)
-        val originalSimulator = evidence.getBoolean(KEY_ORIGINAL_SIMULATOR, true)
-        val originalBaseUrl = evidence.getString(KEY_ORIGINAL_BASE_URL, "").orEmpty()
-        val originalToken = evidence.getString(KEY_ORIGINAL_TOKEN, "").orEmpty()
-        val originalMqttUri = evidence.getString(KEY_ORIGINAL_MQTT_URI, "").orEmpty()
-        val originalMqttAlias = evidence.getString(KEY_ORIGINAL_MQTT_ALIAS, "").orEmpty()
-        var completed = false
-
+        val configSnapshot = requireEvidence(evidence, KEY_CONFIG_SNAPSHOT)
         try {
+            check(evidence.getBoolean(KEY_READY, false)) { "startup recovery metadata is missing" }
+            assertNotEquals(evidence.getInt(KEY_PROCESS_ID, Process.myPid()), Process.myPid())
+            val deviceId = requireEvidence(evidence, KEY_DEVICE_ID)
+            val trackMessageId = requireEvidence(evidence, KEY_TRACK_MESSAGE_ID)
+            val mediaId = requireEvidence(evidence, KEY_MEDIA_ID)
+            val mediaPath = requireEvidence(evidence, KEY_MEDIA_PATH)
+            val alertMessageId = requireEvidence(evidence, KEY_ALERT_MESSAGE_ID)
+            val alertId = requireEvidence(evidence, KEY_ALERT_ID)
+            val callId = requireEvidence(evidence, KEY_CALL_ID)
+            val testRevision = evidence.getLong(KEY_TEST_REVISION, -1)
+            val database = HelmetDatabase.get(context)
+            val tracks = TrackStore(database)
+            val media = MediaStore(database)
+            val alerts = SafetyStore(database)
+            val calls = CallStore(database)
             withTimeout(RECOVERY_TIMEOUT_MILLIS) {
                 RuntimeStatus.snapshot.first { snapshot -> snapshot.configRevision == testRevision }
             }
@@ -288,26 +310,74 @@ class AutomaticStartupQueueRecoveryInstrumentedTest {
             assertEquals(alertId, getJson("/v1/alerts/$alertId").getString("alertId"))
             assertEquals(callId, getJson("/v1/calls/$callId").getString("callId"))
             assertTrue(!File(mediaPath).exists() || File(mediaPath).delete())
-            completed = true
         } finally {
-            configStore.save(
-                activeConfig.copy(
-                    revision = originalRevision,
-                    simulatorEnabled = originalSimulator,
-                    backendBaseUrl = originalBaseUrl,
-                    backendBearerToken = originalToken,
-                    mqttBrokerUri = originalMqttUri,
-                    mqttClientCertificateAlias = originalMqttAlias,
-                ),
-            )
-            context.stopService(HelmetService.startIntent(context))
-            delay(SERVICE_STOP_DELAY_MILLIS)
-            ContextCompat.startForegroundService(context, HelmetService.startIntent(context))
-            if (completed) {
+            withContext(NonCancellable) {
+                runCatching {
+                    val calls = CallStore(HelmetDatabase.get(context))
+                    calls.find(evidence.getString(KEY_CALL_ID, null).orEmpty())
+                        ?.takeIf { call -> isOwnedStartupTestCall(call, call.deviceId) }
+                        ?.let { call ->
+                            completeOwnedStartupTestCall(calls, call, System.currentTimeMillis())
+                        }
+                }
+                context.stopService(HelmetService.startIntent(context))
+                delay(SERVICE_STOP_DELAY_MILLIS)
+                restorePreferenceFilesForTest(context, configSnapshot)
                 check(evidence.edit().clear().commit()) { "failed to clear startup recovery metadata" }
+                ContextCompat.startForegroundService(context, HelmetService.startIntent(context))
             }
         }
     }
+
+    private suspend fun cleanupRecoveryState() = withContext(NonCancellable) {
+        val evidence = context.getSharedPreferences(EVIDENCE_PREFERENCES, Context.MODE_PRIVATE)
+        val snapshot = evidence.getString(KEY_CONFIG_SNAPSHOT, null)
+        val callId = evidence.getString(KEY_CALL_ID, null)
+        context.stopService(HelmetService.startIntent(context))
+        delay(SERVICE_STOP_DELAY_MILLIS)
+        if (!callId.isNullOrBlank()) {
+            val calls = CallStore(HelmetDatabase.get(context))
+            calls.find(callId)
+                ?.takeIf { call -> isOwnedStartupTestCall(call, call.deviceId) }
+                ?.let { call -> completeOwnedStartupTestCall(calls, call, System.currentTimeMillis()) }
+        }
+        if (!snapshot.isNullOrBlank()) restorePreferenceFilesForTest(context, snapshot)
+        check(evidence.edit().clear().commit()) { "failed to clear startup recovery metadata" }
+        ContextCompat.startForegroundService(context, HelmetService.startIntent(context))
+    }
+
+    private suspend fun completeOwnedStartupTestCall(
+        calls: CallStore,
+        call: CallSession,
+        nowEpochMillis: Long,
+    ) {
+        require(isOwnedStartupTestCall(call, call.deviceId)) { "call is not owned by startup recovery test" }
+        if (call.state in TERMINAL_CALL_STATES) return
+        check(call.updatedAtEpochMillis < Long.MAX_VALUE) { "test call timeline is exhausted" }
+        val supersedePending = call.deliveryState in setOf(
+            DeliveryState.PENDING,
+            DeliveryState.IN_FLIGHT,
+            DeliveryState.FAILED,
+        )
+        calls.applyRemoteTransition(
+            callId = call.callId,
+            target = CallState.ENDED,
+            stateSequence = if (supersedePending) call.stateSequence else call.stateSequence + 1,
+            occurredAtEpochMillis = if (supersedePending) {
+                maxOf(nowEpochMillis, call.updatedAtEpochMillis)
+            } else {
+                maxOf(nowEpochMillis, call.updatedAtEpochMillis + 1)
+            },
+            reason = STARTUP_TEST_CALL_CLEANUP_REASON,
+        )
+    }
+
+    private fun isOwnedStartupTestCall(call: CallSession, expectedDeviceId: String): Boolean =
+        call.callId.startsWith(STARTUP_CALL_PREFIX) &&
+            call.deviceId == expectedDeviceId &&
+            call.direction == CallDirection.OUTGOING_DEVICE &&
+            call.simulated &&
+            call.relatedEventId?.startsWith(STARTUP_ALERT_PREFIX) == true
 
     private fun clearStaleStartupMediaFiles() {
         File(context.filesDir, "media/photo").listFiles()
@@ -378,7 +448,7 @@ class AutomaticStartupQueueRecoveryInstrumentedTest {
             readTimeout = 10_000
             doOutput = true
             setFixedLengthStreamingMode(body.size)
-            setRequestProperty("Authorization", "Bearer $TEST_TOKEN")
+            setRequestProperty("Authorization", "Bearer $backendBearerToken")
             setRequestProperty("Content-Type", contentType)
             headers.forEach(::setRequestProperty)
         }
@@ -399,7 +469,7 @@ class AutomaticStartupQueueRecoveryInstrumentedTest {
             requestMethod = "GET"
             connectTimeout = 5_000
             readTimeout = 10_000
-            setRequestProperty("Authorization", "Bearer $TEST_TOKEN")
+            setRequestProperty("Authorization", "Bearer $backendBearerToken")
             setRequestProperty("X-Actor-Id", "startup-recovery-board-test")
             setRequestProperty("X-Actor-Role", "DISPATCHER")
         }
@@ -409,6 +479,23 @@ class AutomaticStartupQueueRecoveryInstrumentedTest {
                 .bufferedReader().use { reader -> reader.readText() }
             check(status in 200..299) { "backend HTTP $status: $text" }
             JSONObject(text)
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private suspend fun backendNowEpochMillis(): Long = withContext(Dispatchers.IO) {
+        val connection = URL("$TEST_ENDPOINT/ready").openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 5_000
+            connection.readTimeout = 10_000
+            val status = connection.responseCode
+            check(status in 200..299) { "backend readiness HTTP $status" }
+            connection.inputStream.use { input -> input.readBytes() }
+            connection.getHeaderFieldDate("Date", -1L).also { serverTime ->
+                check(serverTime > 0) { "backend response is missing a valid Date header" }
+            }
         } finally {
             connection.disconnect()
         }
@@ -429,6 +516,7 @@ class AutomaticStartupQueueRecoveryInstrumentedTest {
         private const val PHASE_ARGUMENT = "automaticStartupRecoveryPhase"
         private const val PHASE_SEED = "seed"
         private const val PHASE_RECOVER = "recover"
+        private const val PHASE_CLEANUP = "cleanup"
         private const val EVIDENCE_PREFERENCES = "automatic_startup_recovery_evidence"
         private const val KEY_READY = "ready"
         private const val KEY_PROCESS_ID = "process_id"
@@ -440,19 +528,23 @@ class AutomaticStartupQueueRecoveryInstrumentedTest {
         private const val KEY_ALERT_ID = "alert_id"
         private const val KEY_CALL_ID = "call_id"
         private const val KEY_TEST_REVISION = "test_revision"
-        private const val KEY_ORIGINAL_REVISION = "original_revision"
-        private const val KEY_ORIGINAL_SIMULATOR = "original_simulator"
-        private const val KEY_ORIGINAL_BASE_URL = "original_base_url"
-        private const val KEY_ORIGINAL_TOKEN = "original_token"
-        private const val KEY_ORIGINAL_MQTT_URI = "original_mqtt_uri"
-        private const val KEY_ORIGINAL_MQTT_ALIAS = "original_mqtt_alias"
+        private const val KEY_CONFIG_SNAPSHOT = "encrypted_config_snapshot"
+        private const val BACKEND_BEARER_TOKEN_ARGUMENT = "backendBearerToken"
         private const val TEST_ENDPOINT = "http://127.0.0.1:18084"
-        private const val TEST_TOKEN = "startup-recovery-board-token"
         private const val PRELOADED_MEDIA_BYTES = 64 * 1024
         private const val MEDIA_BYTES = 4 * PRELOADED_MEDIA_BYTES
         private const val EVENT_SEARCH_LIMIT = 200
         private const val SERVICE_STOP_DELAY_MILLIS = 750L
         private const val RECOVERY_TIMEOUT_MILLIS = 45_000L
         private const val POLL_INTERVAL_MILLIS = 200L
+        private const val STARTUP_CALL_PREFIX = "startup-call-"
+        private const val STARTUP_ALERT_PREFIX = "startup-alert-"
+        private const val STARTUP_TEST_CALL_CLEANUP_REASON = "STARTUP_RECOVERY_TEST_CLEANUP"
+        private val TERMINAL_CALL_STATES = setOf(CallState.REJECTED, CallState.ENDED, CallState.FAILED)
+        private val CONFIG_PREFERENCE_FILES = listOf(
+            "helmet_runtime_config",
+            "helmet_backend_credentials",
+            "helmet_rtk_credentials",
+        )
     }
 }

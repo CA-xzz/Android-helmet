@@ -39,22 +39,35 @@ import org.junit.runner.RunWith
 class DurableCommunicationRecoveryInstrumentedTest {
     @Test
     fun communicationQueuesRecoverAfterProcessRestart() = runBlocking {
-        val phase = InstrumentationRegistry.getArguments().getString(PHASE_ARGUMENT).orEmpty()
+        val arguments = InstrumentationRegistry.getArguments()
+        val phase = arguments.getString(PHASE_ARGUMENT).orEmpty()
         assumeTrue("explicit enqueue or recover phase is required", phase in setOf(PHASE_ENQUEUE, PHASE_RECOVER))
+        val backendBearerToken = requireBoardBackendBearerToken(
+            arguments.getString(BACKEND_BEARER_TOKEN_ARGUMENT),
+        )
         when (phase) {
-            PHASE_ENQUEUE -> enqueuePendingCommunicationRecords()
-            PHASE_RECOVER -> recoverPendingCommunicationRecords()
+            PHASE_ENQUEUE -> enqueuePendingCommunicationRecords(backendBearerToken)
+            PHASE_RECOVER -> recoverPendingCommunicationRecords(backendBearerToken)
         }
     }
 
-    private suspend fun enqueuePendingCommunicationRecords() {
+    private suspend fun enqueuePendingCommunicationRecords(backendBearerToken: String) {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val evidence = context.getSharedPreferences(EVIDENCE_PREFERENCES, Context.MODE_PRIVATE)
+        evidence.getString(KEY_CONFIG_SNAPSHOT, null)?.let { staleSnapshot ->
+            restorePreferenceFilesForRecoveryTest(context, staleSnapshot)
+            check(evidence.edit().clear().commit()) { "failed to clear stale communication recovery metadata" }
+        }
         check(!evidence.getBoolean(KEY_READY, false)) {
             "a previous communication recovery phase is incomplete; reinstall the test package"
         }
         val configStore = RuntimeConfigStore(context)
         val originalConfig = configStore.load()
+        val configSnapshot = capturePreferenceFilesForRecoveryTest(context, CONFIG_PREFERENCE_FILES)
+        check(evidence.edit().putString(KEY_CONFIG_SNAPSHOT, configSnapshot).commit()) {
+            "failed to persist encrypted configuration snapshot"
+        }
+        try {
         val database = HelmetDatabase.get(context)
         val calls = CallStore(database)
         val broadcasts = BroadcastStore(database)
@@ -72,16 +85,18 @@ class DurableCommunicationRecoveryInstrumentedTest {
             .put("priority", 10)
             .put("expiresAtEpochMillis", now + BROADCAST_EXPIRY_MILLIS)
             .put("createdAtEpochMillis", now)
-        val createdBroadcast = postJson("/v1/broadcasts", broadcastRequest)
+        val createdBroadcast = postJson("/v1/broadcasts", broadcastRequest, backendBearerToken)
         val commandId = createdBroadcast.getString("commandId")
-        val command = HttpCommunicationClient(ONLINE_ENDPOINT, TEST_TOKEN)
-            .fetchCommands(deviceId, 0, 100)
+        val commandPage = HttpCommunicationClient(ONLINE_ENDPOINT, backendBearerToken)
+            .fetchCommandPage(deviceId, 0, 100)
+        val command = commandPage.commands
             .single { item -> item.commandId == commandId }
 
-        assertTrue(commands.receive(command))
-        assertTrue(commands.markApplied(commandId, now + 3))
+        assertTrue(commands.receive(commandPage.commandStreamId, command))
+        assertTrue(commands.markApplied(commandPage.commandStreamId, commandId, now + 3))
         assertTrue(
             broadcasts.receive(
+                commandPage.commandStreamId,
                 TextBroadcast(
                     broadcastId = broadcastId,
                     deviceId = deviceId,
@@ -102,6 +117,8 @@ class DurableCommunicationRecoveryInstrumentedTest {
         )
         assertTrue(
             broadcasts.updatePlayback(
+                commandPage.commandStreamId,
+                deviceId,
                 broadcastId,
                 BroadcastPlaybackState.FAILED,
                 now + 2,
@@ -118,10 +135,10 @@ class DurableCommunicationRecoveryInstrumentedTest {
             )?.callId,
         )
 
-        configStore.save(
+        configStore.saveForInstrumentationTest(
             originalConfig.copy(
                 backendBaseUrl = STALE_NETWORK_ENDPOINT,
-                backendBearerToken = TEST_TOKEN,
+                backendBearerToken = backendBearerToken,
             ),
         )
         CommunicationWorker.enqueue(context)
@@ -135,70 +152,77 @@ class DurableCommunicationRecoveryInstrumentedTest {
                 .putString(KEY_CALL_ID, callId)
                 .putString(KEY_COMMAND_ID, commandId)
                 .putString(KEY_BROADCAST_ID, broadcastId)
-                .putString(KEY_ORIGINAL_BASE_URL, originalConfig.backendBaseUrl)
-                .putString(KEY_ORIGINAL_TOKEN, originalConfig.backendBearerToken)
+                .putString(KEY_COMMAND_STREAM_ID, commandPage.commandStreamId)
                 .commit(),
         ) { "failed to persist communication recovery metadata" }
+        } catch (error: Throwable) {
+            restorePreferenceFilesForRecoveryTest(context, configSnapshot)
+            check(evidence.edit().clear().commit()) { "failed to clear communication recovery metadata" }
+            throw error
+        }
     }
 
-    private suspend fun recoverPendingCommunicationRecords() {
+    private suspend fun recoverPendingCommunicationRecords(backendBearerToken: String) {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val evidence = context.getSharedPreferences(EVIDENCE_PREFERENCES, Context.MODE_PRIVATE)
-        check(evidence.getBoolean(KEY_READY, false)) { "communication enqueue metadata is missing" }
-        assertNotEquals(evidence.getInt(KEY_PROCESS_ID, Process.myPid()), Process.myPid())
-        val deviceId = requireEvidence(evidence.getString(KEY_DEVICE_ID, null), KEY_DEVICE_ID)
-        val callId = requireEvidence(evidence.getString(KEY_CALL_ID, null), KEY_CALL_ID)
-        val commandId = requireEvidence(evidence.getString(KEY_COMMAND_ID, null), KEY_COMMAND_ID)
-        val broadcastId = requireEvidence(evidence.getString(KEY_BROADCAST_ID, null), KEY_BROADCAST_ID)
-        val originalBaseUrl = evidence.getString(KEY_ORIGINAL_BASE_URL, "").orEmpty()
-        val originalToken = evidence.getString(KEY_ORIGINAL_TOKEN, "").orEmpty()
-        val configStore = RuntimeConfigStore(context)
-        val offlineConfig = configStore.load()
-        val database = HelmetDatabase.get(context)
-        val calls = CallStore(database)
-        val broadcasts = BroadcastStore(database)
-        val commands = DeviceCommandStore(database)
-        assertEquals(DeliveryState.PENDING, calls.find(callId)?.deliveryState)
-        assertEquals(0, calls.find(callId)?.attemptCount)
-        assertEquals(DeviceCommandState.APPLIED, commands.find(commandId)?.state)
-        assertEquals(DeliveryState.PENDING, commands.find(commandId)?.ackDeliveryState)
-        assertEquals(0, commands.find(commandId)?.ackAttemptCount)
-        assertEquals(BroadcastPlaybackState.FAILED, broadcasts.find(broadcastId)?.playbackState)
-        assertEquals(DeliveryState.PENDING, broadcasts.find(broadcastId)?.receiptDeliveryState)
-        assertEquals(0, broadcasts.find(broadcastId)?.receiptAttemptCount)
-
-        val workManager = WorkManager.getInstance(context)
-        val activeRoute = backendWorkRoute(COMMUNICATION_WORK_BASE_NAME, ONLINE_ENDPOINT)
-        val previousWorkIds = workManager.workInfos(activeRoute.activeName).map { item -> item.id }.toSet()
+        val configSnapshot = requireEvidence(evidence.getString(KEY_CONFIG_SNAPSHOT, null), KEY_CONFIG_SNAPSHOT)
         try {
-            configStore.save(
+            check(evidence.getBoolean(KEY_READY, false)) { "communication enqueue metadata is missing" }
+            assertNotEquals(evidence.getInt(KEY_PROCESS_ID, Process.myPid()), Process.myPid())
+            val deviceId = requireEvidence(evidence.getString(KEY_DEVICE_ID, null), KEY_DEVICE_ID)
+            val callId = requireEvidence(evidence.getString(KEY_CALL_ID, null), KEY_CALL_ID)
+            val commandId = requireEvidence(evidence.getString(KEY_COMMAND_ID, null), KEY_COMMAND_ID)
+            val broadcastId = requireEvidence(evidence.getString(KEY_BROADCAST_ID, null), KEY_BROADCAST_ID)
+            val commandStreamId = requireEvidence(
+                evidence.getString(KEY_COMMAND_STREAM_ID, null),
+                KEY_COMMAND_STREAM_ID,
+            )
+            val configStore = RuntimeConfigStore(context)
+            val offlineConfig = configStore.load()
+            val database = HelmetDatabase.get(context)
+            val calls = CallStore(database)
+            val broadcasts = BroadcastStore(database)
+            val commands = DeviceCommandStore(database)
+            assertEquals(DeliveryState.PENDING, calls.find(callId)?.deliveryState)
+            assertEquals(0, calls.find(callId)?.attemptCount)
+            assertEquals(DeviceCommandState.APPLIED, commands.find(commandStreamId, commandId)?.state)
+            assertEquals(DeliveryState.PENDING, commands.find(commandStreamId, commandId)?.ackDeliveryState)
+            assertEquals(0, commands.find(commandStreamId, commandId)?.ackAttemptCount)
+            assertEquals(BroadcastPlaybackState.FAILED, broadcasts.find(commandStreamId, broadcastId)?.playbackState)
+            assertEquals(DeliveryState.PENDING, broadcasts.find(commandStreamId, broadcastId)?.receiptDeliveryState)
+            assertEquals(0, broadcasts.find(commandStreamId, broadcastId)?.receiptAttemptCount)
+
+            val workManager = WorkManager.getInstance(context)
+            val activeRoute = backendWorkRoute(COMMUNICATION_WORK_BASE_NAME, ONLINE_ENDPOINT)
+            val previousWorkIds = workManager.workInfos(activeRoute.activeName).map { item -> item.id }.toSet()
+            configStore.saveForInstrumentationTest(
                 offlineConfig.copy(
                     backendBaseUrl = ONLINE_ENDPOINT,
-                    backendBearerToken = TEST_TOKEN,
+                    backendBearerToken = backendBearerToken,
                 ),
             )
             CommunicationWorker.enqueue(context)
             val recovered = withTimeoutOrNull(WORK_TIMEOUT_MILLIS) {
                 while (
                     calls.find(callId)?.deliveryState != DeliveryState.DELIVERED ||
-                    commands.find(commandId)?.ackDeliveryState != DeliveryState.DELIVERED ||
-                    broadcasts.find(broadcastId)?.receiptDeliveryState != DeliveryState.DELIVERED
+                    commands.find(commandStreamId, commandId)?.ackDeliveryState != DeliveryState.DELIVERED ||
+                    broadcasts.find(commandStreamId, broadcastId)?.receiptDeliveryState != DeliveryState.DELIVERED
                 ) {
                     delay(WORK_POLL_MILLIS)
                 }
                 true
             }
             assertTrue(
-                "call=${calls.find(callId)} command=${commands.find(commandId)} " +
-                    "broadcast=${broadcasts.find(broadcastId)}",
+                "call=${calls.find(callId)} command=${commands.find(commandStreamId, commandId)} " +
+                    "broadcast=${broadcasts.find(commandStreamId, broadcastId)}",
                 recovered == true,
             )
 
             assertTrue(requireNotNull(calls.find(callId)).attemptCount >= 1)
-            assertTrue(requireNotNull(commands.find(commandId)).ackAttemptCount >= 1)
-            assertTrue(requireNotNull(broadcasts.find(broadcastId)).receiptAttemptCount >= 1)
-            assertEquals(TEST_PLAYBACK_ERROR, broadcasts.find(broadcastId)?.lastError)
-            val backendCall = getJson("/v1/calls/$callId")
+            assertTrue(requireNotNull(commands.find(commandStreamId, commandId)).ackAttemptCount >= 1)
+            assertTrue(requireNotNull(broadcasts.find(commandStreamId, broadcastId)).receiptAttemptCount >= 1)
+            assertEquals(TEST_PLAYBACK_ERROR, broadcasts.find(commandStreamId, broadcastId)?.lastError)
+            val backendCall = getJson("/v1/calls/$callId", backendBearerToken)
             assertEquals(callId, backendCall.getString("callId"))
             assertEquals(deviceId, backendCall.getString("deviceId"))
             assertEquals("REQUESTED", backendCall.getString("state"))
@@ -210,14 +234,9 @@ class DurableCommunicationRecoveryInstrumentedTest {
             assertTrue(staleWork.isNotEmpty())
             assertTrue(staleWork.all { item -> item.state == WorkInfo.State.CANCELLED })
             assertTrue(activeWork.any { item -> item.state == WorkInfo.State.SUCCEEDED })
-            check(evidence.edit().clear().commit()) { "failed to clear communication recovery metadata" }
         } finally {
-            configStore.save(
-                offlineConfig.copy(
-                    backendBaseUrl = originalBaseUrl,
-                    backendBearerToken = originalToken,
-                ),
-            )
+            restorePreferenceFilesForRecoveryTest(context, configSnapshot)
+            check(evidence.edit().clear().commit()) { "failed to clear communication recovery metadata" }
         }
     }
 
@@ -234,11 +253,18 @@ class DurableCommunicationRecoveryInstrumentedTest {
         }
     }
 
-    private suspend fun postJson(path: String, body: JSONObject): JSONObject = requestJson("POST", path, body)
+    private suspend fun postJson(path: String, body: JSONObject, backendBearerToken: String): JSONObject =
+        requestJson("POST", path, body, backendBearerToken)
 
-    private suspend fun getJson(path: String): JSONObject = requestJson("GET", path, null)
+    private suspend fun getJson(path: String, backendBearerToken: String): JSONObject =
+        requestJson("GET", path, null, backendBearerToken)
 
-    private suspend fun requestJson(method: String, path: String, body: JSONObject?): JSONObject =
+    private suspend fun requestJson(
+        method: String,
+        path: String,
+        body: JSONObject?,
+        backendBearerToken: String,
+    ): JSONObject =
         withContext(Dispatchers.IO) {
             val bytes = body?.toString()?.toByteArray(Charsets.UTF_8)
             val connection = (URL(ONLINE_ENDPOINT + path).openConnection() as HttpURLConnection).apply {
@@ -246,7 +272,7 @@ class DurableCommunicationRecoveryInstrumentedTest {
                 connectTimeout = 5_000
                 readTimeout = 10_000
                 doInput = true
-                setRequestProperty("Authorization", "Bearer $TEST_TOKEN")
+                setRequestProperty("Authorization", "Bearer $backendBearerToken")
                 setRequestProperty("X-Actor-Id", "durable-communication-test")
                 setRequestProperty("X-Actor-Role", "DISPATCHER")
                 if (bytes != null) {
@@ -284,15 +310,19 @@ class DurableCommunicationRecoveryInstrumentedTest {
         private const val KEY_CALL_ID = "call_id"
         private const val KEY_COMMAND_ID = "command_id"
         private const val KEY_BROADCAST_ID = "broadcast_id"
-        private const val KEY_ORIGINAL_BASE_URL = "original_base_url"
-        private const val KEY_ORIGINAL_TOKEN = "original_token"
+        private const val KEY_COMMAND_STREAM_ID = "command_stream_id"
+        private const val KEY_CONFIG_SNAPSHOT = "encrypted_config_snapshot"
         private const val COMMUNICATION_WORK_BASE_NAME = "helmet-communication-sync"
         private const val STALE_NETWORK_ENDPOINT = "https://unreachable.invalid"
         private const val ONLINE_ENDPOINT = "http://127.0.0.1:18080"
-        private const val TEST_TOKEN = "stage3-board-integration-token"
         private const val TEST_PLAYBACK_ERROR = "DURABLE_PLAYBACK_FAILURE"
         private const val BROADCAST_EXPIRY_MILLIS = 600_000L
         private const val WORK_TIMEOUT_MILLIS = 30_000L
         private const val WORK_POLL_MILLIS = 100L
+        private val CONFIG_PREFERENCE_FILES = listOf(
+            "helmet_runtime_config",
+            "helmet_backend_credentials",
+            "helmet_rtk_credentials",
+        )
     }
 }

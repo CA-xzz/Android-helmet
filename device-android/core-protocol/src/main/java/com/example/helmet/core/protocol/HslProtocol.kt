@@ -12,6 +12,9 @@ object HslMessageType {
     const val KEY_EVENT = 0x10
     const val SENSOR_SAMPLE = 0x11
     const val ALARM_EVENT = 0x12
+
+    // Reserved protocol-v1 identifiers. Android does not define their payload schema and rejects
+    // them with UNSUPPORTED_TYPE instead of acknowledging unparsed bytes.
     const val BATTERY_STATUS = 0x13
     const val SET_CONFIG = 0x20
     const val GET_CONFIG = 0x21

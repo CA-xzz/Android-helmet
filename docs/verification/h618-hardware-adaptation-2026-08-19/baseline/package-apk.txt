@@ -1,0 +1,22 @@
+captured_host_utc=2026-08-19T14:33:39Z
+adb_serial=2c001031774186e21d3
+package:
+    userId=10270
+    codePath=/data/app/~~Vt7yVQjnDJ4mZtIFQfWRdg==/com.example.helmet-7wuVDbD6Omn4RSXhmFcHbA==
+    versionCode=3 minSdk=31 targetSdk=31
+    versionName=0.3.0
+    flags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]
+    privateFlags=[ PRIVATE_FLAG_ACTIVITIES_RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION ALLOW_AUDIO_PLAYBACK_CAPTURE PARTIALLY_DIRECT_BOOT_AWARE PRIVATE_FLAG_ALLOW_NATIVE_HEAP_POINTER_TAGGING ]
+    firstInstallTime=2026-07-30 15:16:20
+    lastUpdateTime=2026-07-29 12:26:54
+    pkgFlags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]
+    User 0: ceDataInode=6295 installed=true hidden=false suspended=false distractionFlags=0 stopped=false notLaunched=false enabled=0 instant=false virtual=false
+        android.permission.ACCESS_FINE_LOCATION: granted=true, flags=[ USER_SET|USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+        android.permission.BLUETOOTH_CONNECT: granted=true, flags=[ USER_SET|USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+        android.permission.ACCESS_COARSE_LOCATION: granted=true, flags=[ USER_SET|USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+        android.permission.CAMERA: granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+        android.permission.RECORD_AUDIO: granted=true, flags=[ USER_SET|USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+apk_path=/data/app/~~Vt7yVQjnDJ4mZtIFQfWRdg==/com.example.helmet-7wuVDbD6Omn4RSXhmFcHbA==/base.apk
+72b17298c4c1c47d0615658eaea0b8248ad8eb2f2c83d649ea860cdaad404d4b  /data/app/~~Vt7yVQjnDJ4mZtIFQfWRdg==/com.example.helmet-7wuVDbD6Omn4RSXhmFcHbA==/base.apk
+
+command_exit=0

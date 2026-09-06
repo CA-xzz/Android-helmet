@@ -11,7 +11,7 @@ import com.example.helmet.core.protocol.LocalIntercomModuleState
 import com.example.helmet.core.protocol.LocalIntercomPayloadCodec
 import com.example.helmet.hardware.api.HardwareCommand
 import com.example.helmet.hardware.api.HardwareStatus
-import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -43,12 +43,39 @@ data class LocalIntercomStatus(
     val lastError: String? = null,
 )
 
+internal data class PlannedLocalIntercomCommand(
+    val action: LocalIntercomAction,
+    val requestId: Long,
+)
+
+internal fun plannedLocalIntercomAction(state: LocalIntercomState): LocalIntercomAction = when (state) {
+    LocalIntercomState.TRANSMITTING,
+    LocalIntercomState.REQUESTING_TRANSMIT,
+    LocalIntercomState.REQUESTING_STOP,
+    -> LocalIntercomAction.STOP_TRANSMIT
+    LocalIntercomState.READY,
+    LocalIntercomState.RECEIVING,
+    -> LocalIntercomAction.START_TRANSMIT
+    LocalIntercomState.DISABLED,
+    LocalIntercomState.UNAVAILABLE,
+    LocalIntercomState.JOINING,
+    LocalIntercomState.FAULT,
+    -> LocalIntercomAction.JOIN
+}
+
 class LocalIntercomController(
     private val config: LocalIntercomRuntimeConfig,
     private val hardwareStatus: () -> HardwareStatus,
     private val commandSink: suspend (HardwareCommand) -> Unit,
+    private val requestIdSource: () -> Long = run {
+        var next = 1L
+        {
+            val value = next
+            next = if (next == LocalIntercomRequestIdAllocator.MAX_REQUEST_ID) 1L else next + 1L
+            value
+        }
+    },
 ) {
-    private val requestIds = AtomicLong(1)
     private val mutableStatus = MutableStateFlow(
         LocalIntercomStatus(
             state = if (config.enabled) LocalIntercomState.UNAVAILABLE else LocalIntercomState.DISABLED,
@@ -85,15 +112,29 @@ class LocalIntercomController(
         return sendAction(LocalIntercomAction.JOIN, LocalIntercomState.JOINING)
     }
 
-    suspend fun toggleTransmit(): Boolean = when (mutableStatus.value.state) {
-        LocalIntercomState.TRANSMITTING,
-        LocalIntercomState.REQUESTING_TRANSMIT,
-        -> sendAction(LocalIntercomAction.STOP_TRANSMIT, LocalIntercomState.REQUESTING_STOP)
-        LocalIntercomState.READY,
-        LocalIntercomState.RECEIVING,
-        -> sendAction(LocalIntercomAction.START_TRANSMIT, LocalIntercomState.REQUESTING_TRANSMIT)
-        else -> ensureJoined()
+    internal fun planToggleCommand(): PlannedLocalIntercomCommand {
+        require(config.enabled) { "local intercom is disabled" }
+        return PlannedLocalIntercomCommand(
+            action = plannedLocalIntercomAction(mutableStatus.value.state),
+            requestId = requestIdSource().also {
+                require(it in 1..LocalIntercomRequestIdAllocator.MAX_REQUEST_ID)
+            },
+        )
     }
+
+    internal suspend fun executePlanned(command: PlannedLocalIntercomCommand): Boolean = sendAction(
+        action = command.action,
+        pendingState = when (command.action) {
+            LocalIntercomAction.JOIN -> LocalIntercomState.JOINING
+            LocalIntercomAction.START_TRANSMIT -> LocalIntercomState.REQUESTING_TRANSMIT
+            LocalIntercomAction.STOP_TRANSMIT -> LocalIntercomState.REQUESTING_STOP
+            else -> throw IllegalArgumentException("unsupported planned local intercom action")
+        },
+        requestId = command.requestId,
+        propagateCommandFailure = true,
+    )
+
+    suspend fun toggleTransmit(): Boolean = executePlanned(planToggleCommand())
 
     suspend fun leave(): Boolean {
         if (!config.enabled) return false
@@ -145,7 +186,12 @@ class LocalIntercomController(
         }
     }
 
-    private suspend fun sendAction(action: LocalIntercomAction, pendingState: LocalIntercomState): Boolean {
+    private suspend fun sendAction(
+        action: LocalIntercomAction,
+        pendingState: LocalIntercomState,
+        requestId: Long = requestIdSource(),
+        propagateCommandFailure: Boolean = false,
+    ): Boolean {
         val hardware = hardwareStatus()
         if (!hardware.connected || hardware.simulated) {
             mutableStatus.value = mutableStatus.value.copy(
@@ -158,7 +204,7 @@ class LocalIntercomController(
             )
             return false
         }
-        val requestId = requestIds.getAndUpdate { current -> (current + 1) and 0xFFFF_FFFFL }
+        require(requestId in 1..LocalIntercomRequestIdAllocator.MAX_REQUEST_ID)
         val command = HslLocalIntercomCommand(
             action = action,
             requestId = requestId,
@@ -167,7 +213,7 @@ class LocalIntercomController(
             keySlot = config.keySlot,
             codec = LocalIntercomCodec.MODULE_NEGOTIATED,
         )
-        return runCatching {
+        return try {
             commandSink(
                 HardwareCommand(
                     type = HslMessageType.LOCAL_INTERCOM_COMMAND,
@@ -176,23 +222,22 @@ class LocalIntercomController(
                     payload = LocalIntercomPayloadCodec.encodeCommand(command),
                 ),
             )
-        }.fold(
-            onSuccess = {
-                mutableStatus.value = mutableStatus.value.copy(
-                    state = pendingState,
-                    lastRequestId = requestId,
-                    lastError = null,
-                )
-                true
-            },
-            onFailure = { error ->
-                mutableStatus.value = mutableStatus.value.copy(
-                    state = LocalIntercomState.FAULT,
-                    lastRequestId = requestId,
-                    lastError = error.toString().take(256),
-                )
-                false
-            },
-        )
+            mutableStatus.value = mutableStatus.value.copy(
+                state = pendingState,
+                lastRequestId = requestId,
+                lastError = null,
+            )
+            true
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            mutableStatus.value = mutableStatus.value.copy(
+                state = LocalIntercomState.FAULT,
+                lastRequestId = requestId,
+                lastError = error.javaClass.name.take(256),
+            )
+            if (propagateCommandFailure) throw error
+            false
+        }
     }
 }

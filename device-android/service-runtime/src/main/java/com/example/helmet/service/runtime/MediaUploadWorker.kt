@@ -25,6 +25,11 @@ class MediaUploadWorker(
     parameters: WorkerParameters,
 ) : CoroutineWorker(context, parameters) {
     override suspend fun doWork(): Result {
+        val database = HelmetDatabase.get(applicationContext)
+        val wallClock = DeviceTimeAuthorityProvider.get(applicationContext)::nowEpochMillis
+        val mediaStore = MediaStore(database)
+        val eventStore = EventStore(database, wallClock)
+        reconcileRetention(mediaStore, wallClock, "before_upload")
         val config = RuntimeConfigStore(applicationContext).load()
         if (config.backendBaseUrl.isBlank() || config.backendBearerToken.isBlank()) {
             StructuredLogger.info(
@@ -34,7 +39,11 @@ class MediaUploadWorker(
             return Result.success()
         }
         val client = runCatching {
-            HttpMediaUploadClient(config.backendBaseUrl, config.backendBearerToken)
+            HttpMediaUploadClient(
+                config.backendBaseUrl,
+                config.backendBearerToken,
+                contentSource = EncryptedMediaContentSource(applicationContext),
+            )
         }.getOrElse { error ->
             StructuredLogger.error(
                 event = "media_upload_configuration_invalid",
@@ -42,23 +51,19 @@ class MediaUploadWorker(
             )
             return Result.failure()
         }
-        val database = HelmetDatabase.get(applicationContext)
-        val wallClock = DeviceTimeAuthorityProvider.get(applicationContext)::nowEpochMillis
-        val mediaStore = MediaStore(database)
-        val eventStore = EventStore(database, wallClock)
         val assets = mediaStore.pending(MAX_ASSETS_PER_RUN)
         var shouldRetry = false
         for (asset in assets) {
             val pathFailure = validatePrivateMediaPath(asset)
             if (pathFailure != null) {
-                mediaStore.markRejected(asset.assetId, pathFailure)
+                mediaStore.markRejected(asset.assetId, pathFailure.asStorageText())
                 recordResult(eventStore, asset, "MEDIA_UPLOAD_REJECTED", pathFailure)
                 continue
             }
-            mediaStore.markAttempt(asset.assetId, wallClock())
+            if (!mediaStore.markAttempt(asset.assetId, wallClock())) continue
             try {
                 val receipt = client.upload(asset)
-                mediaStore.markDelivered(asset.assetId, wallClock())
+                if (!mediaStore.markDelivered(asset.assetId, wallClock())) continue
                 eventStore.record(
                     eventType = "MEDIA_UPLOAD_COMPLETED",
                     severity = EventSeverity.INFO,
@@ -73,40 +78,61 @@ class MediaUploadWorker(
                     ).toString(),
                 )
             } catch (error: MediaUploadException) {
+                val failure = persistedFailure(
+                    error,
+                    error.statusCode,
+                    if (error.retryable) REASON_RETRYABLE_FAILURE else REASON_PERMANENT_REJECTION,
+                )
                 if (error.retryable) {
-                    mediaStore.markFailed(asset.assetId, error.toString())
+                    mediaStore.markFailed(asset.assetId, failure.asStorageText())
                     shouldRetry = true
                 } else {
-                    mediaStore.markRejected(asset.assetId, error.toString())
+                    mediaStore.markRejected(asset.assetId, failure.asStorageText())
                 }
                 recordResult(
                     eventStore,
                     asset,
                     if (error.retryable) "MEDIA_UPLOAD_RETRY_SCHEDULED" else "MEDIA_UPLOAD_REJECTED",
-                    error.toString(),
+                    failure,
                 )
                 if (error.retryable) break
             } catch (error: Throwable) {
-                mediaStore.markFailed(asset.assetId, error.toString())
-                recordResult(eventStore, asset, "MEDIA_UPLOAD_RETRY_SCHEDULED", error.toString())
+                val failure = persistedFailure(error, null, REASON_UNEXPECTED_FAILURE)
+                mediaStore.markFailed(asset.assetId, failure.asStorageText())
+                recordResult(eventStore, asset, "MEDIA_UPLOAD_RETRY_SCHEDULED", failure)
                 shouldRetry = true
                 break
             }
         }
         if (shouldRetry) return Result.retry()
+        reconcileRetention(mediaStore, wallClock, "after_upload")
         if (mediaStore.pendingCount() > 0) enqueue(applicationContext, continuation = true)
         return Result.success()
     }
 
-    private fun validatePrivateMediaPath(asset: MediaAsset): String? {
+    private suspend fun reconcileRetention(
+        mediaStore: MediaStore,
+        wallClock: () -> Long,
+        source: String,
+    ) {
+        runCatching { reconcileMediaStorage(applicationContext, mediaStore, wallClock) }
+            .onFailure { error ->
+                StructuredLogger.warn(
+                    event = "media_retention_failed",
+                    fields = mapOf("source" to source, "errorType" to error.javaClass.name),
+                )
+            }
+    }
+
+    private fun validatePrivateMediaPath(asset: MediaAsset): PersistedFailure? {
         val root = File(applicationContext.filesDir, "media").canonicalFile
         val file = runCatching { File(asset.filePath).canonicalFile }.getOrElse {
-            return "media path cannot be resolved"
+            return PersistedFailure(PATH_VALIDATION_ERROR_TYPE, null, REASON_PATH_UNRESOLVABLE)
         }
         val insideRoot = file.path.startsWith(root.path + File.separator)
         return when {
-            !insideRoot -> "media path is outside the private media directory"
-            !file.isFile -> "media file is missing"
+            !insideRoot -> PersistedFailure(PATH_VALIDATION_ERROR_TYPE, null, REASON_PATH_OUTSIDE_PRIVATE_ROOT)
+            !file.isFile -> PersistedFailure(PATH_VALIDATION_ERROR_TYPE, null, REASON_FILE_MISSING)
             else -> null
         }
     }
@@ -115,7 +141,7 @@ class MediaUploadWorker(
         eventStore: EventStore,
         asset: MediaAsset,
         eventType: String,
-        error: String,
+        failure: PersistedFailure,
     ) {
         eventStore.record(
             eventType = eventType,
@@ -124,7 +150,7 @@ class MediaUploadWorker(
                 mapOf(
                     "assetId" to asset.assetId,
                     "sha256" to asset.sha256,
-                    "error" to error.take(MAX_ERROR_LENGTH),
+                    *failure.toEventFields().toList().toTypedArray(),
                 ),
             ).toString(),
         )
@@ -133,7 +159,13 @@ class MediaUploadWorker(
     companion object {
         private const val LEGACY_UNIQUE_WORK = "helmet-media-upload"
         private const val MAX_ASSETS_PER_RUN = 100
-        private const val MAX_ERROR_LENGTH = 1_024
+        private const val PATH_VALIDATION_ERROR_TYPE = "MediaPathValidation"
+        private const val REASON_PATH_UNRESOLVABLE = "PATH_UNRESOLVABLE"
+        private const val REASON_PATH_OUTSIDE_PRIVATE_ROOT = "PATH_OUTSIDE_PRIVATE_ROOT"
+        private const val REASON_FILE_MISSING = "MEDIA_FILE_MISSING"
+        private const val REASON_RETRYABLE_FAILURE = "RETRYABLE_TRANSPORT_FAILURE"
+        private const val REASON_PERMANENT_REJECTION = "PERMANENT_TRANSPORT_REJECTION"
+        private const val REASON_UNEXPECTED_FAILURE = "UNEXPECTED_TRANSPORT_FAILURE"
         private val reconciledWorkName = AtomicReference<String?>()
 
         fun enqueue(context: Context, continuation: Boolean = false) {

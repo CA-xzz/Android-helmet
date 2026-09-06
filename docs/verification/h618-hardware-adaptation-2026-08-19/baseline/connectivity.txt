@@ -1,0 +1,143 @@
+captured_host_utc=2026-08-19T14:33:36Z
+adb_serial=2c001031774186e21d3
+NetworkProviders for: PPPOE Ethernet VpnNetworkProvider:0 TelephonyNetworkFactory[0] WifiNetworkFactory PhoneSwitcherNetworkRequstListener VcnNetworkProvider OemPaidWifiNetworkFactory UntrustedWifiNetworkFactory
+
+Active default network: none
+
+Current per-app default networks: Per-App Network Preference:
+    none
+
+Current Networks:
+
+Status for known UIDs:
+  
+Network Requests:
+  uid/pid:1000/506 activeRequest: null callbackRequest: 1 [NetworkRequest [ REQUEST id=1, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 1 priority: 2147483647
+  uid/pid:1000/506 activeRequest: null callbackRequest: 2 [NetworkRequest [ BACKGROUND_REQUEST id=2, [ Transports: CELLULAR Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 1 priority: 2147483647
+  uid/pid:1000/506 activeRequest: null callbackRequest: 3 [NetworkRequest [ REQUEST id=3, [ Transports: WIFI Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 1 priority: 2147483647
+  uid/pid:1000/506 activeRequest: null callbackRequest: 4 [NetworkRequest [ REQUEST id=4, [ Transports: ETHERNET Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 1 priority: 2147483647
+  uid/pid:1000/506 activeRequest: null callbackRequest: 5 [NetworkRequest [ REQUEST id=5, [ Transports: PPPOE Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 1 priority: 2147483647
+  uid/pid:1000/506 activeRequest: null callbackRequest: 8 [NetworkRequest [ LISTEN id=8, [ Capabilities: FOREGROUND RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  uid/pid:1000/506 activeRequest: null callbackRequest: 9 [NetworkRequest [ REQUEST id=10, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  uid/pid:1000/506 activeRequest: null callbackRequest: 11 [NetworkRequest [ LISTEN id=11, [ Capabilities: FOREGROUND RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  uid/pid:1000/506 activeRequest: null callbackRequest: 12 [NetworkRequest [ LISTEN id=12, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN&FOREGROUND&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  uid/pid:1000/506 activeRequest: null callbackRequest: 13 [NetworkRequest [ LISTEN id=13, [ RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  uid/pid:1000/506 activeRequest: null callbackRequest: 14 [NetworkRequest [ LISTEN id=14, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  uid/pid:1000/506 activeRequest: null callbackRequest: 15 [NetworkRequest [ LISTEN id=15, [ Transports: CELLULAR Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  uid/pid:1000/506 activeRequest: null callbackRequest: 16 [NetworkRequest [ REQUEST id=17, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  uid/pid:1073/756 activeRequest: null callbackRequest: 18 [NetworkRequest [ REQUEST id=19, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1073 RequestorUid: 1073 RequestorPkg: com.android.networkstack] ]] callback flags: 0 priority: 2147483647
+  uid/pid:1073/756 activeRequest: null callbackRequest: 20 [NetworkRequest [ LISTEN id=20, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED Uid: 1073 RequestorUid: 1073 RequestorPkg: com.android.networkstack] ]] callback flags: 0 priority: 2147483647
+  uid/pid:1073/756 activeRequest: null callbackRequest: 21 [NetworkRequest [ TRACK_SYSTEM_DEFAULT id=21, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED RequestorUid: 1073 RequestorPkg: com.android.networkstack.tethering] ]] callback flags: 0 priority: 2147483647
+  uid/pid:1001/794 activeRequest: null callbackRequest: 22 [NetworkRequest [ LISTEN id=22, [ Transports: WIFI Capabilities: INTERNET&TRUSTED&NOT_VPN&NOT_VCN_MANAGED Uid: 1001 RequestorUid: 1001 RequestorPkg: com.android.phone] ]] callback flags: 0 priority: 2147483647
+  uid/pid:1001/794 activeRequest: null callbackRequest: 23 [NetworkRequest [ REQUEST id=24, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1001 RequestorUid: 1001 RequestorPkg: com.android.phone] ]] callback flags: 0 priority: 2147483647
+  uid/pid:1000/506 activeRequest: null callbackRequest: 25 [NetworkRequest [ REQUEST id=26, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  uid/pid:1000/506 asUid: 10021 activeRequest: null callbackRequest: 27 [NetworkRequest [ REQUEST id=28, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10021 RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  uid/pid:10082/673 activeRequest: null callbackRequest: 33 [NetworkRequest [ LISTEN id=33, [ RequestorUid: 10082 RequestorPkg: com.android.systemui] ]] callback flags: 0 priority: 2147483647
+  uid/pid:1000/506 asUid: 10084 activeRequest: null callbackRequest: 34 [NetworkRequest [ REQUEST id=35, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10084 RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  uid/pid:10021/1593 activeRequest: null callbackRequest: 36 [NetworkRequest [ REQUEST id=37, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10021 RequestorUid: 10021 RequestorPkg: com.android.statementservice] ]] callback flags: 0 priority: 2147483647
+  uid/pid:1000/506 asUid: 10270 activeRequest: null callbackRequest: 38 [NetworkRequest [ REQUEST id=39, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10270 RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  uid/pid:10270/1658 activeRequest: null callbackRequest: 40 [NetworkRequest [ REQUEST id=41, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10270 RequestorUid: 10270 RequestorPkg: com.example.helmet] ]] callback flags: 0 priority: 2147483647
+
+mLegacyTypeTracker:
+  Supported types: 0 1 2 3 4 5 7 9 10 11 12 13 14 15 17
+  Current state:
+
+
+Supported Socket keepalives: [1, 3, 0, 0, 0, 0, 0, 0, 0, 0]
+Reserved Privileged keepalives: 2
+Allowed Unprivileged keepalives per uid: 2
+Socket keepalives:
+
+Bad Wi-Fi avoidance: unrestricted
+
+
+mNetworkRequestInfoLogs (most recent first):
+  2026-07-29T12:05:36.681 - REGISTER uid/pid:10270/1658 activeRequest: null callbackRequest: 40 [NetworkRequest [ REQUEST id=41, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10270 RequestorUid: 10270 RequestorPkg: com.example.helmet] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:34.934 - REGISTER uid/pid:1000/506 asUid: 10270 activeRequest: null callbackRequest: 38 [NetworkRequest [ REQUEST id=39, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10270 RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:34.435 - RELEASE uid/pid:1001/794 activeRequest: null callbackRequest: 31 [NetworkRequest [ REQUEST id=32, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1001 RequestorUid: 1001 RequestorPkg: com.android.phone] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:32.600 - REGISTER uid/pid:10021/1593 activeRequest: null callbackRequest: 36 [NetworkRequest [ REQUEST id=37, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10021 RequestorUid: 10021 RequestorPkg: com.android.statementservice] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:32.304 - REGISTER uid/pid:1000/506 asUid: 10084 activeRequest: null callbackRequest: 34 [NetworkRequest [ REQUEST id=35, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10084 RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:32.236 - RELEASE uid/pid:10021/1153 activeRequest: null callbackRequest: 29 [NetworkRequest [ REQUEST id=30, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10021 RequestorUid: 10021 RequestorPkg: com.android.statementservice] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:30.304 - REGISTER uid/pid:10082/673 activeRequest: null callbackRequest: 33 [NetworkRequest [ LISTEN id=33, [ RequestorUid: 10082 RequestorPkg: com.android.systemui] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:29.431 - REGISTER uid/pid:1001/794 activeRequest: null callbackRequest: 31 [NetworkRequest [ REQUEST id=32, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1001 RequestorUid: 1001 RequestorPkg: com.android.phone] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:29.380 - REGISTER uid/pid:10021/1153 activeRequest: null callbackRequest: 29 [NetworkRequest [ REQUEST id=30, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10021 RequestorUid: 10021 RequestorPkg: com.android.statementservice] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:29.349 - REGISTER uid/pid:1000/506 asUid: 10021 activeRequest: null callbackRequest: 27 [NetworkRequest [ REQUEST id=28, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10021 RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:28.620 - REGISTER uid/pid:1000/506 activeRequest: null callbackRequest: 25 [NetworkRequest [ REQUEST id=26, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:27.239 - REGISTER uid/pid:1001/794 activeRequest: null callbackRequest: 23 [NetworkRequest [ REQUEST id=24, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1001 RequestorUid: 1001 RequestorPkg: com.android.phone] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:27.028 - REGISTER uid/pid:1001/794 activeRequest: null callbackRequest: 22 [NetworkRequest [ LISTEN id=22, [ Transports: WIFI Capabilities: INTERNET&TRUSTED&NOT_VPN&NOT_VCN_MANAGED Uid: 1001 RequestorUid: 1001 RequestorPkg: com.android.phone] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:26.371 - REGISTER uid/pid:1073/756 activeRequest: null callbackRequest: 21 [NetworkRequest [ TRACK_SYSTEM_DEFAULT id=21, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED RequestorUid: 1073 RequestorPkg: com.android.networkstack.tethering] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:25.391 - REGISTER uid/pid:1073/756 activeRequest: null callbackRequest: 20 [NetworkRequest [ LISTEN id=20, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED Uid: 1073 RequestorUid: 1073 RequestorPkg: com.android.networkstack] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:25.365 - REGISTER uid/pid:1073/756 activeRequest: null callbackRequest: 18 [NetworkRequest [ REQUEST id=19, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1073 RequestorUid: 1073 RequestorPkg: com.android.networkstack] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:24.101 - REGISTER uid/pid:1000/506 activeRequest: null callbackRequest: 16 [NetworkRequest [ REQUEST id=17, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:23.968 - REGISTER uid/pid:1000/506 activeRequest: null callbackRequest: 15 [NetworkRequest [ LISTEN id=15, [ Transports: CELLULAR Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:23.963 - REGISTER uid/pid:1000/506 activeRequest: null callbackRequest: 14 [NetworkRequest [ LISTEN id=14, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+  2026-07-29T12:05:23.825 - REGISTER uid/pid:1000/506 activeRequest: null callbackRequest: 13 [NetworkRequest [ LISTEN id=13, [ RequestorUid: 1000 RequestorPkg: android] ]] callback flags: 0 priority: 2147483647
+
+mNetworkInfoBlockingLogs (most recent first):
+
+NetTransition WakeLock activity (most recent first):
+  total acquisitions: 0
+  total releases: 0
+  cumulative duration: 0s
+  longest duration: 0s
+  
+  bandwidth update requests (by uid):
+
+mOemNetworkPreferencesLogs (most recent first):
+
+
+Permission Monitor:
+  Interface filtering rules:
+
+Legacy network activity:
+  mNetworkActive=false
+  Idle timers:
+interfaces:
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback <mac> brd <mac> promiscuity 0 numtxqueues 1 numrxqueues 1 gso_max_size 65536 gso_max_segs 65535 
+    inet <ipv4>/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: dummy0: <BROADCAST,NOARP,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/ether <mac> brd <mac> promiscuity 0 
+    dummy numtxqueues 1 numrxqueues 1 gso_max_size 65536 gso_max_segs 65535 
+    inet6 fe80::8e4:87ff:fe9e:fab4/64 scope link 
+       valid_lft forever preferred_lft forever
+3: tunl0@NONE: <NOARP> mtu 1480 qdisc noop state DOWN group default qlen 1000
+    link/ipip <ipv4> brd <ipv4> promiscuity 0 
+    ipip remote any local any nopmtudisc numtxqueues 1 numrxqueues 1 gso_max_size 65536 gso_max_segs 65535 
+4: gre0@NONE: <NOARP> mtu 1476 qdisc noop state DOWN group default qlen 1000
+    link/gre <ipv4> brd <ipv4> promiscuity 0 
+    gre remote any local any nopmtudisc numtxqueues 1 numrxqueues 1 gso_max_size 65536 gso_max_segs 65535 
+5: gretap0@NONE: <BROADCAST,MULTICAST> mtu 1476 qdisc noop state DOWN group default qlen 1000
+    link/ether <mac> brd <mac> promiscuity 0 
+    gretap remote any local any nopmtudisc numtxqueues 1 numrxqueues 1 gso_max_size 65536 gso_max_segs 65535 
+6: erspan0@NONE: <BROADCAST,MULTICAST> mtu 1464 qdisc noop state DOWN group default qlen 1000
+    link/ether <mac> brd <mac> promiscuity 0 
+    erspan remote any local any nopmtudisc okey <ipv4> erspan_index 0 numtxqueues 1 numrxqueues 1 gso_max_size 65536 gso_max_segs 65535 
+7: ip_vti0@NONE: <NOARP> mtu 1480 qdisc noop state DOWN group default qlen 1000
+    link/ipip <ipv4> brd <ipv4> promiscuity 0 
+    vti remote any local any numtxqueues 1 numrxqueues 1 gso_max_size 65536 gso_max_segs 65535 
+8: ip6_vti0@NONE: <NOARP> mtu 1364 qdisc noop state DOWN group default qlen 1000
+    link/tunnel6 :: brd :: promiscuity 0 
+    vti6 remote :: local :: ikey <ipv4> okey <ipv4> numtxqueues 1 numrxqueues 1 gso_max_size 65536 gso_max_segs 65535 
+9: sit0@NONE: <NOARP> mtu 1480 qdisc noop state DOWN group default qlen 1000
+    link/sit <ipv4> brd <ipv4> promiscuity 0 
+    sit remote any local any ttl 64 nopmtudisc numtxqueues 1 numrxqueues 1 gso_max_size 65536 gso_max_segs 65535 
+10: ip6tnl0@NONE: <NOARP> mtu 1452 qdisc noop state DOWN group default qlen 1000
+    link/tunnel6 :: brd :: promiscuity 0 
+    ip6tnl ip6ip6 remote :: local :: encaplimit 0 hoplimit 0 tclass 0x00 flowlabel 0x00000 (flowinfo 0x00000000) numtxqueues 1 numrxqueues 1 gso_max_size 65536 gso_max_segs 65535 
+11: ip6gre0@NONE: <NOARP> mtu 1448 qdisc noop state DOWN group default qlen 1000
+    link/gre6 <mac>:<mac>:00:00:00:00 brd <mac>:<mac>:00:00:00:00 promiscuity 0 
+    ip6gre remote any local any encaplimit 0 flowlabel 0x00000 tclass 0x00 numtxqueues 1 numrxqueues 1 gso_max_size 65536 gso_max_segs 65535 
+12: eth0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc pfifo_fast state DOWN group default qlen 1000
+    link/ether <mac> brd <mac> promiscuity 0 numtxqueues 1 numrxqueues 1 gso_max_size 65536 gso_max_segs 65535 
+routes:
+telephony_features:
+feature:android.hardware.ethernet
+feature:android.hardware.wifi
+feature:android.hardware.wifi.direct
+feature:android.hardware.wifi.passpoint
+
+command_exit=0

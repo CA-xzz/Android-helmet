@@ -1,1 +1,0 @@
-u0_a112       9821   244 6399464 153580 do_epoll_wait       0 S com.example.helmet

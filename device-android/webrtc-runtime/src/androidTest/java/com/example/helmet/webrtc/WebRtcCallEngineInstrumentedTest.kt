@@ -2,6 +2,7 @@ package com.example.helmet.webrtc
 
 import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
@@ -27,7 +28,7 @@ class WebRtcCallEngineInstrumentedTest {
     }
 
     @Test
-    fun audioOfferContainsDtlsSrtpFingerprint() = runBlocking {
+    fun audioOfferRequiresDeclaredMicrophoneAndContainsDtlsSrtpFingerprint() = runBlocking {
         val listener = RecordingListener()
         val now = System.currentTimeMillis()
         val engine = WebRtcCallEngine(
@@ -45,7 +46,12 @@ class WebRtcCallEngineInstrumentedTest {
             captureAudio = false,
         )
         try {
-            val offer = engine.createOffer()
+            if (!context.packageManager.hasSystemFeature(PackageManager.FEATURE_MICROPHONE)) {
+                val failure = runCatching { engine.createOffer(localIceGeneration = 1) }.exceptionOrNull()
+                assertTrue(failure is WebRtcException && failure.message == "MICROPHONE_UNAVAILABLE")
+                return@runBlocking
+            }
+            val offer = engine.createOffer(localIceGeneration = 1)
             assertTrue(offer.audioEnabled)
             assertTrue(!offer.videoEnabled)
             assertTrue(offer.degradedReason == "AUDIO_CAPTURE_DISABLED_FOR_PROBE")
@@ -53,7 +59,18 @@ class WebRtcCallEngineInstrumentedTest {
             assertTrue(offer.sdp.contains("UDP/TLS/RTP/SAVPF"))
             assertTrue(engine.setLowBandwidthMode(true))
             assertTrue(engine.setLowBandwidthMode(false))
+            val replacementIce = IceConfiguration(
+                callId = "call-board-audio",
+                requesterId = "device-board",
+                servers = listOf(IceServerConfig(listOf("stun:127.0.0.1:3478"), null, null)),
+                issuedAtEpochMillis = now,
+                expiresAtEpochMillis = now + 900_000,
+            )
+            assertTrue(engine.replaceIceConfiguration(replacementIce))
+            val restartOffer = engine.createIceRestartOffer(localIceGeneration = 2)
+            assertTrue(restartOffer.sdp.contains("a=fingerprint:"))
             assertTrue(listener.statuses.any { it.state == WebRtcMediaState.OFFER_READY })
+            assertTrue(listener.statuses.count { it.state == WebRtcMediaState.OFFER_READY } >= 2)
         } finally {
             engine.close()
         }
@@ -65,7 +82,7 @@ class WebRtcCallEngineInstrumentedTest {
             synchronized(statuses) { statuses += status }
         }
 
-        override fun onLocalIceCandidate(candidate: LocalIceCandidate) = Unit
-        override fun onIceGatheringComplete() = Unit
+        override fun onLocalIceCandidate(localIceGeneration: Long, candidate: LocalIceCandidate) = Unit
+        override fun onIceGatheringComplete(localIceGeneration: Long) = Unit
     }
 }

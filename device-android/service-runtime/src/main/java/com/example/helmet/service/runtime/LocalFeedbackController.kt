@@ -10,6 +10,26 @@ import com.example.helmet.hardware.api.SimulatedInput
 import com.example.helmet.core.model.CallState
 import java.util.Locale
 
+data class LocalAlarmFeedbackResult(
+    val prompt: String,
+    val vibrationRequested: Boolean,
+    val vibrationStarted: Boolean,
+)
+
+internal fun planAbsoluteCallVolume(
+    input: SimulatedInput,
+    current: Int,
+    minimum: Int,
+    maximum: Int,
+): Int? {
+    require(minimum >= 0 && maximum >= minimum && current in minimum..maximum)
+    return when (input) {
+        SimulatedInput.VOLUME_UP -> if (current < maximum) current + 1 else maximum
+        SimulatedInput.VOLUME_DOWN -> if (current > minimum) current - 1 else minimum
+        else -> null
+    }
+}
+
 class LocalFeedbackController(context: Context) {
     private val applicationContext = context.applicationContext
     private val audioManager = applicationContext.getSystemService(AudioManager::class.java)
@@ -19,6 +39,9 @@ class LocalFeedbackController(context: Context) {
     }.getOrNull()
     private var textToSpeech: TextToSpeech? = null
     private var ttsReady = false
+    private var ttsInitializationComplete = false
+    private val ttsStateLock = Any()
+    private val pendingAnnouncements = ArrayDeque<String>()
     private val callTextPlayback = AndroidTextPlayback(applicationContext)
     private val callStatePrompt = CallStatePrompt(callTextPlayback, ::playFallbackTone)
 
@@ -29,7 +52,11 @@ class LocalFeedbackController(context: Context) {
             } else {
                 TextToSpeech.ERROR
             }
-            ttsReady = status == TextToSpeech.SUCCESS && languageResult >= TextToSpeech.LANG_AVAILABLE
+            val pending = synchronized(ttsStateLock) {
+                ttsReady = status == TextToSpeech.SUCCESS && languageResult >= TextToSpeech.LANG_AVAILABLE
+                ttsInitializationComplete = true
+                pendingAnnouncements.toList().also { pendingAnnouncements.clear() }
+            }
             StructuredLogger.info(
                 event = "tts_initialized",
                 fields = mapOf(
@@ -38,18 +65,41 @@ class LocalFeedbackController(context: Context) {
                     "ready" to ttsReady,
                 ),
             )
+            pending.forEach(::deliverAnnouncement)
         }
     }
 
-    fun handleKey(input: SimulatedInput, simulated: Boolean) {
-        val prefix = if (simulated) "模拟" else ""
+    fun announceStartup(battery: DeviceBatteryStatus) {
+        playFallbackTone()
+        announce(startupBatteryPrompt(battery.present, battery.percent))
+    }
+
+    fun announceNetwork(validated: Boolean) {
+        announce(if (validated) "组网成功" else "组网失败")
+    }
+
+    fun announceLowBattery(threshold: Int) {
+        require(threshold in setOf(20, 10, 5))
+        announce("电量低，请充电")
+    }
+
+    fun announceShutdown() {
+        announce("设备已关机")
+    }
+
+    fun announceAlarmUploaded() {
+        announce("报警信息已上传")
+    }
+
+    fun handleKey(input: SimulatedInput) {
         when (input) {
-            SimulatedInput.PHOTO_SHORT -> announce("${prefix}拍照按键")
-            SimulatedInput.RECORD_LONG -> announce("${prefix}录像按键")
-            SimulatedInput.CALL -> announce("${prefix}呼叫按键")
-            SimulatedInput.SOS -> announce("${prefix}紧急报警")
-            SimulatedInput.VOLUME_UP -> adjustMusicVolume(AudioManager.ADJUST_RAISE)
-            SimulatedInput.VOLUME_DOWN -> adjustMusicVolume(AudioManager.ADJUST_LOWER)
+            SimulatedInput.VOLUME_UP,
+            SimulatedInput.VOLUME_DOWN,
+            -> announceCallVolume()
+            SimulatedInput.PHOTO_SHORT,
+            SimulatedInput.RECORD_LONG,
+            SimulatedInput.CALL,
+            SimulatedInput.SOS,
             SimulatedInput.FALL,
             SimulatedInput.NEAR_ELECTRIC,
             SimulatedInput.HEIGHT_LIMIT,
@@ -57,32 +107,29 @@ class LocalFeedbackController(context: Context) {
         }
     }
 
-    fun announceAlarm(alarmType: String, simulated: Boolean) {
-        val prefix = if (simulated) "模拟" else ""
-        val message = when (alarmType) {
-            "FALL" -> "检测到${prefix}跌落报警"
-            "NEAR_ELECTRIC" -> "检测到${prefix}近电报警"
-            "HEIGHT_LIMIT" -> "检测到${prefix}高度报警"
-            "GEOFENCE_EXIT" -> "检测到${prefix}电子围栏越界报警"
-            else -> "检测到${prefix}报警"
-        }
-        val vibrationStarted = if (simulated) false else vibrateAlarm()
-        announce(message)
+    fun announceAlarm(alarmType: String, simulated: Boolean): LocalAlarmFeedbackResult {
+        val vibrationRequested = !simulated
+        val vibrationStarted = vibrationRequested && vibrateAlarm()
+        val prompt = safetyAlarmPrompt(alarmType, simulated)
+        announce(prompt)
         StructuredLogger.info(
             event = "local_alarm_feedback_requested",
             fields = mapOf(
                 "alarmType" to alarmType,
                 "simulated" to simulated,
+                "vibrationRequested" to vibrationRequested,
                 "vibrationStarted" to vibrationStarted,
+                "vibrationUnavailable" to (vibrationRequested && !vibrationStarted),
             ),
         )
+        return LocalAlarmFeedbackResult(prompt, vibrationRequested, vibrationStarted)
     }
 
     fun announceMediaResult(kind: String, success: Boolean) {
         val action = when (kind) {
-            "PHOTO" -> "拍照"
-            "VIDEO_START" -> "开始录像"
-            "VIDEO_STOP" -> "录像已保存"
+            "PHOTO" -> "已拍摄"
+            "VIDEO_START" -> "视频录制已开启"
+            "VIDEO_STOP" -> "视频录制已结束"
             else -> "媒体操作"
         }
         announce(if (success) action else "$action 失败")
@@ -118,30 +165,68 @@ class LocalFeedbackController(context: Context) {
         announce(message)
     }
 
+    fun planCallVolumeTarget(input: SimulatedInput): Int {
+        val minimum = audioManager.getStreamMinVolume(AudioManager.STREAM_VOICE_CALL)
+        val maximum = audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)
+        val current = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
+        return requireNotNull(planAbsoluteCallVolume(input, current, minimum, maximum)) {
+            "input is not a call volume key"
+        }
+    }
+
+    fun setCallVolume(target: Int) {
+        val minimum = audioManager.getStreamMinVolume(AudioManager.STREAM_VOICE_CALL)
+        val maximum = audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)
+        require(target in minimum..maximum) { "planned call volume is outside the current stream range" }
+        audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, target, 0)
+        val applied = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
+        StructuredLogger.info(
+            event = "call_volume_target_applied",
+            fields = mapOf("target" to target, "applied" to applied, "maximum" to maximum),
+        )
+    }
+
     fun close() {
         textToSpeech?.stop()
         textToSpeech?.shutdown()
         textToSpeech = null
         callTextPlayback.close()
         toneGenerator?.release()
-        ttsReady = false
+        synchronized(ttsStateLock) {
+            pendingAnnouncements.clear()
+            ttsReady = false
+            ttsInitializationComplete = true
+        }
     }
 
-    private fun adjustMusicVolume(direction: Int) {
-        audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
-        val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-        val maximum = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        StructuredLogger.info(
-            event = "music_volume_changed",
-            fields = mapOf("current" to current, "maximum" to maximum),
-        )
+    private fun announceCallVolume() {
+        val current = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
+        playFallbackTone()
         announce("音量 $current")
     }
 
     private fun announce(message: String) {
+        val queued = synchronized(ttsStateLock) {
+            if (!ttsInitializationComplete) {
+                if (pendingAnnouncements.size >= MAX_PENDING_ANNOUNCEMENTS) pendingAnnouncements.removeFirst()
+                pendingAnnouncements.addLast(message)
+                true
+            } else {
+                false
+            }
+        }
+        if (queued) {
+            StructuredLogger.info(event = "local_prompt_queued", fields = mapOf("message" to message))
+            return
+        }
+        deliverAnnouncement(message)
+    }
+
+    private fun deliverAnnouncement(message: String) {
         val utteranceId = "helmet-${System.nanoTime()}"
-        val speechResult = if (ttsReady) {
-            textToSpeech?.speak(message, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+        val ready = synchronized(ttsStateLock) { ttsReady }
+        val speechResult = if (ready) {
+            textToSpeech?.speak(message, TextToSpeech.QUEUE_ADD, null, utteranceId)
         } else {
             TextToSpeech.ERROR
         }
@@ -151,10 +236,14 @@ class LocalFeedbackController(context: Context) {
             event = "local_prompt_requested",
             fields = mapOf(
                 "message" to message,
-                "ttsReady" to ttsReady,
+                "ttsReady" to ready,
                 "fallbackTone" to fallbackUsed,
             ),
         )
+    }
+
+    private companion object {
+        const val MAX_PENDING_ANNOUNCEMENTS = 16
     }
 
     private fun playFallbackTone(): Boolean {

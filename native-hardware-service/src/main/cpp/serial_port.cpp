@@ -4,9 +4,12 @@
 #include <cstring>
 #include <fcntl.h>
 #include <poll.h>
+#include <pty.h>
+#include <stdlib.h>
 #include <string>
 #include <termios.h>
 #include <unistd.h>
+#include <vector>
 
 namespace {
 
@@ -31,6 +34,31 @@ bool baud_to_speed(jint baud_rate, speed_t* speed) {
         case 921600: *speed = B921600; return true;
         default: return false;
     }
+}
+
+ssize_t write_fully(int file_descriptor, const void* source, size_t size) {
+    const auto* bytes = static_cast<const unsigned char*>(source);
+    size_t written = 0;
+    while (written < size) {
+        const ssize_t count = ::write(file_descriptor, bytes + written, size - written);
+        if (count > 0) {
+            written += static_cast<size_t>(count);
+            continue;
+        }
+        if (count < 0 && errno == EINTR) continue;
+        if (count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            pollfd descriptor{file_descriptor, POLLOUT, 0};
+            int poll_result;
+            do {
+                poll_result = poll(&descriptor, 1, 200);
+            } while (poll_result < 0 && errno == EINTR);
+            if (poll_result > 0 && (descriptor.revents & POLLOUT) != 0) continue;
+            if (poll_result == 0) errno = ETIMEDOUT;
+        }
+        if (count == 0) errno = EIO;
+        return -1;
+    }
+    return static_cast<ssize_t>(written);
 }
 
 }  // namespace
@@ -124,28 +152,12 @@ Java_com_example_helmet_hardware_service_NativeSerialPort_write(
     jbyte* bytes = env->GetByteArrayElements(source, nullptr);
     if (bytes == nullptr) return -1;
 
-    size_t written = 0;
-    while (written < static_cast<size_t>(size)) {
-        const ssize_t count = ::write(
-                file_descriptor,
-                bytes + written,
-                static_cast<size_t>(size) - written);
-        if (count > 0) {
-            written += static_cast<size_t>(count);
-            continue;
-        }
-        if (count < 0 && errno == EINTR) continue;
-        if (count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-            pollfd descriptor{file_descriptor, POLLOUT, 0};
-            if (poll(&descriptor, 1, 200) > 0) continue;
-        }
-        env->ReleaseByteArrayElements(source, bytes, JNI_ABORT);
-        if (count == 0) errno = EIO;
+    const ssize_t written = write_fully(file_descriptor, bytes, static_cast<size_t>(size));
+    env->ReleaseByteArrayElements(source, bytes, JNI_ABORT);
+    if (written < 0) {
         throw_io_exception(env, "write serial port");
         return -1;
     }
-
-    env->ReleaseByteArrayElements(source, bytes, JNI_ABORT);
     return static_cast<jint>(written);
 }
 
@@ -156,3 +168,150 @@ Java_com_example_helmet_hardware_service_NativeSerialPort_close(
         throw_io_exception(env, "close serial port");
     }
 }
+
+#if HELMET_ENABLE_TEST_PTY
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_example_helmet_testfixture_AndroidTestPtyFixture_nativeOpenMaster(
+        JNIEnv* env, jobject /* thiz */) {
+    int master_descriptor = -1;
+    int slave_descriptor = -1;
+    char slave_name[128]{};
+    if (openpty(&master_descriptor, &slave_descriptor, slave_name, nullptr, nullptr) != 0) {
+        throw_io_exception(env, "open androidTest PTY");
+        return -1;
+    }
+
+    const int descriptor_flags = fcntl(master_descriptor, F_GETFD);
+    const int status_flags = fcntl(master_descriptor, F_GETFL);
+    if (descriptor_flags < 0 || status_flags < 0 ||
+        fcntl(master_descriptor, F_SETFD, descriptor_flags | FD_CLOEXEC) != 0 ||
+        fcntl(master_descriptor, F_SETFL, status_flags | O_NONBLOCK) != 0) {
+        const int saved_errno = errno;
+        ::close(slave_descriptor);
+        ::close(master_descriptor);
+        errno = saved_errno;
+        throw_io_exception(env, "configure androidTest PTY");
+        return -1;
+    }
+
+    if (::close(slave_descriptor) != 0) {
+        const int saved_errno = errno;
+        ::close(master_descriptor);
+        errno = saved_errno;
+        throw_io_exception(env, "close androidTest PTY slave");
+        return -1;
+    }
+    return master_descriptor;
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_example_helmet_testfixture_AndroidTestPtyFixture_nativeSlavePath(
+        JNIEnv* env, jobject /* thiz */, jint master_descriptor) {
+    char slave_name[128]{};
+    const int result = ptsname_r(master_descriptor, slave_name, sizeof(slave_name));
+    if (result != 0) {
+        errno = result;
+        throw_io_exception(env, "resolve androidTest PTY slave");
+        return nullptr;
+    }
+    return env->NewStringUTF(slave_name);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_example_helmet_testfixture_AndroidTestPtyFixture_nativeWriteMaster(
+        JNIEnv* env, jobject /* thiz */, jint master_descriptor, jbyteArray source) {
+    const jsize size = env->GetArrayLength(source);
+    jbyte* bytes = env->GetByteArrayElements(source, nullptr);
+    if (bytes == nullptr) return -1;
+    const ssize_t written = write_fully(master_descriptor, bytes, static_cast<size_t>(size));
+    env->ReleaseByteArrayElements(source, bytes, JNI_ABORT);
+    if (written < 0) {
+        throw_io_exception(env, "write androidTest PTY master");
+        return -1;
+    }
+    return static_cast<jint>(written);
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_example_helmet_testfixture_AndroidTestPtyFixture_nativeReadMaster(
+        JNIEnv* env, jobject /* thiz */, jint master_descriptor, jint maximum_bytes,
+        jint timeout_millis) {
+    pollfd descriptor{master_descriptor, POLLIN, 0};
+    int poll_result;
+    do {
+        poll_result = poll(&descriptor, 1, timeout_millis);
+    } while (poll_result < 0 && errno == EINTR);
+    if (poll_result < 0) {
+        throw_io_exception(env, "poll androidTest PTY master");
+        return nullptr;
+    }
+    if (poll_result == 0) return env->NewByteArray(0);
+    if ((descriptor.revents & (POLLERR | POLLNVAL)) != 0) {
+        errno = EIO;
+        throw_io_exception(env, "androidTest PTY master poll error");
+        return nullptr;
+    }
+
+    std::vector<jbyte> bytes(static_cast<size_t>(maximum_bytes));
+    ssize_t count;
+    do {
+        count = ::read(master_descriptor, bytes.data(), static_cast<size_t>(maximum_bytes));
+    } while (count < 0 && errno == EINTR);
+    if (count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) count = 0;
+    if (count < 0) {
+        throw_io_exception(env, "read androidTest PTY master");
+        return nullptr;
+    }
+    jbyteArray result = env->NewByteArray(static_cast<jsize>(count));
+    if (result == nullptr) return nullptr;
+    if (count > 0) {
+        env->SetByteArrayRegion(result, 0, static_cast<jsize>(count), bytes.data());
+    }
+    return result;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_example_helmet_testfixture_AndroidTestPtyFixture_nativeCloseMaster(
+        JNIEnv* env, jobject /* thiz */, jint master_descriptor) {
+    if (::close(master_descriptor) != 0) {
+        throw_io_exception(env, "close androidTest PTY master");
+    }
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_example_helmet_debug_HardwareSelfTestPtyFixture_nativeOpenMaster(
+        JNIEnv* env, jobject thiz) {
+    return Java_com_example_helmet_testfixture_AndroidTestPtyFixture_nativeOpenMaster(env, thiz);
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_example_helmet_debug_HardwareSelfTestPtyFixture_nativeSlavePath(
+        JNIEnv* env, jobject thiz, jint master_descriptor) {
+    return Java_com_example_helmet_testfixture_AndroidTestPtyFixture_nativeSlavePath(
+            env, thiz, master_descriptor);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_example_helmet_debug_HardwareSelfTestPtyFixture_nativeWriteMaster(
+        JNIEnv* env, jobject thiz, jint master_descriptor, jbyteArray source) {
+    return Java_com_example_helmet_testfixture_AndroidTestPtyFixture_nativeWriteMaster(
+            env, thiz, master_descriptor, source);
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_example_helmet_debug_HardwareSelfTestPtyFixture_nativeReadMaster(
+        JNIEnv* env, jobject thiz, jint master_descriptor, jint maximum_bytes,
+        jint timeout_millis) {
+    return Java_com_example_helmet_testfixture_AndroidTestPtyFixture_nativeReadMaster(
+            env, thiz, master_descriptor, maximum_bytes, timeout_millis);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_example_helmet_debug_HardwareSelfTestPtyFixture_nativeCloseMaster(
+        JNIEnv* env, jobject thiz, jint master_descriptor) {
+    Java_com_example_helmet_testfixture_AndroidTestPtyFixture_nativeCloseMaster(
+            env, thiz, master_descriptor);
+}
+
+#endif

@@ -98,6 +98,52 @@ class NtripCorrectionClientTest {
         assertTrue(receivedRequest.get().contains("GET /MOUNT HTTP/1.1"))
     }
 
+    @Test
+    fun activeStreamStopsWhenFreshGgaBecomesUnavailable() {
+        val server = ServerSocket(0)
+        val serverThread = thread(start = true, name = "ntrip-gga-expiry-caster") {
+            server.use { listener ->
+                listener.accept().use { socket ->
+                    val input = BufferedInputStream(socket.getInputStream())
+                    var tail = ""
+                    while (!tail.endsWith("\r\n\r\n")) {
+                        val value = input.read()
+                        if (value < 0) break
+                        tail = (tail + value.toChar()).takeLast(4)
+                    }
+                    socket.getOutputStream().apply {
+                        write("HTTP/1.1 200 OK\r\nContent-Type: gnss/data\r\n\r\n".toByteArray())
+                        flush()
+                    }
+                    Thread.sleep(100)
+                }
+            }
+        }
+        val gga = sentence("GNGGA,123519,3112.0000,N,12124.0000,E,1,12,0.8,10.0,M,8.0,M,,")
+        var ggaRequests = 0
+        var monotonic = 0L
+        val client = NtripCorrectionClient(
+            endpoint = NtripEndpoint.parse("http://127.0.0.1:${server.localPort}/MOUNT"),
+            username = "helmet",
+            password = "secret",
+            connectTimeoutMillis = 2_000,
+            readPollMillis = 10,
+            ggaIntervalMillis = 10,
+            monotonicClockMillis = { monotonic.also { monotonic += 10 } },
+        )
+
+        val failure = assertThrows(NtripProtocolException::class.java) {
+            client.stream(
+                ggaProvider = { if (ggaRequests++ == 0) gga else null },
+                onCorrectionFrame = {},
+            )
+        }
+        serverThread.join(2_000)
+
+        assertTrue(failure.retryable)
+        assertTrue(failure.message!!.contains("GGA"))
+    }
+
     private fun sentence(body: String): String {
         val checksum = body.fold(0) { value, character -> value xor character.code }
         return "$" + body + "*" + checksum.toString(16).uppercase().padStart(2, '0')

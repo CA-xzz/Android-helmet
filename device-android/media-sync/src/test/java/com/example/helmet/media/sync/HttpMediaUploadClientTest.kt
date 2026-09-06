@@ -9,6 +9,7 @@ import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HttpMediaUploadClientTest {
@@ -80,4 +81,52 @@ class HttpMediaUploadClientTest {
         assertFalse(metadata.has("height"))
         assertFalse(metadata.has("location"))
     }
+
+    @Test
+    fun visualMetadataRejectsInvalidDurationAndLocationCombinations() {
+        val photo = visualAsset()
+        HttpMediaUploadClient.validateMetadata(photo)
+
+        val videoWithoutDuration = photo.copy(
+            assetId = "video-1",
+            kind = MediaKind.VIDEO,
+            filePath = "/private/video.mp4",
+            mimeType = "video/mp4",
+        )
+        val noFixWithCoordinates = photo.copy(latitude = 31.2, longitude = 121.4)
+
+        assertTrue(assertThrows(MediaUploadException::class.java) {
+            HttpMediaUploadClient.validateMetadata(videoWithoutDuration)
+        }.retryable.not())
+        assertTrue(assertThrows(MediaUploadException::class.java) {
+            HttpMediaUploadClient.validateMetadata(noFixWithCoordinates)
+        }.retryable.not())
+    }
+
+    @Test
+    fun chunkAcknowledgementMustConsumeExactlyTheBytesAlreadyRead() {
+        assertEquals(65_536L, HttpMediaUploadClient.requireExactNextOffset("photo-1", 0, 65_536, 65_536))
+        val partial = assertThrows(MediaUploadException::class.java) {
+            HttpMediaUploadClient.requireExactNextOffset("photo-1", 0, 65_536, 32_768)
+        }
+        assertFalse(partial.retryable)
+    }
+
+    private fun visualAsset() = MediaAsset(
+        assetId = "photo-1",
+        kind = MediaKind.PHOTO,
+        filePath = "/private/photo.jpg",
+        mimeType = "image/jpeg",
+        byteSize = 100,
+        sha256 = "b".repeat(64),
+        width = 4_160,
+        height = 3_120,
+        durationMillis = null,
+        createdAtEpochMillis = 100,
+        deviceId = "device-1",
+        relatedEventId = "event-1",
+        transferState = MediaTransferState.PENDING,
+        attemptCount = 0,
+        locationFixType = "NO_FIX",
+    )
 }

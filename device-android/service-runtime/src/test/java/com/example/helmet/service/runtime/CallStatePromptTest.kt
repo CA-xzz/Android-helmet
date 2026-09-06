@@ -11,7 +11,16 @@ class CallStatePromptTest {
     @Test
     fun everyCallStateHasAnExplicitChineseMessage() {
         assertEquals(
-            listOf("正在呼叫", "等待接听", "呼叫已接听", "正在连接通话", "通话已连接", "呼叫已拒绝", "通话已结束", "呼叫失败"),
+            listOf(
+                "正在呼叫",
+                "等待接听",
+                "呼叫已接听",
+                "正在连接通话",
+                "视频通话已接通",
+                "呼叫已拒绝",
+                "视频通话已挂断",
+                "呼叫失败",
+            ),
             CallState.entries.map(CallStatePrompt::message),
         )
     }

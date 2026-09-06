@@ -26,6 +26,7 @@ class TrackUploadWorkerInstrumentedTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val configStore = RuntimeConfigStore(context)
         val originalConfig = configStore.load()
+        val configSnapshot = captureRuntimeConfigurationForTest(context)
         val trackStore = TrackStore(HelmetDatabase.get(context))
         val nonce = UUID.randomUUID().toString()
         val deviceId = "board-track-$nonce"
@@ -36,7 +37,7 @@ class TrackUploadWorkerInstrumentedTest {
             trackStore.record(fix(deviceId, "fix-2-$nonce", 1_786_000_001_001), "track-2-$nonce"),
         )
         try {
-            configStore.save(
+            configStore.saveForInstrumentationTest(
                 originalConfig.copy(
                     backendBaseUrl = TEST_ENDPOINT,
                     backendBearerToken = TEST_TOKEN,
@@ -56,7 +57,7 @@ class TrackUploadWorkerInstrumentedTest {
             assertEquals(1, trackStore.find(first.messageId)?.attemptCount)
             assertEquals(1, trackStore.find(second.messageId)?.attemptCount)
         } finally {
-            configStore.save(originalConfig)
+            restoreRuntimeConfigurationForTest(context, configSnapshot)
         }
     }
 

@@ -63,4 +63,16 @@ class HslReliabilityTest {
         assertTrue(window.accept(HslMessageType.KEY_EVENT, 3))
         assertTrue(window.accept(HslMessageType.KEY_EVENT, 1))
     }
+
+    @Test
+    fun duplicateWindowCanCheckWithoutConsumingAndResetForANewModuleSession() {
+        val window = HslDuplicateWindow(2)
+
+        assertFalse(window.contains(HslMessageType.KEY_EVENT, 7))
+        assertTrue(window.accept(HslMessageType.KEY_EVENT, 7))
+        assertTrue(window.contains(HslMessageType.KEY_EVENT, 7))
+        window.reset()
+        assertFalse(window.contains(HslMessageType.KEY_EVENT, 7))
+        assertTrue(window.accept(HslMessageType.KEY_EVENT, 7))
+    }
 }

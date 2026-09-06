@@ -1,8 +1,0 @@
-test_auth_collision_and_chunk_digest_fail_closed (test_media_service.MediaServiceTest) ... ok
-test_partial_offset_survives_repository_restart (test_media_service.MediaServiceTest) ... ok
-test_resumable_integrity_checked_and_idempotent_archive (test_media_service.MediaServiceTest) ... ok
-
-----------------------------------------------------------------------
-Ran 3 tests in 1.597s
-
-OK

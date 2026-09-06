@@ -27,6 +27,7 @@ class MediaUploadWorkerInstrumentedTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val configStore = RuntimeConfigStore(context)
         val originalConfig = configStore.load()
+        val configSnapshot = captureRuntimeConfigurationForTest(context)
         val mediaStore = MediaStore(HelmetDatabase.get(context))
         val mediaDirectory = File(context.filesDir, "media/video").apply { mkdirs() }
         val file = File(mediaDirectory, "worker-${UUID.randomUUID()}.mp4")
@@ -54,7 +55,7 @@ class MediaUploadWorkerInstrumentedTest {
         )
         try {
             assertTrue(mediaStore.add(asset))
-            configStore.save(
+            configStore.saveForInstrumentationTest(
                 originalConfig.copy(
                     backendBaseUrl = TEST_ENDPOINT,
                     backendBearerToken = TEST_TOKEN,
@@ -68,7 +69,7 @@ class MediaUploadWorkerInstrumentedTest {
             assertEquals(MediaTransferState.DELIVERED, delivered?.transferState)
             assertEquals(1, delivered?.attemptCount)
         } finally {
-            configStore.save(originalConfig)
+            restoreRuntimeConfigurationForTest(context, configSnapshot)
             file.delete()
         }
     }

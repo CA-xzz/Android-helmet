@@ -1,0 +1,4 @@
+captured_host_utc=2026-08-19T14:33:24Z
+device
+
+command_exit=0

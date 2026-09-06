@@ -1,78 +1,52 @@
-# 系统架构
+# 架构
 
-## 边界
-
-工程覆盖 Android 设备端、用户态外设接入、后台、管理端和开发板联调。外部模块被视为已有设备，通过公开或厂商提供的用户态接口接入。
-
-系统固件、内核、设备树、模块固件、整机更新、生产签名、量产烧录和产品认证不属于本工程。
-
-## 组件
+## 运行边界
 
 ```text
-外部模块与 Android API
-        |
-        v
-hardware-api / native-hardware-service
-        |
-        v
-HelmetService
-  |       |        |        |
-  v       v        v        v
-Room   定位/围栏  相机/媒体  安全检测
-  |       |        |        |
-  +-------+--------+--------+
-                  |
-             HTTP / MQTT / WebRTC
-                  |
-                  v
-       backend + PostgreSQL + S3
-                  |
-                  v
-              dashboard
+H618 Android App
+  ├─ 前台服务：按键、状态机、恢复、语音反馈
+  ├─ Camera2 / Audio / Connectivity / Storage
+  ├─ Room：配置、队列、轨迹、告警、媒体和呼叫
+  ├─ WebRTC：麦克风、摄像头、Offer/Answer/ICE
+  ├─ HSL AIDL → JNI → /dev/ttyAS2 → 外部模块
+  └─ RTK AIDL → JNI → /dev/ttyAS4 → RTK 接收机（可选）
+              │
+              └─ HTTP
+                 └─ SQLite 本地联调服务
 ```
 
-## Android 设备端
+Android App 是产品主体。仓库中的轻量 HTTP 服务只作为 App 自动化测试和本地联调夹具，不是生产后台，也不包含 Web 管理或查看页面。
 
-- `app`：启动入口、诊断页面和应用初始化。
-- `core-model`、`core-protocol`：业务模型和外部模块帧协议。
-- `data-local`：Room 数据库、本地事件日志，以及轨迹、媒体、告警、通话、设备命令确认和广播回执的专用投递队列。
-- `hardware-api`、`native-hardware-service`：AIDL/JNI 串口和外设接入。
-- `feature-camera`、`feature-location`、`feature-connectivity`：媒体、定位和网络能力。
-- `safety-detection`：跌落、撞击、近电和高度的软件判断。
-- `media-sync`、`location-sync`、`alert-sync`、`communication-sync`：可靠上传与消息同步。
-- `webrtc-runtime`：音视频通话媒体会话。
-- `service-runtime`：前台服务、原始安全样本处理、本地输出、本地提示、离线恢复和功能编排。
+## Android 模块
 
-应用在断网时继续采集、判断和本地报警。轨迹、媒体、告警、状态和通信数据分别持久化，HelmetService 启动时主动调度全部持久队列，经过验证的网络恢复时再次调度，并按稳定消息 ID 重试。单次 Worker 只处理有界批次；批次结束后仍有待处理记录时，使用追加的唯一任务继续执行，直至队列清空。ADB 联调使用精确回环地址时，对应 Worker 不要求 Android 网络约束；远端地址仍要求已连接网络。两种路由使用不同的唯一任务名，切换时取消旧路由任务。
+- `app`：配置页、权限申请、状态显示和 debug 测试入口。
+- `service-runtime`：前台服务、硬件事件、媒体动作、WebRTC 协调、广播、告警和恢复。
+- `core-model`、`core-protocol`：共享模型和 HSL 协议。
+- `data-local`：Room、加密配置和持久队列。
+- `feature-camera`、`feature-location`、`feature-connectivity`：Android 标准能力。
+- `safety-detection`：跌落、冲击、晃动、近电和高度判断。
+- `media-sync`、`location-sync`、`alert-sync`、`communication-sync`：HTTP 上行和命令同步。
+- `webrtc-runtime`：真实音频轨、可用时的视频轨及会话资源。
+- `hardware-api`、`native-hardware-service`：跨进程硬件接口和 UART 原生层。
 
-## 外设接入
+HTTP 轮询是最小联调服务的默认命令通道。App 中现有的 MQTT mTLS 客户端只作为可选的直接命令唤醒适配器；本仓库不提供 MQTT 网关、Broker 或生产部署栈，未配置时不启动该客户端。
 
-优先级如下：
+## 按键音视频路径
 
-1. Android 标准 API：位置、Camera2、AudioRecord、AudioTrack、USB。
-2. 厂商 Java/Kotlin SDK。
-3. 用户态设备节点：UART、I²C、GPIO。
-4. JNI/AIDL 隔离的原生访问。
+呼叫键生成持久动作。无活动通话时创建上行视频呼叫，有活动通话时结束呼叫。后台接听后，App 获取 ICE 配置、创建麦克风和可用摄像头轨、发送 Offer，随后处理 Answer 和 ICE。状态统一为 `IDLE`、`STARTING`、`STREAMING`、`STOPPING`、`FAILED`。
 
-外设协议包含版本、序列号、CRC、ACK、超时、重试和心跳。协议只定义 Android 与现有模块的通信，不包含模块内部实现。
+麦克风权限或硬件不存在时启动失败，不能报告成功。摄像头不可用时明确显示 `video=false`，音频仍可单独建立。结束、失败、服务关闭和新呼叫替换路径均关闭 PeerConnection、音视频轨、Camera capturer、SurfaceTextureHelper 和 EGL 资源。
 
-## 后台与管理端
+## 离线与恢复
 
-后台提供身份、设备状态、轨迹、媒体、呼叫、广播、语音、告警、审计和 MQTT 网关。SQLite 和本地对象目录用于本地测试，PostgreSQL 和 HTTPS S3 用于外部联调。
+状态、轨迹、媒体、告警、呼叫和广播回执先写入本地持久队列。网络恢复后 Worker 分批重试。按键动作在副作用前持久化，进程恢复后按原参数继续，避免重复拍照、录制、呼叫或音量变化。
 
-管理端同源加载，按组织、角色和设备范围限制资源。地图、媒体、通话、广播和告警页面均使用令牌绑定身份。
+## 硬件
 
-## 数据流
+用户态硬件服务只允许受控 UART 节点。HSL 与独立 RTK 使用不同 AIDL、文件描述符、读取线程、状态和重连流程。HSL 解码、HELLO 契约与能力校验、可靠确认、事件去重、模块重启和链路重连在 App 内处理。无对应外设时保留软件接口和测试模拟器，但不把模拟结果记为真实硬件通过。
 
-- 状态与轨迹：Android 持久化后通过 HTTP 或 MQTT 上传，后台按设备和消息 ID 幂等保存。
-- 媒体：文件完成后计算 SHA-256，绑定设备私有配置中的人员编号及采集时的可信位置和事件，支持分片、断点恢复和重复提交去重。
-- 告警：原始样本先持久化，Android 完成判断后写入告警，再请求语音、振动和外部输出。非模拟跌倒、撞击和剧烈晃动告警自动拍照，媒体使用告警消息 ID 作为关联事件。告警可先于媒体到达；后台在同一设备内按关联事件动态补出媒体 ID，管理端据此读取现场证据。
-- 通信：MQTT 配置完整时使用持久会话接收设备命令；未配置 MQTT 时，前台服务每 2 秒通过 HTTP 同步命令。精确回环地址不要求 Android 网络约束，远端 HTTP 地址要求已验证网络。回环和远端任务使用不同的唯一任务名，覆盖安装或传输切换时取消旧版和非当前任务。呼叫信令、广播和回执按序保存；前台服务观察 Room 的最新呼叫状态，设备命令写入接听、连接或终态后自动启动或关闭媒体会话，服务 Intent 仅作为兼容唤醒提示。进程重启后根据已保存的 `ACCEPTED`、`CONNECTING` 或 `CONNECTED` 状态建立新的媒体会话；设备保存新 Offer 的服务端序号，只读取该序号之后的远端信令，避免应用旧 Answer。后台设备概览返回活动呼叫的最新 Offer 序号，管理端从该序号读取并选择精确 Offer。广播根据已保存的接收、播放和完成时间重放回执，传输错误不覆盖播放错误。实时媒体使用 WebRTC，设备和管理端每次最多读取 100 条信令并按序继续。网络不可用、计费、漫游或带宽不足时进入低带宽模式；最新策略在通话引擎建立前保留，并在 Offer 创建后应用。
-- 配置：开发板使用应用私有配置保存可选人员编号和运行参数；后台身份、证书和外部服务凭据通过仓库外安全文件提供。
+`hardware-api` 中的 H618 板型配置是硬件契约唯一数据源，保存契约版本、Excel 行号、逻辑能力、接入方式、固定端点、责任方和验收规则。构建时生成固定 JSON 和 Markdown，并检查 Excel 行遗漏或重复、引脚冲突、端点冲突、HSL/RTK 串口隔离及未确认控制误启用。冲突和证据不足的资源不能启用。
 
-## 故障处理
+主进程通过 Android 标准服务和只读板型探针生成 UI 状态。Camera、Audio、Connectivity、Sensor、Storage 和 Input 的系统结果是能力证据；UART 心跳、有效 RTK Fix 和真实挂载结果是运行证据。`File.exists()`、模拟样本或 PTY 结果不能把外设状态提升为运行。
 
-- 外设断开：记录故障，保持服务运行并重连。
-- 网络断开：数据留在 Room，按退避策略重试。
-- 进程终止：前台服务与开机接收器恢复运行。
-- 后台依赖不可用：就绪检查失败，不丢弃设备端队列。
+电源脉冲、上电回滚、按键消抖、长短按判定、LED 优先级和 MMA 坐标换算在 `hardware-api` 中保持为纯状态机。未确认 GPIO 不连接执行后端。硬件确认后，实际 GPIO 和电源资源仍应由 BSP 或独立硬件服务独占，Activity 不直接访问。

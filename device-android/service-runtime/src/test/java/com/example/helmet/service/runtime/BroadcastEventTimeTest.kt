@@ -47,7 +47,7 @@ class BroadcastEventTimeTest {
         assertEquals(
             listOf(
                 BroadcastReceiptReplay(BroadcastPlaybackState.RECEIVED, 101, null),
-                BroadcastReceiptReplay(BroadcastPlaybackState.EXPIRED, 102, "EXPIRED"),
+                BroadcastReceiptReplay(BroadcastPlaybackState.EXPIRED, 102, null),
             ),
             replay,
         )

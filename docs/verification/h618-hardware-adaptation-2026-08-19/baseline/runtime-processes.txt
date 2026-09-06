@@ -1,0 +1,76 @@
+captured_host_utc=2026-08-19T14:33:38Z
+adb_serial=2c001031774186e21d3
+helmet_processes:
+root           209     1 android.hardware.boot@1.2-service android.hardware.boot@1.2-service
+nobody         210     1 android.hardware.security.keymint-service android.hardware.security.keymint-service
+audioserver    248     1 android.hardware.audio.service android.hardware.audio.service
+bluetooth      253     1 android.hardware.bluetooth@1.0-service android.hardware.bluetooth@1.0-service
+cameraserver   254     1 android.hardware.camera.provider@2.4-external-service android.hardware.camera.provider@2.4-external-service
+media          255     1 android.hardware.cas@1.2-service android.hardware.cas@1.2-service
+system         256     1 android.hardware.gatekeeper@1.0-service-aw android.hardware.gatekeeper@1.0-service-aw
+system         257     1 android.hardware.graphics.allocator@2.0-service android.hardware.graphics.allocator@2.0-service
+system         258     1 android.hardware.graphics.composer@2.2-service android.hardware.graphics.composer@2.2-service
+system         259     1 android.hardware.health@2.1-service android.hardware.health@2.1-service
+system         260     1 android.hardware.lights-service android.hardware.lights-service
+root           261     1 android.hardware.power-service-aw android.hardware.power-service-aw
+system         262     1 android.hardware.tv.cec@1.0-service android.hardware.tv.cec@1.0-service
+root           263     1 android.hardware.usb@1.0-service.aw android.hardware.usb@1.0-service.aw
+system         265     1 android.hardware.rebootescrow-service.default android.hardware.rebootescrow-service.default
+mediacodec     347     1 media.codec                 media.codec hw/android.hardware.media.omx@1.0-service
+wifi           645     1 android.hardware.wifi@1.0-service-lazy android.hardware.wifi@1.0-service-lazy
+root          1071  1068 sh                          sh /data/myautorun.sh
+u0_a270       1658   245 com.example.helmet          com.example.helmet
+u0_a270       1847   245 com.example.helmet:hardware com.example.helmet:hardware
+foreground_service:
+ACTIVITY MANAGER SERVICES (dumpsys activity services)
+  User 0 active services:
+  * ServiceRecord{f641298 u0 com.example.helmet/.service.runtime.HelmetService}
+    intent={act=com.example.helmet.action.RECOVERY cmp=com.example.helmet/.service.runtime.HelmetService}
+    packageName=com.example.helmet
+    processName=com.example.helmet
+    baseDir=/data/app/~~Vt7yVQjnDJ4mZtIFQfWRdg==/com.example.helmet-7wuVDbD6Omn4RSXhmFcHbA==/base.apk
+    dataDir=/data/user/0/com.example.helmet
+    app=ProcessRecord{8e3fd4e 1658:com.example.helmet/u0a270}
+    allowWhileInUsePermissionInFgs=true
+    recentCallingPackage=com.android.shell
+    recentCallingUid=0
+    allowStartForeground=51
+    startForegroundCount=1
+    infoAllowStartForeground=[callingPackage: com.android.shell; callingUid: 0; uidState: NONE; intent: Intent { act=com.example.helmet.action.RECOVERY cmp=com.example.helmet/.service.runtime.HelmetService (has extras) }; code:SYSTEM_UID; tempAllowListReason:<null>; targetSdkVersion:31; callerTargetSdkVersion:31; startForegroundCount:0; bindFromPackage:null]
+    isForeground=true foregroundId=1001 foregroundNoti=Notification(channel=helmet-runtime shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x62 color=0x00000000 vis=PRIVATE)
+    createTime=-15m17s865ms startingBgTimeout=--
+    lastActivity=-15m17s743ms restartTime=-15m17s743ms createdFromFg=true
+    startRequested=true delayedStop=false stopIfKilled=false callStart=true lastStartId=1
+hardware_provider:
+  com.example.helmet/.hardware.service.HelmetHardwareProvider:
+    Provider{4354989 com.example.helmet/.hardware.service.HelmetHardwareProvider}
+    Provider{4354989 com.example.helmet/.hardware.service.HelmetHardwareProvider}
+    codePath=/data/app/~~Vt7yVQjnDJ4mZtIFQfWRdg==/com.example.helmet-7wuVDbD6Omn4RSXhmFcHbA==
+    versionCode=3 minSdk=31 targetSdk=31
+    versionName=0.3.0
+    firstInstallTime=2026-07-30 15:16:20
+    lastUpdateTime=2026-07-29 12:26:54
+tty_drivers:
+/dev/tty             /dev/tty        5       0 system:/dev/tty
+/dev/console         /dev/console    5       1 system:console
+/dev/ptmx            /dev/ptmx       5       2 system
+rfcomm               /dev/rfcomm   216 0-255 serial
+usbserial            /dev/ttyUSB   188 0-511 serial
+uart                 /dev/ttyAS    247 0-5 serial
+serial               /dev/ttyS       4 64-67 serial
+pty_slave            /dev/pts      136 0-1048575 pty:slave
+pty_master           /dev/ptm      128 0-1048575 pty:master
+serial_nodes:
+ls: /dev/ttyUSB*: No such file or directory
+ls: /dev/ttyACM*: No such file or directory
+crw-rw-rw- 1 system    system       247,   0 1970-01-01 08:00 /dev/ttyAS0
+crw-rw---- 1 bluetooth net_bt_admin 247,   1 2026-07-29 12:06 /dev/ttyAS1
+crw-rw-rw- 1 system    system       247,   2 2026-07-29 12:20 /dev/ttyAS2
+crw-rw-rw- 1 system    system       247,   3 1970-01-01 08:00 /dev/ttyAS3
+crw-rw-rw- 1 system    system       247,   4 1970-01-01 08:00 /dev/ttyAS4
+crw-rw-rw- 1 system    system         4,  64 1970-01-01 08:00 /dev/ttyS0
+crw-rw-rw- 1 system    system         4,  65 1970-01-01 08:00 /dev/ttyS1
+crw-rw-rw- 1 system    system         4,  66 1970-01-01 08:00 /dev/ttyS2
+crw-rw-rw- 1 system    system         4,  67 1970-01-01 08:00 /dev/ttyS3
+
+command_exit=1

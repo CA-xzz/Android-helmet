@@ -63,4 +63,19 @@ class CameraCapabilityInstrumentedTest {
         val mediaRoot = context.filesDir.resolve("media")
         assertTrue(mediaRoot.walkTopDown().none { file -> file.isFile && file.name.endsWith(".partial") })
     }
+
+    @Test
+    fun noCameraVideoStartDoesNotCreateJournalOrPartialMedia() = runBlocking {
+        if (controller.inspect().cameraCount != 0) return@runBlocking
+        val assetId = MediaAssetIdentity.create("test-device", com.example.helmet.core.model.MediaKind.VIDEO, "no-camera-video")
+
+        val failure = runCatching { controller.startRecording("no-camera-video") }.exceptionOrNull()
+
+        assertTrue(failure is CameraOperationException)
+        assertTrue(failure.toString().contains("no camera"))
+        val mediaRoot = context.filesDir.resolve("media")
+        assertTrue(mediaRoot.walkTopDown().none { file ->
+            file.isFile && file.name.contains(assetId)
+        })
+    }
 }

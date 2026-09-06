@@ -23,6 +23,99 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
+private val deviceStatusDeliveryLock = Any()
+
+internal class DeviceStatusWorkCoverage(
+    private val lock: Any = Any(),
+) {
+    private var coveredByWork = false
+    private var claimToken = 0L
+
+    fun onReplacement(persist: () -> Unit): Long? = synchronized(lock) {
+        persist()
+        if (coveredByWork) {
+            null
+        } else {
+            coveredByWork = true
+            claimToken = if (claimToken == Long.MAX_VALUE) 1L else claimToken + 1L
+            claimToken
+        }
+    }
+
+    fun workerStarted(): Long = synchronized(lock) {
+        if (!coveredByWork) {
+            coveredByWork = true
+            claimToken = if (claimToken == Long.MAX_VALUE) 1L else claimToken + 1L
+        }
+        claimToken
+    }
+
+    fun forceReplacement(): Long = synchronized(lock) {
+        coveredByWork = true
+        claimToken = if (claimToken == Long.MAX_VALUE) 1L else claimToken + 1L
+        claimToken
+    }
+
+    fun <T> takeLatestOrRelease(workerClaimToken: Long, read: () -> T?): T? = synchronized(lock) {
+        read().also { latest ->
+            if (latest == null && claimToken == workerClaimToken) coveredByWork = false
+        }
+    }
+
+    fun keepForRetry(workerClaimToken: Long) = synchronized(lock) {
+        if (claimToken == workerClaimToken) coveredByWork = true
+    }
+
+    fun release(workerClaimToken: Long) = synchronized(lock) {
+        if (claimToken == workerClaimToken) coveredByWork = false
+    }
+}
+
+private val deviceStatusWorkCoverage = DeviceStatusWorkCoverage(deviceStatusDeliveryLock)
+
+internal enum class LatestDeviceStatusDeliveryOutcome {
+    DELIVERED,
+    RETRYABLE_FAILURE,
+    PERMANENT_FAILURE,
+}
+
+internal enum class LatestDeviceStatusDrainResult {
+    SUCCESS,
+    CONTINUE,
+    RETRY,
+    FAILURE,
+}
+
+internal suspend fun <T> drainLatestDeviceStatuses(
+    maxDeliveriesPerRun: Int,
+    takeLatestOrRelease: () -> T?,
+    deliver: suspend (T) -> LatestDeviceStatusDeliveryOutcome,
+    clearIfCurrent: (T) -> Unit,
+): LatestDeviceStatusDrainResult {
+    require(maxDeliveriesPerRun > 0)
+    var deliveredCount = 0
+    var rejected = false
+    while (deliveredCount < maxDeliveriesPerRun) {
+        val latest = takeLatestOrRelease()
+            ?: return if (rejected) LatestDeviceStatusDrainResult.FAILURE else LatestDeviceStatusDrainResult.SUCCESS
+        when (deliver(latest)) {
+            LatestDeviceStatusDeliveryOutcome.DELIVERED -> clearIfCurrent(latest)
+            LatestDeviceStatusDeliveryOutcome.RETRYABLE_FAILURE -> return LatestDeviceStatusDrainResult.RETRY
+            LatestDeviceStatusDeliveryOutcome.PERMANENT_FAILURE -> {
+                clearIfCurrent(latest)
+                rejected = true
+            }
+        }
+        deliveredCount += 1
+    }
+    val pending = takeLatestOrRelease()
+    return when {
+        pending != null -> LatestDeviceStatusDrainResult.CONTINUE
+        rejected -> LatestDeviceStatusDrainResult.FAILURE
+        else -> LatestDeviceStatusDrainResult.SUCCESS
+    }
+}
+
 data class DeviceBatteryStatus(
     val present: Boolean,
     val percent: Int?,
@@ -189,27 +282,41 @@ data class DeviceStatusPayload(
         )
 }
 
-internal class DeviceStatusOutbox(context: Context) {
-    private val preferences = context.applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+internal class DeviceStatusOutbox(
+    context: Context,
+    preferencesName: String = PREFERENCES,
+    private val lock: Any = deviceStatusDeliveryLock,
+) {
+    private val preferences = context.applicationContext.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
 
-    fun replace(payload: DeviceStatusPayload) {
+    fun replace(payload: DeviceStatusPayload) = synchronized(lock) {
+        val generation = nextGenerationLocked()
         check(
             preferences.edit()
                 .putString(KEY_MESSAGE_ID, payload.messageId)
                 .putString(KEY_JSON, payload.toJson().toString())
+                .putLong(KEY_SNAPSHOT_GENERATION, generation)
+                .putLong(KEY_LAST_GENERATION, generation)
                 .commit(),
         ) { "failed to persist device status" }
     }
 
-    @Synchronized
-    fun nextOccurredAt(candidate: Long, calibrationSequence: Long?): Long {
+    fun nextOccurredAt(
+        candidate: Long,
+        calibrationSequence: Long?,
+    ): Long = synchronized(lock) {
         require(candidate > 0)
         require(calibrationSequence == null || calibrationSequence > 0)
         val marker = calibrationSequence ?: SYSTEM_TIME_MARKER
-        val previousMarker = preferences.getLong(KEY_LAST_TIME_MARKER, UNINITIALIZED_TIME_MARKER)
+        val values = preferences.all
+        val previousMarker = (values[KEY_LAST_TIME_MARKER] as? Number)?.toLong()
+            ?: UNINITIALIZED_TIME_MARKER
+        val previousOccurredAt = (values[KEY_LAST_OCCURRED_AT] as? Number)?.toLong()
+            ?.takeIf { it >= 0 }
+            ?: 0L
         val next = selectNextDeviceStatusTime(
             candidate,
-            preferences.getLong(KEY_LAST_OCCURRED_AT, 0),
+            previousOccurredAt,
             previousMarker,
             marker,
         )
@@ -221,43 +328,117 @@ internal class DeviceStatusOutbox(context: Context) {
         ) {
             "failed to persist device status timestamp"
         }
-        return next
+        next
     }
 
-    fun current(): StoredDeviceStatus? {
-        val messageId = preferences.getString(KEY_MESSAGE_ID, null) ?: return null
-        val json = preferences.getString(KEY_JSON, null) ?: return null
-        return StoredDeviceStatus(messageId, json)
+    fun current(): StoredDeviceStatus? = synchronized(lock) {
+        val values = preferences.all
+        val rawMessageId = values[KEY_MESSAGE_ID]
+        val rawJson = values[KEY_JSON]
+        val rawGeneration = values[KEY_SNAPSHOT_GENERATION]
+        if (rawMessageId == null && rawJson == null && rawGeneration == null) return@synchronized null
+
+        val messageId = rawMessageId as? String
+        val json = rawJson as? String
+        if (messageId != null && json != null && rawGeneration == null) {
+            val generation = nextGenerationLocked()
+            decodeDeviceStatusSnapshot(messageId, json, generation)?.let { migrated ->
+                check(
+                    preferences.edit()
+                        .putLong(KEY_SNAPSHOT_GENERATION, generation)
+                        .putLong(KEY_LAST_GENERATION, generation)
+                        .commit(),
+                ) { "failed to migrate device status snapshot" }
+                return@synchronized migrated
+            }
+        }
+        decodeDeviceStatusSnapshot(messageId, json, rawGeneration)?.let { return@synchronized it }
+        clearSnapshotLocked()
+        null
     }
 
-    fun clearIf(messageId: String) {
-        if (preferences.getString(KEY_MESSAGE_ID, null) != messageId) return
-        check(preferences.edit().remove(KEY_MESSAGE_ID).remove(KEY_JSON).commit()) {
+    fun clearIf(status: StoredDeviceStatus) = synchronized(lock) {
+        val values = preferences.all
+        if (
+            values[KEY_MESSAGE_ID] != status.messageId ||
+            (values[KEY_SNAPSHOT_GENERATION] as? Number)?.toLong() != status.generation
+        ) {
+            return@synchronized
+        }
+        clearSnapshotLocked()
+    }
+
+    private fun clearSnapshotLocked() {
+        check(
+            preferences.edit()
+                .remove(KEY_MESSAGE_ID)
+                .remove(KEY_JSON)
+                .remove(KEY_SNAPSHOT_GENERATION)
+                .commit(),
+        ) {
             "failed to clear delivered device status"
         }
     }
 
-    @Synchronized
-    fun nextSequence(): Long {
-        val next = preferences.getLong(KEY_LAST_SEQUENCE, 0) + 1
+    private fun nextGenerationLocked(): Long {
+        return nextDeviceStatusGeneration(preferences.all[KEY_LAST_GENERATION])
+    }
+
+    fun nextSequence(): Long = synchronized(lock) {
+        val next = nextDeviceStatusSequence(preferences.all[KEY_LAST_SEQUENCE])
         check(preferences.edit().putLong(KEY_LAST_SEQUENCE, next).commit()) {
             "failed to persist device status sequence"
         }
-        return next
+        next
     }
 
-    data class StoredDeviceStatus(val messageId: String, val json: String)
+    data class StoredDeviceStatus(
+        val messageId: String,
+        val json: String,
+        val generation: Long,
+    )
 
     companion object {
-        private const val PREFERENCES = "helmet_device_status_outbox"
-        private const val KEY_MESSAGE_ID = "message_id"
-        private const val KEY_JSON = "payload_json"
+        internal const val PREFERENCES = "helmet_device_status_outbox"
+        internal const val KEY_MESSAGE_ID = "message_id"
+        internal const val KEY_JSON = "payload_json"
+        internal const val KEY_SNAPSHOT_GENERATION = "snapshot_generation"
+        private const val KEY_LAST_GENERATION = "last_generation"
         private const val KEY_LAST_OCCURRED_AT = "last_occurred_at"
         private const val KEY_LAST_TIME_MARKER = "last_time_marker"
         private const val KEY_LAST_SEQUENCE = "last_sequence"
         private const val SYSTEM_TIME_MARKER = -1L
         private const val UNINITIALIZED_TIME_MARKER = Long.MIN_VALUE
     }
+}
+
+internal fun nextDeviceStatusSequence(rawPrevious: Any?): Long {
+    val previous = (rawPrevious as? Number)?.toLong()
+        ?.takeIf { it >= 0 }
+        ?: 0L
+    check(previous < Long.MAX_VALUE) { "device status sequence is exhausted" }
+    return previous + 1L
+}
+
+internal fun nextDeviceStatusGeneration(rawPrevious: Any?): Long {
+    val previous = (rawPrevious as? Number)?.toLong()
+        ?.takeIf { it >= 0 }
+        ?: 0L
+    check(previous < Long.MAX_VALUE) { "device status snapshot generation is exhausted" }
+    return previous + 1L
+}
+
+internal fun decodeDeviceStatusSnapshot(
+    messageId: Any?,
+    json: Any?,
+    generation: Any?,
+): DeviceStatusOutbox.StoredDeviceStatus? {
+    val storedMessageId = (messageId as? String)?.takeIf(String::isNotBlank) ?: return null
+    val storedJson = (json as? String)?.takeIf(String::isNotBlank) ?: return null
+    val storedGeneration = (generation as? Number)?.toLong()?.takeIf { it > 0 } ?: return null
+    val parsedMessageId = runCatching { JSONObject(storedJson).getString("messageId") }.getOrNull()
+    if (parsedMessageId != storedMessageId) return null
+    return DeviceStatusOutbox.StoredDeviceStatus(storedMessageId, storedJson, storedGeneration)
 }
 
 internal fun selectNextDeviceStatusTime(
@@ -267,13 +448,20 @@ internal fun selectNextDeviceStatusTime(
     currentTimeMarker: Long,
 ): Long {
     require(candidate > 0 && previous >= 0)
-    return if (currentTimeMarker == previousTimeMarker) maxOf(candidate, previous + 1) else candidate
+    return if (currentTimeMarker == previousTimeMarker && previous < Long.MAX_VALUE) {
+        maxOf(candidate, previous + 1)
+    } else {
+        candidate
+    }
 }
 
 internal data class DeviceStatusReceipt(
     val messageId: String,
     val deduplicated: Boolean,
     val serverReceivedAtEpochMillis: Long,
+    val reportedAppVersion: String? = null,
+    val requiredAppVersion: String? = null,
+    val firmwareUpdateRequired: Boolean? = null,
     val requestStartedAtElapsedRealtimeMillis: Long? = null,
     val responseReceivedAtElapsedRealtimeMillis: Long? = null,
 )
@@ -387,11 +575,54 @@ internal class HttpDeviceStatusClient(
                     cause = it,
                 )
             }
+            val firmware = response.optJSONObject("firmware")
+            val reportedAppVersion = firmware?.optNullableVersion("reportedVersion")
+            val requiredAppVersion = firmware?.optNullableVersion("requiredVersion")
+            val firmwareUpdateRequired = firmware?.optNullableBoolean("updateRequired")
+            if (
+                firmware != null &&
+                firmwareUpdateRequired != (
+                    if (reportedAppVersion == null || requiredAppVersion == null) null
+                    else reportedAppVersion != requiredAppVersion
+                )
+            ) {
+                throw DeviceStatusUploadException(
+                    "device status acknowledgement has inconsistent firmware policy",
+                    retryable = true,
+                )
+            }
             return DeviceStatusReceipt(
                 acknowledged,
                 deduplicated,
                 serverReceivedAt,
+                reportedAppVersion,
+                requiredAppVersion,
+                firmwareUpdateRequired,
             )
+        }
+
+        private fun JSONObject.optNullableVersion(name: String): String? {
+            if (!has(name) || isNull(name)) return null
+            val value = optString(name)
+            if (value.isBlank() || value.length > 128 || value != value.trim() || value.any(Char::isISOControl)) {
+                throw DeviceStatusUploadException(
+                    "device status acknowledgement has invalid $name",
+                    retryable = true,
+                )
+            }
+            return value
+        }
+
+        private fun JSONObject.optNullableBoolean(name: String): Boolean? {
+            if (!has(name) || isNull(name)) return null
+            val value = opt(name)
+            if (value !is Boolean) {
+                throw DeviceStatusUploadException(
+                    "device status acknowledgement has invalid $name",
+                    retryable = true,
+                )
+            }
+            return value
         }
 
         internal fun validateAndNormalizeBaseUrl(raw: String): String {
@@ -418,68 +649,129 @@ class DeviceStatusWorker(
     parameters: WorkerParameters,
 ) : CoroutineWorker(context, parameters) {
     override suspend fun doWork(): Result {
-        val config = RuntimeConfigStore(applicationContext).load()
-        if (config.backendBaseUrl.isBlank() || config.backendBearerToken.isBlank()) return Result.success()
-        val outbox = DeviceStatusOutbox(applicationContext)
-        val status = outbox.current() ?: return Result.success()
-        val timeAuthority = DeviceTimeAuthorityProvider.get(applicationContext)
-        val eventStore = EventStore(HelmetDatabase.get(applicationContext), timeAuthority::nowEpochMillis)
-        val client = runCatching { HttpDeviceStatusClient(config.backendBaseUrl, config.backendBearerToken) }
-            .getOrElse { return Result.failure() }
+        val workerClaimToken = deviceStatusWorkCoverage.workerStarted()
+        var retainCoverage = false
         return try {
-            val receipt = client.upload(status)
-            val calibration = if (receipt.deduplicated) {
-                null
-            } else {
-                runCatching {
-                    timeAuthority.calibrateFromServer(
-                        receipt.serverReceivedAtEpochMillis,
-                        requireNotNull(receipt.requestStartedAtElapsedRealtimeMillis),
-                        requireNotNull(receipt.responseReceivedAtElapsedRealtimeMillis),
-                    )
-                }.getOrNull()
-            }
-            outbox.clearIf(receipt.messageId)
-            eventStore.record(
-                eventType = "DEVICE_STATUS_UPLOAD_COMPLETED",
-                severity = EventSeverity.INFO,
-                payloadJson = JSONObject(
-                    mapOf(
-                        "messageId" to receipt.messageId,
-                        "deduplicated" to receipt.deduplicated,
-                        "serverReceivedAtEpochMillis" to receipt.serverReceivedAtEpochMillis,
-                        "roundTripMillis" to receipt.requestStartedAtElapsedRealtimeMillis?.let { started ->
-                            receipt.responseReceivedAtElapsedRealtimeMillis?.minus(started)
-                        },
-                        "deviceTimeCalibrated" to (calibration != null),
-                        "deviceTimeSource" to calibration?.reading?.source?.name,
-                        "deviceTimeUncertaintyMillis" to calibration?.reading?.uncertaintyMillis,
-                    ),
-                ).toString(),
+            val config = RuntimeConfigStore(applicationContext).load()
+            if (config.backendBaseUrl.isBlank() || config.backendBearerToken.isBlank()) return Result.success()
+            val outbox = DeviceStatusOutbox(applicationContext)
+            val timeAuthority = DeviceTimeAuthorityProvider.get(applicationContext)
+            val eventStore = EventStore(HelmetDatabase.get(applicationContext), timeAuthority::nowEpochMillis)
+            val client = runCatching { HttpDeviceStatusClient(config.backendBaseUrl, config.backendBearerToken) }
+                .getOrElse { return Result.failure() }
+            val drainResult = drainLatestDeviceStatuses(
+                maxDeliveriesPerRun = MAX_DELIVERIES_PER_RUN,
+                takeLatestOrRelease = {
+                    deviceStatusWorkCoverage.takeLatestOrRelease(workerClaimToken, outbox::current)
+                },
+                deliver = { status ->
+                    try {
+                        val receipt = client.upload(status)
+                        val calibration = if (receipt.deduplicated) {
+                            null
+                        } else {
+                            runCatching {
+                                timeAuthority.calibrateFromServer(
+                                    receipt.serverReceivedAtEpochMillis,
+                                    requireNotNull(receipt.requestStartedAtElapsedRealtimeMillis),
+                                    requireNotNull(receipt.responseReceivedAtElapsedRealtimeMillis),
+                                )
+                            }.getOrNull()
+                        }
+                        eventStore.record(
+                            eventType = "DEVICE_STATUS_UPLOAD_COMPLETED",
+                            severity = EventSeverity.INFO,
+                            payloadJson = JSONObject(
+                                mapOf(
+                                    "messageId" to receipt.messageId,
+                                    "deduplicated" to receipt.deduplicated,
+                                    "serverReceivedAtEpochMillis" to receipt.serverReceivedAtEpochMillis,
+                                    "roundTripMillis" to receipt.requestStartedAtElapsedRealtimeMillis?.let { started ->
+                                        receipt.responseReceivedAtElapsedRealtimeMillis?.minus(started)
+                                    },
+                                    "deviceTimeCalibrated" to (calibration != null),
+                                    "deviceTimeSource" to calibration?.reading?.source?.name,
+                                    "deviceTimeUncertaintyMillis" to calibration?.reading?.uncertaintyMillis,
+                                    "reportedAppVersion" to receipt.reportedAppVersion,
+                                    "requiredAppVersion" to receipt.requiredAppVersion,
+                                    "firmwareUpdateRequired" to receipt.firmwareUpdateRequired,
+                                ),
+                            ).toString(),
+                        )
+                        calibration?.let(timeAuthority::announceSignificantAdjustment)
+                        LatestDeviceStatusDeliveryOutcome.DELIVERED
+                    } catch (error: DeviceStatusUploadException) {
+                        eventStore.record(
+                            eventType = if (error.retryable) "DEVICE_STATUS_UPLOAD_RETRY_SCHEDULED" else "DEVICE_STATUS_UPLOAD_REJECTED",
+                            severity = EventSeverity.MEDIUM,
+                            payloadJson = JSONObject(
+                                mapOf(
+                                    "messageId" to status.messageId,
+                                    "statusCode" to error.statusCode,
+                                    "errorType" to error.javaClass.name,
+                                ),
+                            ).toString(),
+                        )
+                        if (error.retryable) {
+                            LatestDeviceStatusDeliveryOutcome.RETRYABLE_FAILURE
+                        } else {
+                            LatestDeviceStatusDeliveryOutcome.PERMANENT_FAILURE
+                        }
+                    }
+                },
+                clearIfCurrent = outbox::clearIf,
             )
-            calibration?.let(timeAuthority::announceSignificantAdjustment)
-            Result.success()
-        } catch (error: DeviceStatusUploadException) {
-            eventStore.record(
-                eventType = if (error.retryable) "DEVICE_STATUS_UPLOAD_RETRY_SCHEDULED" else "DEVICE_STATUS_UPLOAD_REJECTED",
-                severity = EventSeverity.MEDIUM,
-                payloadJson = JSONObject(
-                    mapOf("messageId" to status.messageId, "statusCode" to error.statusCode, "error" to error.toString().take(1_024)),
-                ).toString(),
-            )
-            if (error.retryable) Result.retry() else {
-                outbox.clearIf(status.messageId)
-                Result.failure()
+            when (drainResult) {
+                LatestDeviceStatusDrainResult.SUCCESS -> Result.success()
+                LatestDeviceStatusDrainResult.FAILURE -> Result.failure()
+                LatestDeviceStatusDrainResult.CONTINUE -> {
+                    retainCoverage = true
+                    if (enqueue(applicationContext)) Result.success() else Result.retry()
+                }
+                LatestDeviceStatusDrainResult.RETRY -> {
+                    deviceStatusWorkCoverage.keepForRetry(workerClaimToken)
+                    retainCoverage = true
+                    Result.retry()
+                }
             }
+        } finally {
+            if (!retainCoverage) deviceStatusWorkCoverage.release(workerClaimToken)
         }
     }
 
     companion object {
         private const val UNIQUE_WORK = "helmet-device-status-upload"
+        private const val MAX_DELIVERIES_PER_RUN = 4
 
         fun replace(context: Context, payload: DeviceStatusPayload) {
-            DeviceStatusOutbox(context).replace(payload)
-            val backendUrl = RuntimeConfigStore(context).load().backendBaseUrl
+            val outbox = DeviceStatusOutbox(context)
+            val claimToken = deviceStatusWorkCoverage.onReplacement {
+                outbox.replace(payload)
+            }
+            if (claimToken == null) return
+            if (!enqueue(context, ExistingWorkPolicy.APPEND_OR_REPLACE)) {
+                deviceStatusWorkCoverage.release(claimToken)
+            }
+        }
+
+        fun reconfigure(context: Context) {
+            val config = RuntimeConfigStore(context).load()
+            val claimToken = deviceStatusWorkCoverage.forceReplacement()
+            if (config.backendBaseUrl.isBlank() || config.backendBearerToken.isBlank()) {
+                WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_WORK)
+                deviceStatusWorkCoverage.release(claimToken)
+                return
+            }
+            if (!enqueue(context, ExistingWorkPolicy.REPLACE, config.backendBaseUrl)) {
+                deviceStatusWorkCoverage.release(claimToken)
+            }
+        }
+
+        private fun enqueue(
+            context: Context,
+            policy: ExistingWorkPolicy = ExistingWorkPolicy.APPEND_OR_REPLACE,
+            backendUrl: String = RuntimeConfigStore(context).load().backendBaseUrl,
+        ): Boolean {
             val request = OneTimeWorkRequestBuilder<DeviceStatusWorker>()
                 .setConstraints(
                     Constraints.Builder()
@@ -488,7 +780,11 @@ class DeviceStatusWorker(
                 )
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
                 .build()
-            WorkManager.getInstance(context).enqueueUniqueWork(UNIQUE_WORK, ExistingWorkPolicy.REPLACE, request)
+            return runCatching {
+                WorkManager.getInstance(context)
+                    .enqueueUniqueWork(UNIQUE_WORK, policy, request)
+                true
+            }.getOrDefault(false)
         }
     }
 }

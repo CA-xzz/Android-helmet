@@ -8,13 +8,17 @@ import com.example.helmet.hardware.api.HardwareAlarmOrigin
 import com.example.helmet.hardware.api.HardwareCommand
 import com.example.helmet.hardware.api.HardwareEvent
 
-internal fun safetyOutputCommand(event: HardwareEvent.Alarm, sequence: Int): HardwareCommand? {
+internal fun safetyOutputCommand(
+    event: HardwareEvent.Alarm,
+    sequence: Int,
+    requestId: Long,
+): HardwareCommand? {
     if (event.origin != HardwareAlarmOrigin.ANDROID_DETECTION || event.simulated || event.localActions == 0) {
         return null
     }
     require(sequence in 0..0xFFFF)
-    val alarmId = requireNotNull(event.alarmId) { "Android safety alarm requires a stable alarm ID" }
-    val requestId = ((alarmId xor (alarmId ushr 32)) and 0xFFFF_FFFFL).coerceAtLeast(1)
+    requireNotNull(event.alarmId) { "Android safety alarm requires a stable alarm ID" }
+    require(requestId in 1..0xFFFF_FFFFL)
     val output = HslOutputCommand(
         requestId = requestId,
         active = event.active,

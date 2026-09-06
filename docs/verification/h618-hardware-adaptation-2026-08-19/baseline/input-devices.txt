@@ -1,0 +1,323 @@
+captured_host_utc=2026-08-19T14:33:40Z
+adb_serial=2c001031774186e21d3
+add device 1: /dev/input/event1
+  name:     "sunxi-ir-uinput"
+  events:
+    KEY (0001): KEY_ESC               KEY_1                 KEY_2                 KEY_3                
+                KEY_4                 KEY_5                 KEY_6                 KEY_7                
+                KEY_8                 KEY_9                 KEY_0                 KEY_MINUS            
+                KEY_EQUAL             KEY_BACKSPACE         KEY_TAB               KEY_Q                
+                KEY_W                 KEY_E                 KEY_R                 KEY_T                
+                KEY_Y                 KEY_U                 KEY_I                 KEY_O                
+                KEY_P                 KEY_LEFTBRACE         KEY_RIGHTBRACE        KEY_ENTER            
+                KEY_LEFTCTRL          KEY_A                 KEY_S                 KEY_D                
+                KEY_F                 KEY_G                 KEY_H                 KEY_J                
+                KEY_K                 KEY_L                 KEY_SEMICOLON         KEY_APOSTROPHE       
+                KEY_GRAVE             KEY_LEFTSHIFT         KEY_BACKSLASH         KEY_Z                
+                KEY_X                 KEY_C                 KEY_V                 KEY_B                
+                KEY_N                 KEY_M                 KEY_COMMA             KEY_DOT              
+                KEY_SLASH             KEY_RIGHTSHIFT        KEY_KPASTERISK        KEY_LEFTALT          
+                KEY_SPACE             KEY_CAPSLOCK          KEY_F1                KEY_F2               
+                KEY_F3                KEY_F4                KEY_F5                KEY_F6               
+                KEY_F7                KEY_F8                KEY_F9                KEY_F10              
+                KEY_NUMLOCK           KEY_SCROLLLOCK        KEY_KP7               KEY_KP8              
+                KEY_KP9               KEY_KPMINUS           KEY_KP4               KEY_KP5              
+                KEY_KP6               KEY_KPPLUS            KEY_KP1               KEY_KP2              
+                KEY_KP3               KEY_KP0               KEY_KPDOT             0054                 
+                KEY_ZENKAKUHANKAKU    KEY_102ND             KEY_F11               KEY_F12              
+                KEY_RO                KEY_KATAKANA          KEY_HIRAGANA          KEY_HENKAN           
+                KEY_KATAKANAHIRAGANA  KEY_MUHENKAN          KEY_KPJPCOMMA         KEY_KPENTER          
+                KEY_RIGHTCTRL         KEY_KPSLASH           KEY_SYSRQ             KEY_RIGHTALT         
+                KEY_LINEFEED          KEY_HOME              KEY_UP                KEY_PAGEUP           
+                KEY_LEFT              KEY_RIGHT             KEY_END               KEY_DOWN             
+                KEY_PAGEDOWN          KEY_INSERT            KEY_DELETE            KEY_MACRO            
+                KEY_MUTE              KEY_VOLUMEDOWN        KEY_VOLUMEUP          KEY_POWER            
+                KEY_KPEQUAL           KEY_KPPLUSMINUS       KEY_PAUSE             KEY_SCALE            
+                KEY_KPCOMMA           KEY_HANGEUL           KEY_HANJA             KEY_YEN              
+                KEY_LEFTMETA          KEY_RIGHTMETA         KEY_COMPOSE           KEY_STOP             
+                KEY_AGAIN             KEY_PROPS             KEY_UNDO              KEY_FRONT            
+                KEY_COPY              KEY_OPEN              KEY_PASTE             KEY_FIND             
+                KEY_CUT               KEY_HELP              KEY_MENU              KEY_CALC             
+                KEY_SETUP             KEY_SLEEP             KEY_WAKEUP            KEY_FILE             
+                KEY_SENDFILE          KEY_DELETEFILE        KEY_XFER              KEY_PROG1            
+                KEY_PROG2             KEY_WWW               KEY_MSDOS             KEY_COFFEE           
+                KEY_ROTATE_DISPLAY    KEY_CYCLEWINDOWS      KEY_MAIL              KEY_BOOKMARKS        
+                KEY_COMPUTER          KEY_BACK              KEY_FORWARD           KEY_CLOSECD          
+                KEY_EJECTCD           KEY_EJECTCLOSECD      KEY_NEXTSONG          KEY_PLAYPAUSE        
+                KEY_PREVIOUSSONG      KEY_STOPCD            KEY_RECORD            KEY_REWIND           
+                KEY_PHONE             KEY_ISO               KEY_CONFIG            KEY_HOMEPAGE         
+                KEY_REFRESH           KEY_EXIT              KEY_MOVE              KEY_EDIT             
+                KEY_SCROLLUP          KEY_SCROLLDOWN        KEY_KPLEFTPAREN       KEY_KPRIGHTPAREN     
+                KEY_NEW               KEY_REDO              KEY_F13               KEY_F14              
+                KEY_F15               KEY_F16               KEY_F17               KEY_F18              
+                KEY_F19               KEY_F20               KEY_F21               KEY_F22              
+                KEY_F23               KEY_F24               00c3                  00c4                 
+                00c5                  00c6                  00c7                  KEY_PLAYCD           
+                KEY_PAUSECD           KEY_PROG3             KEY_PROG4             KEY_DASHBOARD        
+                KEY_SUSPEND           KEY_CLOSE             KEY_PLAY              KEY_FASTFORWARD      
+                KEY_BASSBOOST         KEY_PRINT             KEY_HP                KEY_CAMERA           
+                KEY_SOUND             KEY_QUESTION          KEY_EMAIL             KEY_CHAT             
+                KEY_SEARCH            KEY_CONNECT           KEY_FINANCE           KEY_SPORT            
+                KEY_SHOP              KEY_ALTERASE          KEY_CANCEL            KEY_BRIGHTNESSDOWN   
+                KEY_BRIGHTNESSUP      KEY_MEDIA             KEY_SWITCHVIDEOMODE   KEY_KBDILLUMTOGGLE   
+                KEY_KBDILLUMDOWN      KEY_KBDILLUMUP        KEY_SEND              KEY_REPLY            
+                KEY_FORWARDMAIL       KEY_SAVE              KEY_DOCUMENTS         KEY_BATTERY          
+                KEY_BLUETOOTH         KEY_WLAN              KEY_UWB               KEY_UNKNOWN          
+                KEY_VIDEO_NEXT        KEY_VIDEO_PREV        KEY_BRIGHTNESS_CYCLE  KEY_BRIGHTNESS_AUTO  
+                KEY_DISPLAY_OFF       KEY_WWAN              KEY_RFKILL            KEY_MICMUTE          
+                00f9                  00fa                  00fb                  00fc                 
+                00fd                  00fe                  00ff                  BTN_MISC             
+                BTN_1                 BTN_2                 BTN_3                 BTN_4                
+                BTN_5                 BTN_6                 BTN_7                 BTN_8                
+                BTN_9                 010a                  010b                  010c                 
+                010d                  010e                  010f                  BTN_MOUSE            
+                BTN_RIGHT             BTN_MIDDLE            BTN_SIDE              BTN_EXTRA            
+                BTN_FORWARD           BTN_BACK              BTN_TASK              0118                 
+                0119                  011a                  011b                  011c                 
+                011d                  011e                  011f                  BTN_JOYSTICK         
+                BTN_THUMB             BTN_THUMB2            BTN_TOP               BTN_TOP2             
+                BTN_PINKIE            BTN_BASE              BTN_BASE2             BTN_BASE3            
+                BTN_BASE4             BTN_BASE5             BTN_BASE6             012c                 
+    REL (0002): REL_X                 REL_Y                
+  input props:
+    <none>
+add device 2: /dev/input/event0
+  name:     "sunxi-ir"
+  events:
+    KEY (0001): KEY_ESC              
+    REL (0002): REL_X                 REL_Y                
+    MSC (0004): MSC_SCAN             
+  input props:
+    INPUT_PROP_POINTING_STICK
+INPUT MANAGER (dumpsys input)
+
+Input Manager State:
+  Interactive: true
+  System UI Lights Out: false
+  Pointer Speed: 0
+  Pointer Gestures Enabled: true
+  Show Touches: false
+  Pointer Capture Enabled: false
+
+Event Hub State:
+  BuiltInKeyboardId: -2
+  Devices:
+    1: sunxi-ir-uinput
+      Classes: KEYBOARD | ALPHAKEY | CURSOR | DPAD
+      Path: /dev/input/event1
+      Enabled: true
+      Descriptor: 0a253e777d1b2169367be63d7c9054e7991953a6
+      Location: 
+      ControllerNumber: 0
+      UniqueId: 
+      Identifier: bus=0x0019, vendor=0x0000, product=0x0000, version=0x0004
+      KeyLayoutFile: /system/usr/keylayout/sunxi-ir-uinput.kl
+      KeyCharacterMapFile: /system/usr/keychars/Generic.kcm
+      ConfigurationFile: 
+      VideoDevice: <none>
+    2: sunxi-ir
+      Classes: KEYBOARD
+      Path: /dev/input/event0
+      Enabled: true
+      Descriptor: 485d69228e24f5e46da1598745890b214130dbc4
+      Location: sunxi-ir/input0
+      ControllerNumber: 0
+      UniqueId: 
+      Identifier: bus=0x0019, vendor=0x0001, product=0x0001, version=0x0100
+      KeyLayoutFile: /system/usr/keylayout/sunxi-ir.kl
+      KeyCharacterMapFile: /system/usr/keychars/Generic.kcm
+      ConfigurationFile: 
+      VideoDevice: <none>
+    -1: Virtual
+      Classes: KEYBOARD | ALPHAKEY | DPAD | VIRTUAL
+      Path: <virtual>
+      Enabled: true
+      Descriptor: a718a782d34bc767f4689c232d64d527998ea7fd
+      Location: 
+      ControllerNumber: 0
+      UniqueId: <virtual>
+      Identifier: bus=0x0000, vendor=0x0000, product=0x0000, version=0x0000
+      KeyLayoutFile: /system/usr/keylayout/Generic.kl
+      KeyCharacterMapFile: /system/usr/keychars/Virtual.kcm
+      ConfigurationFile: 
+      VideoDevice: <none>
+  Unattached video devices:
+    <none>
+
+Input Reader State (Nums of device: 3):
+  Device 3: sunxi-ir-uinput
+    EventHub Devices: [ 1 ] 
+    Generation: 13
+    IsExternal: false
+    AssociatedDisplayPort: <none>
+    AssociatedDisplayUniqueId: <none>
+    HasMic:     false
+    Sources: 0x00002303
+    KeyboardType: 2
+    ControllerNum: 0
+    Motion Ranges:
+      X: source=0x00002002, min=0.000, max=1279.000, flat=<redacted>, fuzz=0.000, resolution=0.000
+      Y: source=0x00002002, min=0.000, max=719.000, flat=<redacted>, fuzz=0.000, resolution=0.000
+      PRESSURE: source=0x00002002, min=0.000, max=1.000, flat=<redacted>, fuzz=0.000, resolution=0.000
+    Keyboard Input Mapper:
+      Parameters:
+        OrientationAware: false
+        HandlesKeyRepeat: false
+      KeyboardType: 2
+      Orientation: 0
+      KeyDowns: 0 keys currently down
+      MetaState: 0x200000
+      DownTime: 0
+    Cursor Input Mapper:
+      Parameters:
+        HasAssociatedDisplay: true
+        Mode: pointer
+        OrientationAware: false
+      XScale: 1.000
+      YScale: 1.000
+      XPrecision: 1.000
+      YPrecision: 1.000
+      HaveVWheel: false
+      HaveHWheel: false
+      VWheelScale: 1.000
+      HWheelScale: 1.000
+      Orientation: 0
+      ButtonState: 0x00000000
+      Down: false
+      DownTime: 0
+  Device 2: sunxi-ir
+    EventHub Devices: [ 2 ] 
+    Generation: 6
+    IsExternal: false
+    AssociatedDisplayPort: <none>
+    AssociatedDisplayUniqueId: <none>
+    HasMic:     false
+    Sources: 0x00000101
+    KeyboardType: 1
+    ControllerNum: 0
+    Keyboard Input Mapper:
+      Parameters:
+        OrientationAware: false
+        HandlesKeyRepeat: false
+      KeyboardType: 1
+      Orientation: 0
+      KeyDowns: 0 keys currently down
+      MetaState: 0x0
+      DownTime: 0
+  Device -1: Virtual
+    EventHub Devices: [ -1 ] 
+    Generation: 3
+    IsExternal: false
+    AssociatedDisplayPort: <none>
+    AssociatedDisplayUniqueId: <none>
+    HasMic:     false
+    Sources: 0x00000301
+    KeyboardType: 2
+    ControllerNum: 0
+    Keyboard Input Mapper:
+      Parameters:
+        OrientationAware: false
+        HandlesKeyRepeat: false
+      KeyboardType: 2
+      Orientation: 0
+      KeyDowns: 0 keys currently down
+      MetaState: 0x0
+      DownTime: 0
+  Configuration:
+    ExcludedDeviceNames: []
+    VirtualKeyQuietTime: 0.0ms
+    PointerVelocityControlParameters: scale=1.000, lowThreshold=500.000, highThreshold=3000.000, acceleration=3.000
+    WheelVelocityControlParameters: scale=1.000, lowThreshold=15.000, highThreshold=50.000, acceleration=4.000
+    PointerGesture:
+      Enabled: true
+      QuietInterval: 100.0ms
+      DragMinSwitchSpeed: 50.0px/s
+      TapInterval: 150.0ms
+      TapDragInterval: 300.0ms
+      TapSlop: 20.0px
+      MultitouchSettleInterval: 100.0ms
+      MultitouchMinDistance: 15.0px
+      SwipeTransitionAngleCosine: 0.3
+      SwipeMaxWidthRatio: 0.2
+      MovementSpeedRatio: 0.8
+      ZoomSpeedRatio: 0.3
+      Viewports:
+        Viewport INTERNAL: displayId=0, uniqueId=local:0, port=0, orientation=0, logicalFrame=[0, 0, 1280, 720], physicalFrame=[0, 0, 1280, 720], deviceSize=[1280, 720], isActive=[1]
+
+Input Classifier State:
+  Motion Classifier:
+    <nullptr>
+
+Input Dispatcher State:
+  DispatchEnabled: true
+  DispatchFrozen: false
+  InputFilterEnabled: false
+  FocusedDisplayId: 0
+  FocusedApplications:
+    displayId=0, name='ActivityRecord{e37f7a2 u0 com.android.tv.launcher/.MainSettings t2}', dispatchingTimeout=10000ms
+  FocusedWindows:
+    displayId=0, name='98b9356 com.android.tv.launcher/com.android.tv.launcher.MainSettings'
+  FocusRequests:
+    displayId=0, name='98b9356 com.android.tv.launcher/com.android.tv.launcher.MainSettings' result='OK'
+  FocusedWindowRequestedPointerCapture: false
+  CurrentWindowWithPointerCapture: None
+  TouchStates: <no displays touched>
+  Display: 0
+    Windows:
+      0: name='98b9356 com.android.tv.launcher/com.android.tv.launcher.MainSettings', id=55, displayId=0, portalToDisplayId=-1, paused=false, focusable=true, hasWallpaper=false, visible=true, alpha=1.00, flags=NOT_TOUCH_MODAL | LAYOUT_IN_SCREEN | LAYOUT_INSET_DECOR | SPLIT_TOUCH | HARDWARE_ACCELERATED | DRAWS_SYSTEM_BAR_BACKGROUNDS, type=FIRST_APPLICATION_WINDOW, frame=[0,0][1280,720], globalScale=1.000000, applicationInfo.name=ActivityRecord{e37f7a2 u0 com.android.tv.launcher/.MainSettings t2}, applicationInfo.token=<redacted> touchableRegion=[0,0][1280,720], inputFeatures=0x0, ownerPid=800, ownerUid=1000, dispatchingTimeout=10000ms, trustedOverlay=false, hasToken=<redacted> touchOcclusionMode=BLOCK_UNTRUSTED
+        transform (ROT_0) (IDENTITY)
+      1: name='Wallpaper BBQ wrapper#0', id=67, displayId=0, portalToDisplayId=-1, paused=false, focusable=false, hasWallpaper=false, visible=false, alpha=0.95, flags=NOT_TOUCH_MODAL, type=UNKNOWN, frame=[0,0][1280,720], globalScale=1.000000, applicationInfo.name=, applicationInfo.token=<redacted> touchableRegion=<empty>, inputFeatures=NO_INPUT_CHANNEL, ownerPid=673, ownerUid=10082, dispatchingTimeout=5000ms, trustedOverlay=false, hasToken=<redacted> touchOcclusionMode=BLOCK_UNTRUSTED
+        transform (ROT_0) (IDENTITY)
+      2: name='bd9d7d0 com.android.systemui.ImageWallpaper', id=66, displayId=0, portalToDisplayId=-1, paused=false, focusable=false, hasWallpaper=false, visible=false, alpha=1.00, flags=NOT_FOCUSABLE | NOT_TOUCHABLE | LAYOUT_IN_SCREEN | LAYOUT_NO_LIMITS | SCALED | LAYOUT_INSET_DECOR, type=2013, frame=[0,0][0,0], globalScale=1.000000, applicationInfo.name=, applicationInfo.token=<redacted> touchableRegion=[0,0][1280,720], inputFeatures=0x0, ownerPid=673, ownerUid=10082, dispatchingTimeout=10000ms, trustedOverlay=false, hasToken=<redacted> touchOcclusionMode=BLOCK_UNTRUSTED
+        transform (ROT_0) (IDENTITY)
+  Global monitors in display 0:
+    0: 'PointerEventDispatcher0 (server)', 
+  RecentQueue: length=5
+    DeviceResetEvent(deviceId=-1), policyFlags=0x00000000, age=932044ms
+    DeviceResetEvent(deviceId=2), policyFlags=0x00000000, age=932044ms
+    DeviceResetEvent(deviceId=3), policyFlags=0x00000000, age=932044ms
+    ConfigurationChangedEvent(), policyFlags=0x00000000, age=932044ms
+    FocusEvent(hasFocus=true), age=925882ms
+  PendingEvent: <none>
+  InboundQueue: <empty>
+  ReplacedKeys: <empty>
+  Connections:
+    285: channelName='bd9d7d0 com.android.systemui.ImageWallpaper (server)', windowName='bd9d7d0 com.android.systemui.ImageWallpaper (server)', status=NORMAL, monitor=false, responsive=true
+      OutboundQueue: <empty>
+      WaitQueue: <empty>
+    307: channelName='7bf98dc ShellDropTarget (server)', windowName='7bf98dc ShellDropTarget (server)', status=NORMAL, monitor=false, responsive=true
+      OutboundQueue: <empty>
+      WaitQueue: <empty>
+    346: channelName='68ce5bf InputMethod (server)', windowName='68ce5bf InputMethod (server)', status=NORMAL, monitor=false, responsive=true
+      OutboundQueue: <empty>
+      WaitQueue: <empty>
+    300: channelName='98b9356 com.android.tv.launcher/com.android.tv.launcher.MainSettings (server)', windowName='98b9356 com.android.tv.launcher/com.android.tv.launcher.MainSettings (server)', status=NORMAL, monitor=false, responsive=true
+      OutboundQueue: <empty>
+      WaitQueue: <empty>
+    135: channelName='PointerEventDispatcher0 (server)', windowName='PointerEventDispatcher0 (server)', status=NORMAL, monitor=true, responsive=true
+      OutboundQueue: <empty>
+      WaitQueue: <empty>
+  AppSwitch: not pending
+  Configuration:
+    KeyRepeatDelay: 50ms
+    KeyRepeatTimeout: 400ms
+    LatencyTracker:
+      mTimelines.size() = 0
+      mEventTimes.size() = 0
+    LatencyAggregator:
+      Sketches:
+        mDownSketches[0]->num_values = 0 size = 0.0KB mMoveSketches[0]->num_values = 0 size = 0.0KB
+        mDownSketches[1]->num_values = 0 size = 0.0KB mMoveSketches[1]->num_values = 0 size = 0.0KB
+        mDownSketches[2]->num_values = 0 size = 0.0KB mMoveSketches[2]->num_values = 0 size = 0.0KB
+        mDownSketches[3]->num_values = 0 size = 0.0KB mMoveSketches[3]->num_values = 0 size = 0.0KB
+        mDownSketches[4]->num_values = 0 size = 0.0KB mMoveSketches[4]->num_values = 0 size = 0.0KB
+        mDownSketches[5]->num_values = 0 size = 0.0KB mMoveSketches[5]->num_values = 0 size = 0.0KB
+        mDownSketches[6]->num_values = 0 size = 0.0KB mMoveSketches[6]->num_values = 0 size = 0.0KB
+      mNumSketchEventsProcessed=0
+      mLastSlowEventTime=0
+      mNumEventsSinceLastSlowEventReport = 0
+      mNumSkippedSlowEvents = 0
+
+
+
+command_exit=0

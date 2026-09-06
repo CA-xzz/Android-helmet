@@ -40,9 +40,9 @@ class CallStatePrompt(
             CallState.RINGING -> "等待接听"
             CallState.ACCEPTED -> "呼叫已接听"
             CallState.CONNECTING -> "正在连接通话"
-            CallState.CONNECTED -> "通话已连接"
+            CallState.CONNECTED -> "视频通话已接通"
             CallState.REJECTED -> "呼叫已拒绝"
-            CallState.ENDED -> "通话已结束"
+            CallState.ENDED -> "视频通话已挂断"
             CallState.FAILED -> "呼叫失败"
         }
     }

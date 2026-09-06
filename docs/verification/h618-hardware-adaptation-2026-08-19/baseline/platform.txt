@@ -1,0 +1,15 @@
+captured_host_utc=2026-08-19T14:33:24Z
+adb_serial=2c001031774186e21d3
+release=12
+sdk=31
+build_id=SP1A.211105.004
+display_id=apollo_p1-eng 12 SP1A.211105.004 20260729.120356 test-keys
+fingerprint=Allwinner/apollo_p1/apollo-p1:12/SP1A.211105.004/20260729.120356:eng/test-keys
+model=QUAD-CORE H618 p1
+device=apollo-p1
+boot_completed=1
+boot_reason=reboot
+Linux localhost 5.4.125 #1 SMP PREEMPT Tue Jul 28 16:40:13 CST 2026 aarch64
+941.03 3547.20
+
+command_exit=0

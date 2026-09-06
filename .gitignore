@@ -8,6 +8,11 @@
 *.iml
 **/__pycache__/
 *.py[cod]
+*.sqlite3-wal
+*.sqlite3-shm
+/var/
+/uploads/
+/objects/
 local.properties
 *.jks
 *.keystore

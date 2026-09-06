@@ -1,0 +1,13 @@
+captured_host_utc=2026-08-19T14:36:24Z
+adb_serial=2c001031774186e21d3
+gpiochip_path=/sys/devices/platform/soc@3000000/300b000.pinctrl/gpio/gpiochip0
+base=0
+label=300b000.pinctrl
+ngpio=288
+gpio203_path=/sys/devices/platform/soc@3000000/300b000.pinctrl/gpiochip1/gpio/gpio203
+direction=out
+value=1
+active_low=0
+edge=none
+
+command_exit=0

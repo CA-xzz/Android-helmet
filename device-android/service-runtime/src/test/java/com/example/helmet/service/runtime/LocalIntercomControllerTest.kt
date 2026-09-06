@@ -10,6 +10,7 @@ import com.example.helmet.core.protocol.LocalIntercomPayloadCodec
 import com.example.helmet.hardware.api.HardwareCommand
 import com.example.helmet.hardware.api.HardwareStatus
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -17,6 +18,46 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LocalIntercomControllerTest {
+    @Test
+    fun persistedExplicitCommandReplaysTheSameActionAndBusinessRequestId() = runBlocking {
+        val commands = mutableListOf<HardwareCommand>()
+        val controller = LocalIntercomController(
+            config = LocalIntercomRuntimeConfig(enabled = true, groupId = 42, channel = 7, keySlot = 3),
+            hardwareStatus = { HardwareStatus(connected = true, simulated = false) },
+            commandSink = commands::add,
+            requestIdSource = { 0x1020_3040 },
+        )
+        controller.acceptModuleStatus(
+            LocalIntercomPayloadCodec.encodeStatus(status(LocalIntercomModuleState.READY)),
+        )
+        val planned = controller.planToggleCommand()
+        assertEquals(LocalIntercomAction.START_TRANSMIT, planned.action)
+
+        assertTrue(controller.executePlanned(planned))
+        assertTrue(controller.executePlanned(planned))
+
+        assertEquals(2, commands.size)
+        assertArrayEquals(commands[0].payload, commands[1].payload)
+        commands.forEach { command ->
+            val decoded = LocalIntercomPayloadCodec.decodeCommand(command.payload)
+            assertEquals(LocalIntercomAction.START_TRANSMIT, decoded.action)
+            assertEquals(0x1020_3040L, decoded.requestId)
+        }
+    }
+
+    @Test
+    fun togglePlanningFreezesAConcreteTargetForEveryRuntimeState() {
+        assertEquals(LocalIntercomAction.START_TRANSMIT, plannedLocalIntercomAction(LocalIntercomState.READY))
+        assertEquals(LocalIntercomAction.START_TRANSMIT, plannedLocalIntercomAction(LocalIntercomState.RECEIVING))
+        assertEquals(LocalIntercomAction.STOP_TRANSMIT, plannedLocalIntercomAction(LocalIntercomState.TRANSMITTING))
+        assertEquals(
+            LocalIntercomAction.STOP_TRANSMIT,
+            plannedLocalIntercomAction(LocalIntercomState.REQUESTING_TRANSMIT),
+        )
+        assertEquals(LocalIntercomAction.JOIN, plannedLocalIntercomAction(LocalIntercomState.UNAVAILABLE))
+        assertEquals(LocalIntercomAction.JOIN, plannedLocalIntercomAction(LocalIntercomState.FAULT))
+    }
+
     @Test
     fun joinsProvisionedGroupThenRequestsHalfDuplexTransmit() = runBlocking {
         val commands = mutableListOf<HardwareCommand>()

@@ -8,6 +8,18 @@ import org.junit.Test
 
 class WebRtcModelsTest {
     @Test
+    fun videoIsReadyOnlyAfterTrackAttachmentAndFirstFrame() {
+        val readiness = VideoCaptureReadiness()
+        assertFalse(readiness.isReady())
+        assertFalse(readiness.onFirstFrameAvailable())
+        assertTrue(readiness.onTrackAttached())
+        assertFalse(readiness.onCameraOpening())
+        assertTrue(readiness.onFirstFrameAvailable())
+        assertFalse(readiness.reset())
+        assertFalse(readiness.isReady())
+    }
+
+    @Test
     fun iceCredentialMustHaveSafeRemainingLifetime() {
         val configuration = IceConfiguration(
             callId = "call-1",

@@ -10,6 +10,7 @@ enum class ReplayLabel {
     NEAR_ELECTRIC,
     HEIGHT_LIMIT,
     SENSOR_FAULT,
+    INACTIVITY,
 }
 
 data class ReplayRow(
@@ -176,4 +177,5 @@ private fun SafetyAlarmType.toReplayLabel(): ReplayLabel = when (this) {
     SafetyAlarmType.NEAR_ELECTRIC -> ReplayLabel.NEAR_ELECTRIC
     SafetyAlarmType.HEIGHT_LIMIT -> ReplayLabel.HEIGHT_LIMIT
     SafetyAlarmType.SENSOR_FAULT -> ReplayLabel.SENSOR_FAULT
+    SafetyAlarmType.INACTIVITY -> ReplayLabel.INACTIVITY
 }

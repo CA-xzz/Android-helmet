@@ -13,8 +13,11 @@ import kotlinx.coroutines.launch
 class SimulatedHardwareGateway(
     private val scope: CoroutineScope,
     private val monotonicClock: () -> Long = { System.nanoTime() / 1_000_000L },
+    private val durableSampleReferenceHighWater: suspend () -> Long? = { null },
 ) : HardwareGateway {
-    private val mutableStatus = MutableStateFlow(HardwareStatus())
+    private val mutableStatus = MutableStateFlow(
+        HardwareStatus(compatibility = HardwareCompatibility.NOT_APPLICABLE),
+    )
     private val mutableEvents = MutableSharedFlow<HardwareEvent>(extraBufferCapacity = 32)
     private var heartbeatJob: Job? = null
     private var nextSampleReference = (monotonicClock() and 0xFFFF_FFFFL).coerceAtLeast(1L)
@@ -24,11 +27,18 @@ class SimulatedHardwareGateway(
 
     override suspend fun start() {
         if (heartbeatJob != null) return
+        durableSampleReferenceHighWater()?.let { highWater ->
+            require(highWater in 0 until MAX_SAMPLE_REFERENCE) {
+                "durable sample reference space is exhausted"
+            }
+            nextSampleReference = maxOf(nextSampleReference, highWater + 1L)
+        }
         mutableStatus.value = HardwareStatus(
             connected = true,
             simulated = true,
             lastHeartbeatMillis = monotonicClock(),
             linkState = "CONNECTED",
+            compatibility = HardwareCompatibility.NOT_APPLICABLE,
         )
         heartbeatJob = scope.launch {
             while (isActive) {
@@ -50,57 +60,131 @@ class SimulatedHardwareGateway(
         require(command.payload.size <= 1024)
     }
 
+    override suspend fun sendForResult(command: HardwareCommand): HardwareCommandResult {
+        send(command)
+        return HardwareCommandResult(
+            outcome = if (command.flags and com.example.helmet.core.protocol.HslFlags.ACK_REQUIRED != 0) {
+                HardwareCommandOutcome.ACKNOWLEDGED
+            } else {
+                HardwareCommandOutcome.SENT
+            },
+            type = command.type,
+            businessSequence = command.sequence,
+            wireSequence = command.sequence,
+            resultCode = 0,
+        )
+    }
+
     suspend fun inject(input: SimulatedInput) {
         val now = monotonicClock() and 0xFFFF_FFFFL
-        val alarmType = when (input) {
-            SimulatedInput.FALL -> "FALL"
-            SimulatedInput.NEAR_ELECTRIC -> "NEAR_ELECTRIC"
-            SimulatedInput.HEIGHT_LIMIT -> "HEIGHT_LIMIT"
-            else -> null
-        }
-        if (alarmType != null) {
-            val reference = nextSampleReference++
-            val validFlags = when (input) {
-                SimulatedInput.FALL -> 0x0001
-                SimulatedInput.NEAR_ELECTRIC -> 0x0002
-                SimulatedInput.HEIGHT_LIMIT -> 0x0004
-                else -> 0
+        if (input == SimulatedInput.FALL) {
+            check(nextSampleReference <= MAX_SAMPLE_REFERENCE - 3L) {
+                "simulated safety sample reference space is exhausted"
             }
-            mutableEvents.emit(
-                HardwareEvent.SensorSample(
-                    monotonicMillis = now,
-                    sampleReference = reference,
-                    validFlags = validFlags,
-                    accelerationXMilliG = 2_400.takeIf { input == SimulatedInput.FALL },
-                    accelerationYMilliG = 0.takeIf { input == SimulatedInput.FALL },
-                    accelerationZMilliG = 0.takeIf { input == SimulatedInput.FALL },
-                    gyroXMilliDegreesPerSecond = 0.takeIf { input == SimulatedInput.FALL },
-                    gyroYMilliDegreesPerSecond = 0.takeIf { input == SimulatedInput.FALL },
-                    gyroZMilliDegreesPerSecond = 0.takeIf { input == SimulatedInput.FALL },
-                    electricFieldMilliVolts = 920.takeIf { input == SimulatedInput.NEAR_ELECTRIC },
-                    pressurePascals = 101_325L.takeIf { input == SimulatedInput.HEIGHT_LIMIT },
-                    temperatureCentiCelsius = null,
-                    altitudeMillimetres = 2_200.takeIf { input == SimulatedInput.HEIGHT_LIMIT },
-                    simulated = true,
-                ),
-            )
-            mutableEvents.emit(
-                HardwareEvent.Alarm(
-                    monotonicMillis = now,
-                    alarmType = alarmType,
-                    severity = if (input == SimulatedInput.NEAR_ELECTRIC) "CRITICAL" else "HIGH",
-                    simulated = true,
-                    active = true,
-                    alarmId = reference,
-                    configVersion = 1,
-                    sampleReference = reference,
-                    localActions = 0,
-                    sensorFaults = 0,
-                    origin = HardwareAlarmOrigin.SIMULATOR,
-                ),
-            )
+            val base = now.takeIf { it in 1..0xFFFF_FE00L } ?: 1L
+            listOf(
+                SimulatedImuSample(0, 0, 0, 1_000),
+                SimulatedImuSample(100, 0, 0, 100),
+                SimulatedImuSample(240, 0, 0, 100),
+                SimulatedImuSample(300, 2_400, 0, 0),
+            ).forEach { sample ->
+                mutableEvents.emit(
+                    HardwareEvent.SensorSample(
+                        monotonicMillis = base + sample.offsetMillis,
+                        sampleReference = allocateSampleReference(),
+                        validFlags = 0x0001,
+                        accelerationXMilliG = sample.xMilliG,
+                        accelerationYMilliG = sample.yMilliG,
+                        accelerationZMilliG = sample.zMilliG,
+                        gyroXMilliDegreesPerSecond = 0,
+                        gyroYMilliDegreesPerSecond = 0,
+                        gyroZMilliDegreesPerSecond = 0,
+                        electricFieldMilliVolts = null,
+                        pressurePascals = null,
+                        temperatureCentiCelsius = null,
+                        altitudeMillimetres = null,
+                        simulated = true,
+                    ),
+                )
+            }
+            return
+        }
+        if (input == SimulatedInput.NEAR_ELECTRIC) {
+            val values = List(10) { 100 } + List(3) { 920 }
+            check(nextSampleReference <= MAX_SAMPLE_REFERENCE - (values.size - 1L)) {
+                "simulated safety sample reference space is exhausted"
+            }
+            val lastOffsetMillis = (values.size - 1L) * 100L
+            val base = now.takeIf { it in 1..MAX_SAMPLE_REFERENCE - lastOffsetMillis } ?: 1L
+            values.forEachIndexed { index, electricFieldMilliVolts ->
+                mutableEvents.emit(
+                    HardwareEvent.SensorSample(
+                        monotonicMillis = base + index * 100L,
+                        sampleReference = allocateSampleReference(),
+                        validFlags = 0x0002,
+                        accelerationXMilliG = null,
+                        accelerationYMilliG = null,
+                        accelerationZMilliG = null,
+                        gyroXMilliDegreesPerSecond = null,
+                        gyroYMilliDegreesPerSecond = null,
+                        gyroZMilliDegreesPerSecond = null,
+                        electricFieldMilliVolts = electricFieldMilliVolts,
+                        pressurePascals = null,
+                        temperatureCentiCelsius = null,
+                        altitudeMillimetres = null,
+                        simulated = true,
+                    ),
+                )
+            }
+            return
+        }
+        if (input == SimulatedInput.HEIGHT_LIMIT) {
+            val pressures = List(10) { 101_325L } + List(3) { 101_285L }
+            check(nextSampleReference <= MAX_SAMPLE_REFERENCE - (pressures.size - 1L)) {
+                "simulated safety sample reference space is exhausted"
+            }
+            val lastOffsetMillis = (pressures.size - 1L) * 100L
+            val base = now.takeIf { it in 1..MAX_SAMPLE_REFERENCE - lastOffsetMillis } ?: 1L
+            pressures.forEachIndexed { index, pressurePascals ->
+                mutableEvents.emit(
+                    HardwareEvent.SensorSample(
+                        monotonicMillis = base + index * 100L,
+                        sampleReference = allocateSampleReference(),
+                        validFlags = 0x0010,
+                        accelerationXMilliG = null,
+                        accelerationYMilliG = null,
+                        accelerationZMilliG = null,
+                        gyroXMilliDegreesPerSecond = null,
+                        gyroYMilliDegreesPerSecond = null,
+                        gyroZMilliDegreesPerSecond = null,
+                        electricFieldMilliVolts = null,
+                        pressurePascals = pressurePascals,
+                        temperatureCentiCelsius = null,
+                        altitudeMillimetres = null,
+                        simulated = true,
+                    ),
+                )
+            }
             return
         }
         mutableEvents.emit(HardwareEvent.Key(now, input))
+    }
+
+    private data class SimulatedImuSample(
+        val offsetMillis: Long,
+        val xMilliG: Int,
+        val yMilliG: Int,
+        val zMilliG: Int,
+    )
+
+    private fun allocateSampleReference(): Long {
+        check(nextSampleReference in 1..MAX_SAMPLE_REFERENCE) {
+            "simulated safety sample reference space is exhausted"
+        }
+        return nextSampleReference++
+    }
+
+    private companion object {
+        const val MAX_SAMPLE_REFERENCE = 0xFFFF_FFFFL
     }
 }

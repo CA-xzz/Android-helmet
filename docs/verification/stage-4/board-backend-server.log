@@ -1,6 +1,0 @@
-2026-08-10 18:48:47,145 INFO media service listening on 127.0.0.1:18080
-2026-08-10 18:49:49,335 INFO 127.0.0.1 "POST /v1/media/sessions HTTP/1.1" 200 -
-2026-08-10 18:49:49,375 INFO 127.0.0.1 "PUT /v1/media/sessions/bf1f96a0-5fd7-4000-9eb6-9fd2355098bb/chunks HTTP/1.1" 200 -
-2026-08-10 18:49:49,411 INFO 127.0.0.1 "PUT /v1/media/sessions/bf1f96a0-5fd7-4000-9eb6-9fd2355098bb/chunks HTTP/1.1" 200 -
-2026-08-10 18:49:49,427 INFO 127.0.0.1 "POST /v1/media/sessions/bf1f96a0-5fd7-4000-9eb6-9fd2355098bb/complete HTTP/1.1" 200 -
-2026-08-10 18:49:49,640 INFO 127.0.0.1 "POST /v1/tracks:batch HTTP/1.1" 200 -

@@ -98,6 +98,7 @@ internal class DeviceTimeDiscipline(
         val roundTrip = responseReceivedAtElapsedRealtimeMillis - requestStartedAtElapsedRealtimeMillis
         require(roundTrip <= maximumRoundTripMillis) { "server time round trip is too large" }
         val previousSequence = store.load()?.sequence ?: 0
+        check(previousSequence < Long.MAX_VALUE) { "device time calibration sequence is exhausted" }
         val halfRoundTrip = roundTrip / 2
         val calibration = DeviceTimeCalibration(
             source = DeviceTimeSource.SERVER,

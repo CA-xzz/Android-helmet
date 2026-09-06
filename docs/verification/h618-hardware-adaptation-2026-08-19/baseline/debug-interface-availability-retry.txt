@@ -1,0 +1,7 @@
+captured_host_utc=2026-08-19T14:36:25Z
+adb_serial=2c001031774186e21d3
+ls: /sys/kernel/debug: No such file or directory
+ls: /sys/kernel/debug/pinctrl: No such file or directory
+ls: /sys/kernel/debug/gpio: No such file or directory
+
+command_exit=0

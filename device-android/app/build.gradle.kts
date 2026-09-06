@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.helmet"
         minSdk = 31
         targetSdk = 31
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -53,6 +53,7 @@ android {
 
 dependencies {
     implementation(project(":device-android:core-model"))
+    implementation(project(":device-android:core-protocol"))
     implementation(project(":device-android:data-local"))
     implementation(project(":device-android:hardware-api"))
     implementation(project(":device-android:service-runtime"))
@@ -69,4 +70,5 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation("androidx.work:work-testing:2.9.1")
+    androidTestImplementation(project(":device-android:communication-sync"))
 }

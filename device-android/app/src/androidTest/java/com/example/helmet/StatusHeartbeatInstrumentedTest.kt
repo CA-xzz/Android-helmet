@@ -8,9 +8,11 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.example.helmet.data.local.DeviceIdentityStore
 import com.example.helmet.data.local.RuntimeConfigStore
 import com.example.helmet.service.runtime.HelmetService
+import com.example.helmet.testfixture.PersistentPreferencesTestGuard
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -23,30 +25,36 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class StatusHeartbeatInstrumentedTest {
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
+    private val backendBearerToken = requireNonBlankBoardTestArgument(
+        InstrumentationRegistry.getArguments().getString(BACKEND_BEARER_TOKEN_ARGUMENT),
+        BACKEND_BEARER_TOKEN_ARGUMENT,
+    )
 
     @Test
     fun serviceRepublishesServerTimeAndMaintainsPeriodicContact() = runBlocking {
+        PersistentPreferencesTestGuard.restoreStale(context, RECOVERY_EVIDENCE_PREFERENCES)
         val configStore = RuntimeConfigStore(context)
-        val originalConfig = configStore.load()
+        val stateGuard = PersistentPreferencesTestGuard.capture(
+            context,
+            RECOVERY_EVIDENCE_PREFERENCES,
+            STATE_PREFERENCE_FILES,
+        )
         val deviceId = DeviceIdentityStore(context).getOrCreateDeviceId()
-        context.stopService(HelmetService.startIntent(context))
-        delay(500)
+        val timePreferences = context.getSharedPreferences(DEVICE_TIME_PREFERENCES, Context.MODE_PRIVATE)
         try {
-            configStore.save(
-                originalConfig.copy(
-                    revision = originalConfig.revision + 1,
+            configStore.update { current ->
+                current.copy(
                     simulatorEnabled = true,
                     personId = TEST_PERSON_ID,
                     backendBaseUrl = TEST_ENDPOINT,
-                    backendBearerToken = TEST_TOKEN,
-                ),
-            )
+                    backendBearerToken = backendBearerToken,
+                )
+            }
             check(
-                context.getSharedPreferences("helmet_device_time", Context.MODE_PRIVATE)
-                    .edit()
-                    .clear()
-                    .commit(),
+                timePreferences.edit().clear().commit(),
             )
+            context.stopService(HelmetService.startIntent(context))
+            delay(500)
             ContextCompat.startForegroundService(context, HelmetService.startIntent(context))
 
             val synchronized = awaitDevice(deviceId, IMMEDIATE_CALIBRATION_TIMEOUT_MILLIS) { device ->
@@ -58,6 +66,7 @@ class StatusHeartbeatInstrumentedTest {
             val firstSequence = synchronized.getLong("statusSequence")
             assertEquals("SERVER", synchronized.getJSONObject("clock").getString("source"))
             assertEquals(TEST_PERSON_ID, synchronized.getString("personId"))
+            assertFirmwareCurrent(synchronized)
 
             val heartbeat = awaitDevice(deviceId, HEARTBEAT_TIMEOUT_MILLIS) { device ->
                 device.optLong("lastContactAtEpochMillis") > firstContact &&
@@ -67,11 +76,26 @@ class StatusHeartbeatInstrumentedTest {
             assertTrue(heartbeat.getLong("statusSequence") > firstSequence)
             assertEquals("SERVER", heartbeat.getJSONObject("clock").getString("source"))
             assertEquals(TEST_PERSON_ID, heartbeat.getString("personId"))
+            assertFirmwareCurrent(heartbeat)
         } finally {
-            context.stopService(HelmetService.startIntent(context))
-            delay(500)
-            configStore.save(originalConfig)
+            withContext(NonCancellable) {
+                context.stopService(HelmetService.startIntent(context))
+                delay(500)
+                try {
+                    stateGuard.restore()
+                } finally {
+                    ContextCompat.startForegroundService(context, HelmetService.startIntent(context))
+                }
+            }
         }
+    }
+
+    private fun assertFirmwareCurrent(device: JSONObject) {
+        val expected = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
+        val firmware = device.getJSONObject("firmware")
+        assertEquals(expected, firmware.getString("reportedVersion"))
+        assertEquals(expected, firmware.getString("requiredVersion"))
+        assertEquals(false, firmware.getBoolean("updateRequired"))
     }
 
     private suspend fun awaitDevice(
@@ -94,7 +118,7 @@ class StatusHeartbeatInstrumentedTest {
             requestMethod = "GET"
             connectTimeout = 5_000
             readTimeout = 10_000
-            setRequestProperty("Authorization", "Bearer $TEST_TOKEN")
+            setRequestProperty("Authorization", "Bearer $backendBearerToken")
             setRequestProperty("X-Actor-Id", "heartbeat-board-test")
             setRequestProperty("X-Actor-Role", "DISPATCHER")
         }
@@ -115,10 +139,20 @@ class StatusHeartbeatInstrumentedTest {
 
     companion object {
         private const val TEST_ENDPOINT = "http://127.0.0.1:18082"
-        private const val TEST_TOKEN = "device-status-board-token"
+        private const val BACKEND_BEARER_TOKEN_ARGUMENT = "backendBearerToken"
         private const val TEST_PERSON_ID = "person-board-heartbeat"
+        private const val DEVICE_TIME_PREFERENCES = "helmet_device_time"
+        private const val DEVICE_STATUS_PREFERENCES = "helmet_device_status_outbox"
+        private const val RECOVERY_EVIDENCE_PREFERENCES = "status_heartbeat_test_recovery"
         private const val IMMEDIATE_CALIBRATION_TIMEOUT_MILLIS = 20_000L
         private const val HEARTBEAT_TIMEOUT_MILLIS = 80_000L
         private const val POLL_INTERVAL_MILLIS = 500L
+        private val STATE_PREFERENCE_FILES = listOf(
+            "helmet_runtime_config",
+            "helmet_backend_credentials",
+            "helmet_rtk_credentials",
+            DEVICE_TIME_PREFERENCES,
+            DEVICE_STATUS_PREFERENCES,
+        )
     }
 }

@@ -61,8 +61,59 @@ data class LocalIceCandidate(
 
 interface WebRtcCallListener {
     fun onStatus(status: WebRtcStatus)
-    fun onLocalIceCandidate(candidate: LocalIceCandidate)
-    fun onIceGatheringComplete()
+    fun onLocalIceCandidate(localIceGeneration: Long, candidate: LocalIceCandidate)
+    fun onIceGatheringComplete(localIceGeneration: Long)
+}
+
+/** Binds trickled candidates to the offer's ICE username fragment across restart overlap. */
+internal class LocalIceGenerationTracker {
+    private val usernameFragmentsByGeneration = linkedMapOf<Long, Set<String>>()
+    private var currentGeneration: Long? = null
+
+    @Synchronized
+    fun begin(generation: Long, localSdp: String) {
+        require(generation > 0) { "local ICE generation must be positive" }
+        require(generation > (currentGeneration ?: 0L)) {
+            "local ICE generation must advance"
+        }
+        val usernameFragments = SDP_ICE_UFRAG.findAll(localSdp)
+            .map { it.groupValues[1].trim() }
+            .filter(String::isNotBlank)
+            .toSet()
+        require(usernameFragments.isNotEmpty()) { "local SDP has no ICE username fragment" }
+        usernameFragmentsByGeneration[generation] = usernameFragments
+        currentGeneration = generation
+    }
+
+    @Synchronized
+    fun cancel(generation: Long) {
+        usernameFragmentsByGeneration.remove(generation)
+        if (currentGeneration == generation) {
+            currentGeneration = usernameFragmentsByGeneration.keys.maxOrNull()
+        }
+    }
+
+    @Synchronized
+    fun gatheringStarted(): Long? = currentGeneration
+
+    @Synchronized
+    fun candidateGeneration(candidateSdp: String): Long? {
+        val usernameFragment = CANDIDATE_ICE_UFRAG.find(candidateSdp)?.groupValues?.get(1)
+        if (usernameFragment == null) {
+            return currentGeneration.takeIf { usernameFragmentsByGeneration.size == 1 }
+        }
+        return usernameFragmentsByGeneration.entries
+            .lastOrNull { usernameFragment in it.value }
+            ?.key
+    }
+
+    @Synchronized
+    fun gatheringCompleteGeneration(): Long? = currentGeneration
+
+    private companion object {
+        val SDP_ICE_UFRAG = Regex("(?m)^a=ice-ufrag:([^\\r\\n]+)")
+        val CANDIDATE_ICE_UFRAG = Regex("(?:^|\\s)ufrag\\s+([^\\s]+)")
+    }
 }
 
 data class WebRtcOffer(
@@ -73,6 +124,39 @@ data class WebRtcOffer(
     val degradedReason: String?,
 )
 
+internal class VideoCaptureReadiness {
+    private var trackAttached = false
+    private var firstFrameAvailable = false
+
+    @Synchronized
+    fun onTrackAttached(): Boolean {
+        trackAttached = true
+        return isReady()
+    }
+
+    @Synchronized
+    fun onFirstFrameAvailable(): Boolean {
+        firstFrameAvailable = true
+        return isReady()
+    }
+
+    @Synchronized
+    fun onCameraOpening(): Boolean {
+        firstFrameAvailable = false
+        return isReady()
+    }
+
+    @Synchronized
+    fun reset(): Boolean {
+        trackAttached = false
+        firstFrameAvailable = false
+        return false
+    }
+
+    @Synchronized
+    fun isReady(): Boolean = trackAttached && firstFrameAvailable
+}
+
 class WebRtcException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /** Owns one DTLS-SRTP WebRTC peer connection for device-originated audio/video uplink. */
@@ -80,7 +164,7 @@ class WebRtcCallEngine(
     context: Context,
     private val callId: String,
     private val mediaMode: CallMediaMode,
-    private val iceConfiguration: IceConfiguration,
+    iceConfiguration: IceConfiguration,
     private val listener: WebRtcCallListener,
     private val captureAudio: Boolean = true,
     private val wallClock: () -> Long = System::currentTimeMillis,
@@ -98,13 +182,21 @@ class WebRtcCallEngine(
     private var cameraCapturer: CameraVideoCapturer? = null
     private var videoSource: VideoSource? = null
     private var videoTrack: VideoTrack? = null
+    private val videoCaptureReadiness = VideoCaptureReadiness()
+    @Volatile
     private var degradedReason: String? = null
+    @Volatile
     private var audioEnabled = false
+    @Volatile
     private var videoEnabled = false
+    @Volatile
+    private var lastMediaState = WebRtcMediaState.NEW
     private var lastPeerState = PeerConnection.PeerConnectionState.NEW
     private var lastIceState = PeerConnection.IceConnectionState.NEW
+    private var iceConfiguration = iceConfiguration
+    private val localIceGenerations = LocalIceGenerationTracker()
 
-    suspend fun createOffer(): WebRtcOffer {
+    suspend fun createOffer(localIceGeneration: Long): WebRtcOffer {
         check(!closed.get()) { "WebRTC engine is closed" }
         require(iceConfiguration.callId == callId) { "ICE configuration call mismatch" }
         if (!iceConfiguration.isUsableAt(wallClock())) {
@@ -115,6 +207,9 @@ class WebRtcCallEngine(
         ) {
             throw WebRtcException("RECORD_AUDIO_PERMISSION_DENIED")
         }
+        if (!appContext.packageManager.hasSystemFeature(PackageManager.FEATURE_MICROPHONE)) {
+            throw WebRtcException("MICROPHONE_UNAVAILABLE")
+        }
         ensureFactoryInitialized()
         val connection = createPeerConnection()
         peerConnection = connection
@@ -123,8 +218,15 @@ class WebRtcCallEngine(
         if (!captureAudio) degradedReason = "AUDIO_CAPTURE_DISABLED_FOR_PROBE"
         if (mediaMode == CallMediaMode.VIDEO_UPLINK) attachVideoIfAvailable(connection)
 
-        val offer = createSessionDescription(connection)
-        setLocalDescription(connection, offer)
+        val offer = try {
+            createSessionDescription(connection).also {
+                localIceGenerations.begin(localIceGeneration, it.description)
+                setLocalDescription(connection, it)
+            }
+        } catch (error: Throwable) {
+            localIceGenerations.cancel(localIceGeneration)
+            throw error
+        }
         publishStatus(WebRtcMediaState.OFFER_READY)
         return WebRtcOffer(
             callId = callId,
@@ -140,6 +242,36 @@ class WebRtcCallEngine(
         val connection = requireNotNull(peerConnection) { "peer connection has not started" }
         setRemoteDescription(connection, SessionDescription(SessionDescription.Type.ANSWER, sdp))
         publishStatus(WebRtcMediaState.CONNECTING)
+    }
+
+    /** Creates the SDP renegotiation required after restartIce; restartIce alone does not signal the peer. */
+    suspend fun createIceRestartOffer(localIceGeneration: Long): WebRtcOffer {
+        check(!closed.get()) { "WebRTC engine is closed" }
+        val connection = requireNotNull(peerConnection) { "peer connection has not started" }
+        if (!iceConfiguration.isUsableAt(wallClock(), minimumRemainingMillis = 5_000)) {
+            throw WebRtcException("ICE_CONFIGURATION_EXPIRED")
+        }
+        connection.restartIce()
+        val offer = try {
+            createSessionDescription(connection, iceRestart = true).also {
+                localIceGenerations.begin(localIceGeneration, it.description)
+                setLocalDescription(connection, it)
+            }
+        } catch (error: Throwable) {
+            localIceGenerations.cancel(localIceGeneration)
+            throw error
+        }
+        publishStatus(WebRtcMediaState.OFFER_READY)
+        return currentOffer(offer)
+    }
+
+    fun replaceIceConfiguration(configuration: IceConfiguration): Boolean {
+        require(configuration.callId == callId) { "ICE configuration call mismatch" }
+        if (!configuration.isUsableAt(wallClock(), minimumRemainingMillis = 5_000)) return false
+        val connection = requireNotNull(peerConnection) { "peer connection has not started" }
+        if (!connection.setConfiguration(rtcConfiguration(configuration))) return false
+        iceConfiguration = configuration
+        return true
     }
 
     fun addRemoteIceCandidate(sdpMid: String?, sdpMLineIndex: Int, candidate: String): Boolean {
@@ -195,6 +327,7 @@ class WebRtcCallEngine(
         peerConnectionFactory = null
         audioDeviceModule?.release()
         eglBase?.release()
+        videoEnabled = videoCaptureReadiness.reset()
         publishStatus(WebRtcMediaState.CLOSED)
     }
 
@@ -243,7 +376,12 @@ class WebRtcCallEngine(
     }
 
     private fun createPeerConnection(): PeerConnection {
-        val servers = iceConfiguration.servers.map { server ->
+        return peerConnectionFactory?.createPeerConnection(rtcConfiguration(iceConfiguration), Observer())
+            ?: throw WebRtcException("PEER_CONNECTION_CREATION_FAILED")
+    }
+
+    private fun rtcConfiguration(configuration: IceConfiguration): PeerConnection.RTCConfiguration {
+        val servers = configuration.servers.map { server ->
             PeerConnection.IceServer.builder(server.urls).apply {
                 if (server.username != null) {
                     setUsername(server.username)
@@ -251,7 +389,7 @@ class WebRtcCallEngine(
                 }
             }.createIceServer()
         }
-        val configuration = PeerConnection.RTCConfiguration(servers).apply {
+        return PeerConnection.RTCConfiguration(servers).apply {
             bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE
             rtcpMuxPolicy = PeerConnection.RtcpMuxPolicy.REQUIRE
             tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.ENABLED
@@ -263,8 +401,6 @@ class WebRtcCallEngine(
             enableCpuOveruseDetection = true
             suspendBelowMinBitrate = true
         }
-        return peerConnectionFactory?.createPeerConnection(configuration, Observer())
-            ?: throw WebRtcException("PEER_CONNECTION_CREATION_FAILED")
     }
 
     private fun attachAudio(connection: PeerConnection) {
@@ -285,6 +421,7 @@ class WebRtcCallEngine(
 
     private fun attachVideoIfAvailable(connection: PeerConnection) {
         val cameraName = availableCameraName() ?: return
+        videoEnabled = videoCaptureReadiness.reset()
         if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.CAMERA) !=
             PackageManager.PERMISSION_GRANTED
         ) {
@@ -292,7 +429,7 @@ class WebRtcCallEngine(
             return
         }
         val enumerator = Camera2Enumerator(appContext)
-        val capturer = enumerator.createCapturer(cameraName, null) ?: run {
+        val capturer = enumerator.createCapturer(cameraName, CameraEvents()) ?: run {
             degradedReason = "CAMERA_OPEN_FAILED"
             return
         }
@@ -304,8 +441,10 @@ class WebRtcCallEngine(
         val helper = SurfaceTextureHelper.create("HelmetVideoCapture", egl.eglBaseContext)
         val source = requireNotNull(peerConnectionFactory).createVideoSource(false)
         capturer.initialize(helper, appContext, source.capturerObserver)
+        degradedReason = "CAMERA_STARTING"
         runCatching { capturer.startCapture(640, 480, 15) }.onFailure {
             degradedReason = "CAMERA_START_FAILED:${it.javaClass.simpleName}"
+            videoEnabled = videoCaptureReadiness.reset()
             source.dispose()
             helper.dispose()
             capturer.dispose()
@@ -314,11 +453,12 @@ class WebRtcCallEngine(
         val track = requireNotNull(peerConnectionFactory).createVideoTrack("helmet-video", source)
         track.setEnabled(true)
         connection.addTrack(track, listOf("helmet-$callId"))
+        videoEnabled = videoCaptureReadiness.onTrackAttached()
+        if (videoEnabled && degradedReason == "CAMERA_STARTING") degradedReason = null
         cameraCapturer = capturer
         surfaceTextureHelper = helper
         videoSource = source
         videoTrack = track
-        videoEnabled = true
     }
 
     private fun availableCameraName(): String? = runCatching {
@@ -327,7 +467,10 @@ class WebRtcCallEngine(
             ?: enumerator.deviceNames.firstOrNull()
     }.getOrNull()
 
-    private suspend fun createSessionDescription(connection: PeerConnection): SessionDescription =
+    private suspend fun createSessionDescription(
+        connection: PeerConnection,
+        iceRestart: Boolean = false,
+    ): SessionDescription =
         suspendCancellableCoroutine { continuation ->
             connection.createOffer(
                 object : SdpObserverAdapter() {
@@ -339,9 +482,19 @@ class WebRtcCallEngine(
                         if (continuation.isActive) continuation.resumeWithException(WebRtcException("SDP_OFFER_FAILED:$error"))
                     }
                 },
-                MediaConstraints(),
+                MediaConstraints().apply {
+                    if (iceRestart) mandatory += MediaConstraints.KeyValuePair("IceRestart", "true")
+                },
             )
         }
+
+    private fun currentOffer(description: SessionDescription) = WebRtcOffer(
+        callId = callId,
+        sdp = description.description,
+        audioEnabled = audioEnabled,
+        videoEnabled = videoEnabled,
+        degradedReason = degradedReason,
+    )
 
     private suspend fun setLocalDescription(connection: PeerConnection, description: SessionDescription) =
         setDescription { observer -> connection.setLocalDescription(observer, description) }
@@ -365,6 +518,7 @@ class WebRtcCallEngine(
         }
 
     private fun publishStatus(state: WebRtcMediaState) {
+        lastMediaState = state
         listener.onStatus(
             WebRtcStatus(
                 callId = callId,
@@ -379,8 +533,45 @@ class WebRtcCallEngine(
     }
 
     private fun reportAudioFailure(code: String, error: String) {
+        audioEnabled = false
         degradedReason = "$code:${error.take(MAX_NATIVE_ERROR_LENGTH)}"
         if (audioFailureReported.compareAndSet(false, true)) publishStatus(WebRtcMediaState.FAILED)
+    }
+
+    private fun reportVideoFailure(code: String, error: String?) {
+        if (closed.get()) return
+        videoEnabled = videoCaptureReadiness.reset()
+        degradedReason = error
+            ?.take(MAX_NATIVE_ERROR_LENGTH)
+            ?.let { "$code:$it" }
+            ?: code
+        publishStatus(WebRtcMediaState.FAILED)
+    }
+
+    private inner class CameraEvents : CameraVideoCapturer.CameraEventsHandler {
+        override fun onCameraError(errorDescription: String) =
+            reportVideoFailure("CAMERA_RUNTIME_ERROR", errorDescription)
+
+        override fun onCameraDisconnected() = reportVideoFailure("CAMERA_DISCONNECTED", null)
+
+        override fun onCameraFreezed(errorDescription: String) =
+            reportVideoFailure("CAMERA_FROZEN", errorDescription)
+
+        override fun onCameraOpening(cameraName: String) {
+            videoEnabled = videoCaptureReadiness.onCameraOpening()
+            degradedReason = "CAMERA_STARTING"
+        }
+
+        override fun onFirstFrameAvailable() {
+            if (closed.get()) return
+            videoEnabled = videoCaptureReadiness.onFirstFrameAvailable()
+            if (videoEnabled && degradedReason == "CAMERA_STARTING") degradedReason = null
+            publishStatus(lastMediaState)
+        }
+
+        override fun onCameraClosed() {
+            if (!closed.get()) reportVideoFailure("CAMERA_CLOSED", null)
+        }
     }
 
     private inner class Observer : PeerConnection.Observer {
@@ -407,13 +598,22 @@ class WebRtcCallEngine(
         override fun onIceConnectionReceivingChange(receiving: Boolean) = Unit
 
         override fun onIceGatheringChange(state: PeerConnection.IceGatheringState) {
-            if (state == PeerConnection.IceGatheringState.COMPLETE) listener.onIceGatheringComplete()
+            when (state) {
+                PeerConnection.IceGatheringState.GATHERING -> localIceGenerations.gatheringStarted()
+                PeerConnection.IceGatheringState.COMPLETE -> localIceGenerations.gatheringCompleteGeneration()?.let {
+                    listener.onIceGatheringComplete(it)
+                }
+                PeerConnection.IceGatheringState.NEW -> Unit
+            }
         }
 
         override fun onIceCandidate(candidate: IceCandidate) {
-            listener.onLocalIceCandidate(
-                LocalIceCandidate(candidate.sdpMid, candidate.sdpMLineIndex, candidate.sdp),
-            )
+            localIceGenerations.candidateGeneration(candidate.sdp)?.let { generation ->
+                listener.onLocalIceCandidate(
+                    generation,
+                    LocalIceCandidate(candidate.sdpMid, candidate.sdpMLineIndex, candidate.sdp),
+                )
+            }
         }
 
         override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>) = Unit

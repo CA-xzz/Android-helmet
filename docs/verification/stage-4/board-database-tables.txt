@@ -1,2 +1,0 @@
-android_metadata   media_assets       track_points     
-helmet_events      room_master_table

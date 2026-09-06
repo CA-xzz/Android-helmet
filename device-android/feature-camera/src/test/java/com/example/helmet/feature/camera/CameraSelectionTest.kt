@@ -4,6 +4,7 @@ import com.example.helmet.core.model.FixQuality
 import com.example.helmet.core.model.LocationFix
 import com.example.helmet.core.model.LocationSource
 import java.io.File
+import java.nio.file.Files
 import kotlin.io.path.createTempDirectory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -33,6 +34,14 @@ class CameraSelectionTest {
     }
 
     @Test
+    fun videoUsesAudioOnlyWhenMicrophoneAndPermissionAreBothAvailable() {
+        assertTrue(videoRecordingIncludesAudio(true, true))
+        assertEquals(false, videoRecordingIncludesAudio(false, true))
+        assertEquals(false, videoRecordingIncludesAudio(true, false))
+        assertEquals(false, videoRecordingIncludesAudio(false, false))
+    }
+
+    @Test
     fun recoveryDeletesOnlyIncompleteMediaFiles() {
         val root = createTempDirectory("helmet-media-recovery").toFile()
         try {
@@ -45,6 +54,22 @@ class CameraSelectionTest {
             assertTrue(complete.isFile)
         } finally {
             root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun recoveryDoesNotTraverseSymbolicLinkDirectories() {
+        val root = createTempDirectory("helmet-media-recovery-root").toFile()
+        val external = createTempDirectory("helmet-media-recovery-external").toFile()
+        try {
+            val externalPartial = File(external, "outside.jpg.partial").apply { writeBytes(byteArrayOf(1)) }
+            Files.createSymbolicLink(File(root, "linked").toPath(), external.toPath())
+
+            assertEquals(0, MediaFileRecovery.deleteIncompleteFiles(root))
+            assertTrue(externalPartial.isFile)
+        } finally {
+            root.deleteRecursively()
+            external.deleteRecursively()
         }
     }
 

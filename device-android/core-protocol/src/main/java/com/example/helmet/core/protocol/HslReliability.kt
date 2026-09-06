@@ -25,6 +25,10 @@ class HslReliableCommandTracker(
 
     fun acknowledge(sequence: Int): Boolean = pending.remove(sequence) != null
 
+    fun isPending(sequence: Int): Boolean = sequence in pending
+
+    fun clear(): List<HslFrame> = pending.values.map { it.frame }.also { pending.clear() }
+
     fun poll(nowMillis: Long): HslRetryBatch {
         val retries = mutableListOf<HslFrame>()
         val timedOut = mutableListOf<Int>()
@@ -92,14 +96,22 @@ class HslDuplicateWindow(private val capacity: Int = 64) {
     }
 
     fun accept(type: Int, sequence: Int): Boolean {
-        require(type in 0..0xFF)
-        require(sequence in 0..0xFFFF)
-        val key = (type.toLong() shl 16) or sequence.toLong()
+        val key = key(type, sequence)
         if (!keys.add(key)) return false
         if (keys.size > capacity) {
             val oldest = keys.iterator().next()
             keys.remove(oldest)
         }
         return true
+    }
+
+    fun contains(type: Int, sequence: Int): Boolean = key(type, sequence) in keys
+
+    fun reset() = keys.clear()
+
+    private fun key(type: Int, sequence: Int): Long {
+        require(type in 0..0xFF)
+        require(sequence in 0..0xFFFF)
+        return (type.toLong() shl 16) or sequence.toLong()
     }
 }

@@ -43,6 +43,26 @@ class SafetyReplayTest {
         assertEquals(0, report.statistics.getValue(ReplayLabel.NEAR_ELECTRIC).falseNegative)
     }
 
+    @Test
+    fun replayDatasetsExerciseImpactShakeAndHeightProductionPaths() {
+        val expected = mapOf(
+            "impact-synthetic.csv" to ReplayLabel.IMPACT,
+            "violent-shake-synthetic.csv" to ReplayLabel.VIOLENT_SHAKE,
+            "height-synthetic.csv" to ReplayLabel.HEIGHT_LIMIT,
+        )
+
+        expected.forEach { (fileName, label) ->
+            val dataset = SafetyReplayCsv.parse(
+                File("simulator/datasets/stage-6/$fileName").reader(),
+            )
+            val report = SafetyReplayEvaluator().evaluate(dataset)
+
+            assertFalse(report.finalHardwareEvidence)
+            assertTrue("$fileName did not produce $label", report.statistics.getValue(label).truePositive >= 1)
+            assertEquals(0, report.statistics.getValue(label).falseNegative)
+        }
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsMissingEvidenceMetadata() {
         SafetyReplayCsv.parse(

@@ -2,8 +2,6 @@ package com.example.helmet.communication.sync
 
 import android.content.Context
 import android.security.KeyChain
-import com.example.helmet.core.model.BroadcastPlaybackState
-import com.example.helmet.core.model.DeviceCommand
 import java.io.File
 import java.net.InetAddress
 import java.net.Socket
@@ -22,6 +20,7 @@ import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509ExtendedKeyManager
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -55,6 +54,83 @@ data class MqttConnectionStatus(
     val detail: String? = null,
 )
 
+internal enum class MqttInboundKind {
+    COMMAND_WAKE,
+    APPLICATION_RECEIPT,
+}
+
+internal fun classifyMqttInbound(
+    topic: String,
+    deviceId: String,
+    qos: Int,
+    retained: Boolean,
+): MqttInboundKind {
+    if (qos != 1 || retained) {
+        throw MqttProtocolException("MQTT delivery attributes are invalid")
+    }
+    return when {
+        topic == MqttDeviceProtocol.commandTopic(deviceId) -> MqttInboundKind.COMMAND_WAKE
+        topic.startsWith("helmet/v1/devices/$deviceId/down/result/") ->
+            MqttInboundKind.APPLICATION_RECEIPT
+        else -> throw MqttProtocolException("MQTT downlink topic is unsupported")
+    }
+}
+
+internal suspend fun processMqttIncomingDelivery(
+    topic: String,
+    payload: ByteArray,
+    qos: Int,
+    retained: Boolean,
+    deviceId: String,
+    onCommandWake: suspend () -> Unit,
+    onApplicationReceipt: (MqttApplicationReceipt) -> Unit,
+) {
+    when (classifyMqttInbound(topic, deviceId, qos, retained)) {
+        MqttInboundKind.COMMAND_WAKE -> onCommandWake()
+        MqttInboundKind.APPLICATION_RECEIPT -> onApplicationReceipt(
+            MqttDeviceProtocol.parseApplicationReceipt(topic, payload, deviceId),
+        )
+    }
+}
+
+internal fun shouldAcknowledgeOversizedMqttDelivery(qos: Int): Boolean = qos == 1
+
+internal fun isValidMqttCertificateAlias(alias: String): Boolean =
+    alias.matches(Regex("^[A-Za-z0-9._:-]{1,256}$"))
+
+internal const val MAX_BUFFERED_MQTT_INCOMING_MESSAGES = 16
+internal const val MAX_MQTT_INCOMING_PAYLOAD_BYTES = 64 * 1_024
+
+internal enum class MqttIncomingAdmission {
+    ACCEPTED,
+    QUEUE_FULL,
+    OVERSIZED_ACKNOWLEDGED,
+    OVERSIZED_UNACKNOWLEDGED,
+}
+
+internal fun admitMqttIncomingPayload(
+    commandWake: Boolean,
+    payload: ByteArray,
+    qos: Int,
+    offer: (ByteArray) -> Boolean,
+): MqttIncomingAdmission {
+    if (!commandWake && payload.size > MAX_MQTT_INCOMING_PAYLOAD_BYTES) {
+        return if (shouldAcknowledgeOversizedMqttDelivery(qos)) {
+            MqttIncomingAdmission.OVERSIZED_ACKNOWLEDGED
+        } else {
+            MqttIncomingAdmission.OVERSIZED_UNACKNOWLEDGED
+        }
+    }
+    val bufferedPayload = if (commandWake) EMPTY_MQTT_PAYLOAD else payload.copyOf()
+    return if (offer(bufferedPayload)) {
+        MqttIncomingAdmission.ACCEPTED
+    } else {
+        MqttIncomingAdmission.QUEUE_FULL
+    }
+}
+
+private val EMPTY_MQTT_PAYLOAD = ByteArray(0)
+
 object MqttDeviceSessionRegistry {
     @Volatile
     private var active: MqttDeviceSession? = null
@@ -78,23 +154,24 @@ object MqttDeviceSessionRegistry {
 class MqttDeviceSession(
     context: Context,
     brokerUri: String,
-    override val deviceId: String,
+    val deviceId: String,
     private val certificateAlias: String,
     parentScope: CoroutineScope,
-    private val onCommand: suspend (DeviceCommand) -> Unit,
+    private val onCommandWake: suspend () -> Unit,
     private val onReady: suspend () -> Unit,
     private val onStatus: (MqttConnectionStatus) -> Unit = {},
     private val wallClock: () -> Long = System::currentTimeMillis,
-) : DeviceMessageTransport, AutoCloseable {
+) : AutoCloseable {
     private val applicationContext = context.applicationContext
     private val endpoint = MqttDeviceProtocol.normalizeBrokerUri(brokerUri)
     private val sessionJob = SupervisorJob(parentScope.coroutineContext[Job])
     private val scope = CoroutineScope(parentScope.coroutineContext + sessionJob)
-    private val incoming = Channel<IncomingMessage>(Channel.UNLIMITED)
+    private val incoming = Channel<IncomingMessage>(MAX_BUFFERED_MQTT_INCOMING_MESSAGES)
     private val pendingReceipts = ConcurrentHashMap<String, CompletableDeferred<MqttApplicationReceipt>>()
     private val ready = AtomicBoolean(false)
     private val closed = AtomicBoolean(false)
     private val initialReady = CompletableDeferred<Unit>()
+    private val terminalFailure = CompletableDeferred<Throwable>()
     private val persistenceDirectory = File(applicationContext.noBackupFilesDir, "mqtt-persistence")
     private lateinit var client: MqttAsyncClient
 
@@ -102,7 +179,7 @@ class MqttDeviceSession(
         get() = ready.get() && ::client.isInitialized && client.isConnected
 
     init {
-        require(certificateAlias.matches(Regex("^[A-Za-z0-9._:-]{1,128}$"))) {
+        require(isValidMqttCertificateAlias(certificateAlias)) {
             "MQTT certificate alias is invalid"
         }
         MqttDeviceProtocol.commandTopic(deviceId)
@@ -153,31 +230,15 @@ class MqttDeviceSession(
         publishAndAwait(uplink)
     }
 
-    override suspend fun acknowledgeCommand(command: DeviceCommand, status: String, error: String?) {
-        publishAndAwait(MqttDeviceProtocol.commandAcknowledgement(deviceId, command, status, error))
-    }
-
-    override suspend fun sendBroadcastReceipt(
-        broadcastId: String,
-        state: BroadcastPlaybackState,
-        occurredAtEpochMillis: Long,
-        error: String?,
-    ) {
-        publishAndAwait(
-            MqttDeviceProtocol.broadcastReceipt(
-                deviceId,
-                broadcastId,
-                state,
-                occurredAtEpochMillis,
-                error,
-            ),
-        )
+    suspend fun awaitTermination(): Nothing {
+        throw terminalFailure.await()
     }
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
         ready.set(false)
         incoming.close()
+        terminalFailure.complete(CancellationException("MQTT session closed"))
         pendingReceipts.values.forEach { it.cancel() }
         pendingReceipts.clear()
         if (::client.isInitialized) {
@@ -219,6 +280,8 @@ class MqttDeviceSession(
             receipt
         } catch (error: CommunicationException) {
             throw error
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Throwable) {
             throw CommunicationException("MQTT request failed", retryable = true, cause = error)
         } finally {
@@ -231,9 +294,11 @@ class MqttDeviceSession(
             if (closed.get()) return
             ready.set(false)
             val filter = "helmet/v1/devices/$deviceId/down/#"
-            client.subscribe(filter, 1, null, object : IMqttActionListener {
+            try {
+                client.subscribe(filter, 1, null, object : IMqttActionListener {
                 override fun onSuccess(asyncActionToken: IMqttToken) {
-                    val rejected = asyncActionToken.grantedQos?.any { it !in 0..2 } == true
+                    val granted = asyncActionToken.grantedQos
+                    val rejected = granted == null || granted.isEmpty() || granted.any { it != 1 }
                     if (rejected) {
                         handleSubscriptionFailure(IllegalStateException("MQTT subscription rejected"))
                         return
@@ -247,7 +312,10 @@ class MqttDeviceSession(
                 override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable) {
                     handleSubscriptionFailure(exception)
                 }
-            })
+                })
+            } catch (error: Throwable) {
+                handleSubscriptionFailure(error)
+            }
         }
 
         override fun connectionLost(cause: Throwable?) {
@@ -256,15 +324,36 @@ class MqttDeviceSession(
         }
 
         override fun messageArrived(topic: String, message: MqttMessage) {
-            incoming.trySend(
-                IncomingMessage(
-                    topic = topic,
-                    payload = message.payload.copyOf(),
+            val commandWake = topic == MqttDeviceProtocol.commandTopic(deviceId)
+            when (
+                admitMqttIncomingPayload(
+                    commandWake = commandWake,
+                    payload = message.payload,
                     qos = message.qos,
-                    retained = message.isRetained,
-                    messageId = message.id,
-                ),
-            )
+                ) { payload ->
+                    incoming.trySend(
+                        IncomingMessage(
+                            topic = topic,
+                            payload = payload,
+                            qos = message.qos,
+                            retained = message.isRetained,
+                            messageId = message.id,
+                        ),
+                    ).isSuccess
+                }
+            ) {
+                MqttIncomingAdmission.ACCEPTED -> Unit
+                MqttIncomingAdmission.QUEUE_FULL -> onStatus(
+                    MqttConnectionStatus(MqttConnectionState.PROCESSING_ERROR, "MQTT_WAKE_QUEUE_FULL"),
+                )
+                MqttIncomingAdmission.OVERSIZED_ACKNOWLEDGED -> {
+                    onStatus(MqttConnectionStatus(MqttConnectionState.MESSAGE_REJECTED, "MQTT_PAYLOAD_TOO_LARGE"))
+                    runCatching { client.messageArrivedComplete(message.id, message.qos) }
+                }
+                MqttIncomingAdmission.OVERSIZED_UNACKNOWLEDGED -> onStatus(
+                    MqttConnectionStatus(MqttConnectionState.MESSAGE_REJECTED, "MQTT_PAYLOAD_TOO_LARGE"),
+                )
+            }
         }
 
         override fun deliveryComplete(token: IMqttDeliveryToken?) = Unit
@@ -273,6 +362,7 @@ class MqttDeviceSession(
     private fun handleSubscriptionFailure(error: Throwable) {
         ready.set(false)
         initialReady.completeExceptionally(error)
+        terminalFailure.complete(error)
         onStatus(MqttConnectionStatus(MqttConnectionState.ERROR, safeDetail(error)))
         runCatching { client.disconnectForcibly() }
     }
@@ -281,35 +371,23 @@ class MqttDeviceSession(
         for (message in incoming) {
             var acknowledge = false
             try {
-                if (message.qos != 1 || message.retained) {
-                    throw MqttProtocolException("MQTT delivery attributes are invalid")
-                }
-                when {
-                    message.topic == MqttDeviceProtocol.commandTopic(deviceId) -> onCommand(
-                        MqttDeviceProtocol.parseCommand(
-                            message.topic,
-                            message.payload,
-                            deviceId,
-                            wallClock(),
-                        ),
-                    )
-                    message.topic.startsWith(
-                        "helmet/v1/devices/$deviceId/down/result/",
-                    ) -> {
-                        val receipt = MqttDeviceProtocol.parseApplicationReceipt(
-                            message.topic,
-                            message.payload,
-                            deviceId,
-                        )
+                processMqttIncomingDelivery(
+                    topic = message.topic,
+                    payload = message.payload,
+                    qos = message.qos,
+                    retained = message.retained,
+                    deviceId = deviceId,
+                    onCommandWake = onCommandWake,
+                    onApplicationReceipt = { receipt ->
                         pendingReceipts[receipt.messageId]?.complete(receipt)
-                    }
-                    else -> throw MqttProtocolException("MQTT downlink topic is unsupported")
-                }
+                    },
+                )
                 acknowledge = true
             } catch (error: MqttProtocolException) {
                 acknowledge = true
                 onStatus(MqttConnectionStatus(MqttConnectionState.MESSAGE_REJECTED, safeDetail(error)))
             } catch (error: Throwable) {
+                if (error is CancellationException) throw error
                 onStatus(MqttConnectionStatus(MqttConnectionState.PROCESSING_ERROR, safeDetail(error)))
             }
             if (acknowledge && ::client.isInitialized) {
@@ -336,9 +414,10 @@ class MqttDeviceSession(
         private const val APPLICATION_RECEIPT_TIMEOUT_MILLIS = 30_000L
         private const val DISCONNECT_TIMEOUT_MILLIS = 500L
         private const val DISCONNECT_QUIESCE_MILLIS = 500L
-
-        private fun safeDetail(error: Throwable): String =
-            (error.message ?: error.javaClass.simpleName).take(512)
+        private fun safeDetail(error: Throwable): String = buildString {
+            append(error.javaClass.name)
+            error.cause?.let { cause -> append(" cause=").append(cause.javaClass.name) }
+        }.take(512)
     }
 }
 

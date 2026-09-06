@@ -1,0 +1,18 @@
+# dataset_id=height-synthetic-v1
+# sample_rate_hz=10
+# source=synthetic
+# final_hardware_evidence=false
+sample_ref,monotonic_ms,accel_x_mg,accel_y_mg,accel_z_mg,gyro_x_mdps,gyro_y_mdps,gyro_z_mdps,electric_mv,pressure_pa,temperature_centi_c,altitude_mm,label
+1,100,,,,,,,,101325,2000,100000,NONE
+2,200,,,,,,,,101325,2000,100000,NONE
+3,300,,,,,,,,101325,2000,100000,NONE
+4,400,,,,,,,,101325,2000,100000,NONE
+5,500,,,,,,,,101325,2000,100000,NONE
+6,600,,,,,,,,101325,2000,100000,NONE
+7,700,,,,,,,,101325,2000,100000,NONE
+8,800,,,,,,,,101325,2000,100000,NONE
+9,900,,,,,,,,101325,2000,100000,NONE
+10,1000,,,,,,,,101325,2000,100000,NONE
+11,1100,,,,,,,,101075,2000,102200,NONE
+12,1200,,,,,,,,101075,2000,102200,NONE
+13,1300,,,,,,,,101075,2000,102200,HEIGHT_LIMIT

@@ -119,7 +119,7 @@ object HslPayloadCodec {
         val localActions = payload[17].toInt() and 0xFF
         val sensorFaults = payload.u16Le(18)
         require(alarmId != 0L) { "alarmId must be non-zero" }
-        require(alarmType in 1..6) { "invalid alarmType" }
+        require(alarmType in 1..7) { "invalid alarmType" }
         require(severity in 0..4) { "invalid alarm severity" }
         require(state in 0..1) { "invalid alarm state" }
         require(configVersion != 0) { "configVersion must be non-zero" }

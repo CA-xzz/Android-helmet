@@ -1,0 +1,5 @@
+captured_host_utc=2026-08-19T14:35:49Z
+adb_serial=2c001031774186e21d3
+adb: device '2c001031774186e21d3' not found
+
+command_exit=1

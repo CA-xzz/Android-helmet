@@ -1,43 +1,24 @@
-# 需求追踪矩阵
+# 说明书需求追踪
 
-基准：`最终版安全帽说明书.docx`
+基准：`最终版安全帽说明书.docx`。软件验证与真实外设验收分开记录。
 
-SHA-256：`105cac44d389ead143007f73ff94bb59fd2fc1041e9ffc397ced331a729481cd`
+| 功能 | 软件结果 | H618 外设结果 |
+|---|---|---|
+| 短按拍照 | 按键持久动作、Camera2、媒体队列和失败降级测试通过 | CameraService 枚举 0 个摄像头；待接摄像头和真实按键 |
+| 长按 2 秒开始或停止 1080p 录像 | 长按策略、录像状态机、1080p 选择、自动停止和恢复测试通过 | 待接支持 1080p 的摄像头和真实按键 |
+| 呼叫键开始或结束音视频通话 | 呼叫持久化、HTTP 命令、WebRTC 信令、统一推流状态和资源释放测试通过 | 板端未声明麦克风且无摄像头，正确返回麦克风不可用；待接音视频设备 |
+| 通话音量键 | 幂等按键动作和板端 AudioManager 测试通过 | 待真实按键和扬声器听感确认 |
+| 开机、网络、拍照、录像、通话、告警、关机语音 | 提示策略、通话提示和失败回退测试通过 | AudioTrack 已消费回放帧；待扬声器听感确认 |
+| 普通定位和轨迹 | Location、UART NMEA、Room 和批量上传路径通过 | 板卡无 GNSS provider；PTY NMEA 软件闭环通过，待接 GNSS |
+| 离线轨迹缓存和恢复上传 | 跨进程离线恢复和开机自动恢复板测通过 | 已在目标 H618 验证 |
+| 电子围栏 | 本地进出围栏、持久化和自动上传板测通过 | PTY NMEA 软件闭环通过；真实定位待 GNSS |
+| 文字广播 TTS | 命令轮询、TTS 状态和持久回执测试通过 | 待 TTS 引擎和扬声器听感确认 |
+| 语音消息 | 录音元数据、加密存储、持久队列和分片上传测试通过 | 麦克风采集 16000 帧全零；待接可用麦克风 |
+| 跌落、冲击、剧烈晃动 | 生产检测代码的确定性回放、持久化和恢复测试通过 | 待接并标定 IMU |
+| 近电告警 | 基线、连续样本、分级、清除和恢复测试通过 | 待接近电传感器并现场标定 |
+| 高度告警 | 高度和气压两种输入、连续确认、迟滞和恢复测试通过 | 待接高度或气压传感器并标定 |
+| 电量 20%、10%、5% 提示 | 阈值去重、充电复位和重启恢复测试通过 | 系统报告 `present=false`；待接可读电量计 |
+| LoRa 本地对讲 | HSL 控制、状态、失败和重连接口测试通过 | 待接 LoRa 语音模块并提供厂商协议 |
+| GNSS/RTK | NMEA、RTCM3、NTRIP、质量模型和断线恢复测试通过 | 待接 GNSS/RTK、天线和差分源 |
 
-状态定义：未实现、软件完成待实机、已完成。当前为 0 项未实现、31 项软件完成待实机、0 项已完成。
-
-`tools/validate-requirements-traceability.py` 校验 31 个固定 REQ、10 列结构、顺序、状态汇总、阻塞项和当前管理端证据。模拟输入和回环链路不作为最终硬件证据。
-
-| REQ | 条款 | 验收指标 | 设计文档 | 实现文件 | 自动测试 | 开发板或硬件证据 | 后台证据 | 状态 | 阻塞项 |
-|---|---|---|---|---|---|---|---|---|---|
-| REQ-5.1-01 | 5.1 普通定位 | 真实北斗或 GNSS 与可用辅助信息融合，水平误差 0 至 5 米 | ARCHITECTURE、HARDWARE_INTERFACE | `AndroidLocationController.kt`、`NmeaParser.kt` | 定位能力、NMEA 和模型测试 | H618 验证权限与无 fix 路径；无真实接收机 | 轨迹接口保留精度和质量字段 | 软件完成待实机 | OQ-003 |
-| REQ-5.1-02 | 5.1 高精度定位 | RTK 固定解，已知基准点水平误差不大于 0.5 米 | HARDWARE_INTERFACE、EXTERNAL_MODULE_PROTOCOL、TEST_PLAN | `NtripCorrectionClient.kt`、`Rtcm3Codec.kt`、`ExternalRtkFixAssembler.kt` | RTCM、NTRIP、NMEA 和凭据测试 | H618 回环验证修正数据链；无接收机、天线和基准点 | 状态接口显示差分和 fix 质量 | 软件完成待实机 | OQ-003 |
-| REQ-5.1-03 | 5.1 实时跟踪与轨迹 | 移动中连续更新位置，轨迹时间和顺序正确 | ARCHITECTURE、BACKEND_PROTOCOL | `TrackStore.kt`、`TrackUploadWorker.kt` | 顺序、持久化和上传测试 | `geofence-uart-board-e2e.txt` 验证 H618 外部合成 NMEA 经生产服务形成 6 个有序轨迹点并自动送达后台；无真实移动轨迹 | 后台按序保存轨迹 | 软件完成待实机 | OQ-003、OQ-012、OQ-013 |
-| REQ-5.1-04 | 5.1 离线补传 | 断网采集，重启保留，恢复后幂等补传 | ARCHITECTURE、TEST_PLAN | `TrackPointDao.kt`、`TrackStore.kt`、`TrackUploadWorker.kt` | Room 重开、WorkManager 路由切换、失败恢复、重复提交和多批次续传测试 | `durable-offline-recovery-board-test.txt` 验证 H618 无默认网络时任务保留、进程重启、回环路由补传及一次调度处理 201 条轨迹；`automatic-startup-queue-recovery-board-test.txt` 验证主应用启动自动恢复待发送轨迹；无真实 4G/5G | 消息 ID 与设备序号幂等 | 软件完成待实机 | OQ-004、OQ-012 |
-| REQ-5.1-05 | 5.1 电子围栏 | 可配置围栏，真实越界自动报警并可处置 | ARCHITECTURE、BACKEND_PROTOCOL | `GeofenceEngine.kt`、`GeofenceAlertFactory.kt` | 滞回、连续样本、无 fix 和外部 UART 自动上传测试 | `geofence-uart-board-e2e.txt` 验证 H618 外部合成 NMEA 经生产服务自动形成退出和返回事件并送达后台；无真实 GNSS 和人员越界 | 同一告警保存 ACTIVATED、CLEARED、提醒字段和位置 | 软件完成待实机 | OQ-003、OQ-012 |
-| REQ-5.1-06 | 5.1 多级权限 | 组织、管理员、调度和查看角色隔离，越权拒绝并审计 | ARCHITECTURE、BACKEND_PROTOCOL | `media_service.py`、`auth-config.example.json`、`dashboard/` | 两组织、多角色和跨组织拒绝测试 | H618 导入联调身份配置 | `dashboard-access-center-regression.txt` 验证权限中心和拒绝审计 | 软件完成待实机 | OQ-012 |
-| REQ-5.1-07 | 5.1 地图综合展示 | 同屏显示人员位置、轨迹、实时视频、电量和电压 | ARCHITECTURE、HARDWARE_INTERFACE | `RuntimeConfigStore.kt`、`DeviceStatusWorker.kt`、`BatteryStatusReader.kt`、`dashboard/` | 人员配置持久化、自动状态心跳、管理端自动刷新、地图、角色和视频失败反馈测试 | `automatic-status-heartbeat-board-test.txt` 验证 H618 前台服务自动上报人员编号、启动状态、校时状态和 60 秒心跳；无真实电池、位置和视频 | `dashboard-auto-refresh-regression.txt` 验证页面无需手动刷新即可更新人员、位置、电池、电压和地图告警 | 软件完成待实机 | OQ-001、OQ-003、OQ-009、OQ-012 |
-| REQ-5.2-01 | 5.2 物理键拍照录像 | 真实按键触发拍照、开始录像和停止录像 | HARDWARE_INTERFACE、EXTERNAL_MODULE_PROTOCOL | `HslEventMapper.kt`、`Camera2MediaController.kt` | 按键映射、相机选择和故障测试 | 无摄像头时明确失败；无真实按键和摄像头 | 失败事件可持久化 | 软件完成待实机 | OQ-001、OQ-010 |
-| REQ-5.2-02 | 5.2 连续高清录像 | 连续 1080P，记录帧率、时长、温升和文件完整性 | HARDWARE_INTERFACE、TEST_PLAN | `Camera2MediaController.kt` | 相机配置和残留文件恢复测试 | 当前 CameraService 无可用设备 | 合成媒体可归档；无真实录像 | 软件完成待实机 | OQ-001 |
-| REQ-5.2-03 | 5.2 媒体元数据 | 绑定时间、人员、位置、设备、告警和文件校验 | BACKEND_PROTOCOL | `RuntimeConfigStore.kt`、`Camera2MediaController.kt`、`MediaEntity.kt`、`MediaStore.kt`、`media_service.py` | 人员配置持久化、状态载荷、Room 迁移和媒体元数据测试 | `automatic-status-heartbeat-board-test.txt` 验证 H618 生产服务把配置人员编号自动传至后台；无摄像头与 GNSS 组合实测 | 归档保留人员、时间、设备、事件、位置质量和文件校验字段 | 软件完成待实机 | OQ-001、OQ-003、OQ-012 |
-| REQ-5.2-04 | 5.2 在线同步 | 在线自动归档，授权用户可检索和播放 | BACKEND_PROTOCOL、TEST_PLAN | `MediaUploadWorker.kt`、`HttpMediaUploadClient.kt`、`dashboard/` | 列表、筛选、正文校验和权限测试 | H618 合成 JPEG 经真实 Worker 上传 | `dashboard-media-archive-regression.txt` 验证检索、预览和组织隔离 | 软件完成待实机 | OQ-001、OQ-012 |
-| REQ-5.2-05 | 5.2 离线缓存补传 | 断网缓存，重启保留，恢复后续传 | ARCHITECTURE、TEST_PLAN | `MediaDao.kt`、`MediaUploadWorker.kt` | Room 重开、分片续传和多批次调度测试 | `automatic-startup-queue-recovery-board-test.txt` 验证 256 KiB 媒体预置首个 64 KiB 分片后，主应用重启从 nextOffset 65536 自动续传剩余 196608 字节且不重复首片；另以 101 条无效媒体记录验证第二批任务被追加，未验证 101 个真实文件上传 | 上传会话和偏移持久化 | 软件完成待实机 | OQ-001、OQ-004、OQ-012 |
-| REQ-5.2-06 | 5.2 完整性与幂等 | 校验大小和 SHA-256，重复提交不生成重复归档 | BACKEND_PROTOCOL、TEST_PLAN | `MediaIntegrity.kt`、`object_store.py` | 分片、摘要、并发去重和损坏拒绝测试 | `connected-media-upload-tests.log` 验证 H618 续传 700000 字节媒体并重复提交不再上传；`media-backend-archive.txt` 验证归档大小、文件摘要一致且相同内容只保存一个对象 | 本地和 S3 适配执行内容校验 | 软件完成待实机 | OQ-012 |
-| REQ-5.3-01 | 5.3 物理键发起通话 | 真实按键向后台发起语音或视频呼叫 | HARDWARE_INTERFACE、EXTERNAL_MODULE_PROTOCOL | `HslEventMapper.kt`、`CallStore.kt`、`CallMediaCoordinator.kt`、`WebRtcCallEngine.kt` | 状态、信令、WebRTC Offer、弱网分类、持久状态观察和策略保留测试 | `webrtc-bandwidth-policy-board-test.txt` 验证 H618 原生 WebRTC、DTLS-SRTP Offer 和带宽模式；`dashboard-webrtc-board-e2e.txt` 验证接听后自动提交 Offer 并应用浏览器 Answer；`webrtc-connected-recovery-board-test.txt` 验证持久 `CONNECTED` 呼叫生成新 Offer 并跳过旧 Answer；无真实按键、媒体和弱网链路 | 后台按序保存 Offer、Answer 和 ICE，并返回活动呼叫的最新 Offer 序号 | 软件完成待实机 | OQ-001、OQ-002、OQ-004、OQ-010、OQ-012 |
-| REQ-5.3-02 | 5.3 后台呼叫控制 | 后台明显提示，可接听、拒绝和挂断 | BACKEND_PROTOCOL、TEST_PLAN | `media_service.py`、`dashboard/`、`HelmetService.kt`、`CommunicationWorker.kt` | 管理端自动刷新、HTTP 自动轮询、持久状态观察、任务迁移、多批次续传、进程恢复、转换、权限、幂等和审计测试 | `android-http-command-polling-board-test.txt` 验证按序处理五条命令；`dashboard-webrtc-board-e2e.txt` 验证 H618 自动应用接听和挂断；`webrtc-connected-recovery-board-test.txt` 验证进程恢复后使用新 Offer 和 Answer，挂断后恢复 `OFFLINE_READY`；持久队列恢复证据见阶段 7 | 两份 WebRTC 开发板记录验证明显提示、接听、实时视频入口、恢复、挂断和信令历史 | 软件完成待实机 | OQ-001、OQ-002、OQ-012 |
-| REQ-5.3-03 | 5.3 设备状态提示 | 呼叫各状态播放明确提示并记录结果 | ARCHITECTURE、HARDWARE_INTERFACE | `CallStatePrompt.kt`、`AndroidTextPlayback.kt` | 提示映射、TTS 失败和降级测试 | H618 保存提示失败和提示音降级；无声学测量 | 呼叫提示结果可审计 | 软件完成待实机 | OQ-002 |
-| REQ-5.3-04 | 5.3 文字广播 | 设备自动播放文字并返回送达和播放结果 | BACKEND_PROTOCOL、TEST_PLAN | `BroadcastStore.kt`、`HelmetService.kt`、`CommunicationWorker.kt`、`dashboard/` | HTTP 自动轮询、顺序、状态、持久回执重放和角色测试 | `android-http-command-polling-board-test.txt` 验证 H618 自动获取广播并返回接收、播放中和失败回执；`durable-offline-recovery-board-test.txt` 验证广播最终回执跨进程按 RECEIVED、FAILED 重放并保留播放错误 | `dashboard-broadcast-console-regression.txt` 验证发送、回执和只读角色 | 软件完成待实机 | OQ-002、OQ-012 |
-| REQ-5.3-05 | 5.3 语音消息 | 后台保存语音消息，授权用户可检索和播放 | BACKEND_PROTOCOL | `MediaKind.VOICE`、`MediaUploadWorker.kt`、`dashboard/` | WAV、摘要、角色、播放和审计测试 | H618 上传合成 WAV；无真实麦克风 | `dashboard-voice-player-regression.txt` 验证检索、播放和组织隔离 | 软件完成待实机 | OQ-002、OQ-012 |
-| REQ-5.3-06 | 5.3 弱覆盖本地对讲 | 专用 LoRa 语音硬件完成距离、时延、丢包和可懂度测试 | HARDWARE_INTERFACE、EXTERNAL_MODULE_PROTOCOL、TEST_PLAN | `LocalIntercomCodec.kt`、`LocalIntercomController.kt` | 协议和控制状态机测试 | H618 验证控制夹具；无无线和音频链路 | 管理端显示链路质量字段 | 软件完成待实机 | OQ-002、OQ-005、OQ-010 |
-| REQ-5.4-01 | 5.4 异常识别 | 识别碰撞、跌落和晃动，统计识别率和误报漏报 | ARCHITECTURE、HARDWARE_INTERFACE、TEST_PLAN | `SafetyDetectionEngine.kt`、`SafetySampleProcessor.kt`、`SafetyReplay.kt` | 合成数据回放、运行接线和边界测试 | `android-safety-runtime-board-test.txt` 验证 H618 软件路径；无 IMU 和真实标注动作集 | Android 检测事件可入库 | 软件完成待实机 | OQ-006、OQ-010 |
-| REQ-5.4-02 | 5.4 报警上报 | 自动上传类型、级别、实时位置和媒体证据 | ARCHITECTURE、BACKEND_PROTOCOL | `SafetySampleProcessor.kt`、`SafetyAlarmPersistence.kt`、`SafetyAlertWorker.kt`、`HelmetService.kt`、`media_service.py`、`dashboard/app.js` | 原始样本、持久化、自动拍照、延迟媒体关联、幂等和管理端入口测试 | `automatic-safety-alert-upload-board-test.txt` 验证 H618 前台服务自动持久化和上传模拟跌倒告警；无真实传感器、位置和媒体 | 后台按同设备和关联事件补出后归档媒体 ID，管理端可预览现场证据 | 软件完成待实机 | OQ-001、OQ-003、OQ-006、OQ-010、OQ-012 |
-| REQ-5.4-03 | 5.4 后台提醒 | 声音和画面提醒，并在地图标记位置 | BACKEND_PROTOCOL、TEST_PLAN | `media_service.py`、`dashboard/` | 自动刷新、提醒字段、地图标记和角色测试 | `safety-alert-workflow-board-test.txt` 验证 H618 自动告警的声音和视觉提醒字段；无可信位置和真实现场告警 | `dashboard-auto-refresh-regression.txt` 验证严重告警自动出现在摘要、地图和告警卡片；声音入口已实现 | 软件完成待实机 | OQ-003、OQ-012 |
-| REQ-5.4-04 | 5.4 处置审计 | 支持确认、处理中和关闭，记录操作者 | BACKEND_PROTOCOL | `media_service.py`、`dashboard/` | 四状态转换、非法转换、权限、重开仓储和审计测试 | `safety-alert-workflow-board-test.txt` 验证 H618 自动告警的确认、处理中、关闭、操作者历史和后台重启持久化；无真实告警处置演练 | 后台保存四状态历史和操作者 | 软件完成待实机 | OQ-012 |
-| REQ-5.5-01 | 5.5 连续近电检测 | 连续采样工频电场并自动建立基线 | HARDWARE_INTERFACE、EXTERNAL_MODULE_PROTOCOL | `SafetyDetectionEngine.kt`、`SafetySampleProcessor.kt`、`SafetyStore.kt` | 基线、漂移、运行接线和异常输入测试 | `android-safety-runtime-board-test.txt` 验证 H618 合成样本路径；无工频电场传感器 | 样本和配置可保存 | 软件完成待实机 | OQ-007、OQ-010 |
-| REQ-5.5-02 | 5.5 强度和累积 | 记录电场存在、强度、累积值、时间和位置 | ARCHITECTURE、BACKEND_PROTOCOL | `SafetySampleProcessor.kt`、`SafetyModels.kt`、`SafetyAlertWorker.kt` | 字段、持久化和上传测试 | `android-safety-runtime-board-test.txt` 验证完整检测字段；`near-electric-alert-board-e2e.txt` 验证生产前台服务自动持久化和上传 920 毫伏模拟近电样本及 `CRITICAL` 告警，Room 和后台字段一致；无受控电气环境 | 后台保留近电字段 | 软件完成待实机 | OQ-003、OQ-007、OQ-012 |
-| REQ-5.5-03 | 5.5 分级报警 | 按电压、距离或标定阈值分级 | HARDWARE_INTERFACE、TEST_PLAN | `SafetyDetectionEngine.kt`、`SafetySampleProcessor.kt`、`RuntimeConfigStore.kt` | 阈值、配置范围、运行接线和摘要测试 | `android-safety-runtime-board-test.txt` 验证合成阈值事件；无真实标定 | 后台显示报警级别和阈值版本 | 软件完成待实机 | OQ-007、OQ-010 |
-| REQ-5.5-04 | 5.5 本地报警与补传 | 立即语音、LED、振动；断网后补传 | ARCHITECTURE、HARDWARE_INTERFACE | `SafetyOutputCommand.kt`、`HslOutputCodec.kt`、`LocalFeedbackController.kt`、`SafetyAlertWorker.kt` | 输出协议、本地动作、告警持久化、Worker 路由、恢复和多批次续传测试 | `near-electric-alert-board-e2e.txt` 验证生产前台服务自动持久化近电告警并由 Worker 上传，`android-safety-runtime-board-test.txt` 验证输出命令路径，`durable-offline-recovery-board-test.txt` 验证一次调度上传 101 条合成近电告警，`automatic-startup-queue-recovery-board-test.txt` 验证主应用启动自动恢复待发送合成近电告警；无执行器、近电传感器和真实移动网络 | 告警幂等保存和处置 | 软件完成待实机 | OQ-002、OQ-007、OQ-010、OQ-012 |
-| REQ-5.6-01 | 5.6 连续高度检测 | 连续采样并随移动更新垂直高度 | HARDWARE_INTERFACE、EXTERNAL_MODULE_PROTOCOL | `SafetyDetectionEngine.kt`、`SafetySampleProcessor.kt`、`SafetyStore.kt` | 基线、漂移、运行接线和时间顺序测试 | `android-safety-runtime-board-test.txt` 验证 H618 合成样本路径；无高度传感器 | 高度样本可保存 | 软件完成待实机 | OQ-008、OQ-010 |
-| REQ-5.6-02 | 5.6 阈值风险评估 | 使用可配置阈值判断高度风险 | ARCHITECTURE、TEST_PLAN | `SafetyDetectionEngine.kt`、`SafetySampleProcessor.kt`、`RuntimeConfigStore.kt` | 阈值、滞回、运行接线和配置测试 | `android-safety-runtime-board-test.txt` 验证合成阈值事件；无真实高度场景 | 后台显示风险级别和配置版本 | 软件完成待实机 | OQ-008 |
-| REQ-5.6-03 | 5.6 本地报警 | 超阈值触发 LED、语音和振动 | HARDWARE_INTERFACE | `SafetyOutputCommand.kt`、`HslOutputCodec.kt`、`LocalFeedbackController.kt`、`HelmetService.kt` | 输出协议、动作组合、失败记录和降级测试 | `android-safety-runtime-board-test.txt` 验证输出命令路径；无高度传感器和执行器 | 本地动作结果随事件上传 | 软件完成待实机 | OQ-002、OQ-008、OQ-010 |
-| REQ-5.6-04 | 5.6 事件上传 | 记录高度、阈值、位置和等级，断网后补传 | ARCHITECTURE、BACKEND_PROTOCOL | `SafetySampleProcessor.kt`、`SafetyAlarmPersistence.kt`、`SafetyAlertWorker.kt` | Room、自动上传、字段一致性、关联、断网恢复、幂等和共享 Worker 多批次续传测试 | `height-alert-board-e2e.txt` 验证 H618 生产服务自动持久化和上传模拟高度样本及 `HEIGHT_LIMIT` 告警，Room 为 `DELIVERED`；`android-safety-runtime-board-test.txt` 验证检测持久化路径；无真实高度事件和移动网络 | `height-alert-board-e2e.txt` 验证高度、气压、等级、位置质量、权限拒绝、处置历史和后台重启持久化 | 软件完成待实机 | OQ-003、OQ-004、OQ-008、OQ-012 |
+说明书中的多级组织、管理员角色、运营地图和企业平台页面不属于 H618 Android App，也不作为本仓库实现范围。

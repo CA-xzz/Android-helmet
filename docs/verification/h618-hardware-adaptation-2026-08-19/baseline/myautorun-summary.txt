@@ -1,0 +1,48 @@
+captured_host_utc=2026-08-19T14:33:38Z
+adb_serial=2c001031774186e21d3
+metadata:
+-rwx------ 1 root root 4641 2026-07-29 22:46 /data/myautorun.sh
+  File: /data/myautorun.sh
+  Size: 4641	 Blocks: 16	 IO Blocks: 512	 regular file
+Device: 10309h/66313d	 Inode: 1967	 Links: 1	 Device type: 0,0
+Access: (0700/-rwx------)	Uid: (    0/    root)	Gid: (    0/    root)
+Access: 2026-07-29 12:06:16.468000026 +0800
+Modify: 2026-07-29 22:46:41.336014705 +0800
+Change: 2026-07-29 22:46:41.388014705 +0800
+84877e3cb9a8f991046da12e8fc063931465fb6c4ff8c0b31843dc749c2efc1c  /data/myautorun.sh
+137 /data/myautorun.sh
+selected_references:
+3:HELMET_PACKAGE=com.example.helmet
+4:HELMET_SERVICE=com.example.helmet/com.example.helmet.service.runtime.HelmetService
+5:HELMET_RECOVERY_ACTION=com.example.helmet.action.RECOVERY
+10:HELMET_WATCHDOG_PID_FILE=${HELMET_WATCHDOG_PID_FILE:-/data/helmet-runtime-watchdog.pid}
+23:    printf '%s\n' "helmet-watchdog: $*" >> "$HELMET_WATCHDOG_LOG"
+26:helmet_package_installed() {
+30:helmet_service_running() {
+32:        grep -q 'com.example.helmet/.service.runtime.HelmetService'
+35:start_helmet_runtime() {
+38:    am start-foreground-service --user 0 \
+72:supervise_helmet_runtime() {
+79:    while true; do
+80:        if ! helmet_package_installed; then
+82:        elif helmet_service_running; then
+87:            if start_helmet_runtime "$RECOVERY_SOURCE" "$CONSECUTIVE_FAILURES"; then
+88:                sleep "$HELMET_WATCHDOG_STARTUP_GRACE_SECONDS"
+89:                if helmet_service_running; then
+101:                sleep "$HELMET_WATCHDOG_BACKOFF_SECONDS"
+110:        sleep "$HELMET_WATCHDOG_INTERVAL_SECONDS"
+116:    echo 203 > /sys/class/gpio/export
+117:    echo out > /sys/class/gpio/gpio203/direction
+118:    echo 1 > /sys/class/gpio/gpio203/value
+120:    while [ "$(getprop sys.boot_completed)" != "1" ]; do
+121:        sleep 1
+124:    sleep 5
+127:    am start com.hy.yesobox/com.hy.yesobox.NoScreenActivity
+134:    supervise_helmet_runtime bsp_watchdog
+136:    supervise_helmet_runtime bsp_boot
+processes:
+root          1071  1068 sh                          sh /data/myautorun.sh
+u0_a270       1658   245 com.example.helmet          com.example.helmet
+u0_a270       1847   245 com.example.helmet:hardware com.example.helmet:hardware
+
+command_exit=0

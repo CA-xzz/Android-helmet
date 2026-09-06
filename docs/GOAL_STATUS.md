@@ -1,67 +1,24 @@
-# Goal 状态
+# 当前状态
 
-更新时间：2026-08-11
-
-当前状态：进行中。
+更新时间：2026-08-20。
 
 ## 范围
 
-本阶段只交付 Android 开发板应用、用户态 USB/UART/I²C/JNI 外设接入、后台、管理端，以及说明书第 5.1 至 5.6 的软件实现和开发板联调。
+当前目标只开发 Android App，包括 App 内独立硬件进程、测试工具和硬件交接文档。未修改硬件、设备树、BSP、系统镜像或启动脚本。
 
-不开发 Android 系统固件、内核、设备树、外置模块固件、整机更新、生产签名、量产烧录、硬件结构或产品认证。
+## 已实现
 
-## 当前结果
+- `HELMET_v3_footpin.xlsx` 第 2 至 45 行已逐行进入 H618 Kotlin 板型契约，构建检查遗漏、重复、冲突和未确认控制。
+- HSL 固定为 `/dev/ttyAS2`、115200、8N1。模块必须完成 HELLO 契约和能力握手，再通过心跳进入可用状态。
+- RTK 默认通过 HSL，同时支持受控配置选择独立 `/dev/ttyAS4`。两个串口运行时完全隔离。
+- Camera2、Audio、ConnectivityManager 和 StorageManager 继续作为摄像头、音频、4G 和存储的标准 Android 接口。
+- 设备检测显示契约版本、模块固件、能力、RTK 模式和逐项状态。模拟或 PTY 结果不会记录为真实硬件通过。
+- 固定 JSON 和 Markdown 交接文件由 Kotlin 契约生成，测试会阻止文档漂移。
+- 完整 Android 测试和构建通过；指定 H618 联机软件回归 174 项通过。普通重启后主进程、独立硬件进程和前台服务自动恢复，主应用数据保持不变。
 
-- 说明书基线 SHA-256 与目标一致。
-- Android 多模块工程、前台服务、Room、专用离线队列、本地事件日志和启动恢复已实现。
-- 用户态 UART/JNI 硬件服务、外部模块协议、模拟器和协议测试已实现。
-- 原始 IMU、近电和高度样本已接入 Android 安全检测、告警持久化、本地反馈和外部模块输出命令运行路径。
-- 轨迹、电子围栏、媒体、设备人员绑定、呼叫、广播、语音消息、安全告警、现场媒体动态关联、处置审计和权限隔离已实现。
-- 后台、管理端和开发板联调路径可运行。
-- 需求矩阵为 0 项未实现、31 项软件完成待实机、0 项已完成。
+## 当前开发板限制
 
-## 已验证
-
-- Android 主机单元测试、Lint、APK 构建和开发板仪器测试已有记录。
-- H618 上已验证应用安装、启动、前台服务恢复、Room 持久化、UART 打开关闭、离线队列恢复和 ADB 回环端到端链路。
-- H618 在没有 Android 默认网络时，轨迹、媒体和告警的远端路由任务保持等待；测试进程终止并切换 ADB 回环路由后，旧任务被取消，新任务由 WorkManager 自动上传。记录见 `docs/verification/stage-7/durable-offline-recovery-board-test.txt`。该记录不替代真实 4G/5G 断网恢复测试。
-- H618 已验证超过单次 Worker 上限的队列续传。一次调度可处理 201 条轨迹、101 条合成近电告警和 101 条通话记录；101 条无效媒体记录用于验证媒体任务能追加第二批。记录见 `docs/verification/stage-7/durable-offline-recovery-board-test.txt`。
-- H618 已验证通信持久队列的进程重启恢复。待发送通话、命令确认和广播最终回执在强制终止测试进程后由 WorkManager 送达；广播回执按 RECEIVED、FAILED 顺序重放，原始播放错误保持不变。记录见 `docs/verification/stage-7/durable-offline-recovery-board-test.txt`。
-- H618 已验证生产启动路径自动恢复持久队列。测试先写入 attemptCount 为 0 的轨迹、媒体、合成近电告警和通话，并向 256 KiB 媒体会话预置首个 64 KiB 分片；强制停止主应用后只启动应用进程，HelmetApplication 和 HelmetService 自动调度四类 Worker 并全部送达。媒体 Worker 从 nextOffset 65536 继续上传剩余 196608 字节，没有重复首片。测试不调用 Worker 或其 enqueue 方法，记录见 `docs/verification/stage-7/automatic-startup-queue-recovery-board-test.txt`。
-- 主应用已删除没有传输实现的通用事件上传任务。运行状态显示本地持久事件数，不再把本地事件日志标为待发送队列。
-- Room 版本 8 已删除本地事件日志中无用途的投递状态列。H618 上 1→8 迁移测试通过，主应用保留原有数据完成 7→8 覆盖升级，事件内容继续保留。
-- H618 在没有 Android 默认网络时，通过 ADB 回环验证了前台服务自动上报启动状态、已配置人员编号、服务器校时状态和 60 秒心跳，测试不直接调用 Worker。相机控制器使用同一运行配置写入媒体人员字段；当前没有摄像头，尚无真实媒体组合证据。记录见 `docs/verification/stage-7/automatic-status-heartbeat-board-test.txt`。
-- H618 在没有 Android 默认网络时，通过 ADB 回环验证了前台服务接收模拟跌倒输入后自动持久化样本和告警，并由 SafetyAlertWorker 上传到后台。测试不直接创建告警或调用 Worker，记录见 `docs/verification/stage-7/automatic-safety-alert-upload-board-test.txt`。该记录不替代真实 IMU、位置和媒体证据。
-- H618 自动生成的模拟跌倒告警已验证后台提醒字段、只读角色拒绝、确认、处理中、关闭、操作者历史和后台重启持久化，记录见 `docs/verification/stage-7/safety-alert-workflow-board-test.txt`。该记录不替代真实现场告警和实际处置演练。
-- 后台自动测试已验证告警先到、同设备同事件照片后归档时动态补出媒体 ID，且设备原始告警重复提交仍幂等；管理端提供现场证据预览入口。该测试不替代真实摄像头和现场告警证据。
-- 管理端已在内置浏览器验证首次连接后每 5 秒自动刷新。接口提交设备状态和严重跌倒告警后，无需手动刷新即可更新人员、位置、电池、电压、摘要、地图和告警卡片；记录见 `docs/verification/stage-7/dashboard-auto-refresh-regression.txt`。该记录不替代真实定位、电池、IMU、浏览器声音和现场告警验收。
-- H618 在没有 Android 默认网络和 MQTT 配置时，通过 ADB 回环验证了覆盖安装后的前台服务自动轮询 HTTP 设备命令，按序处理接听、挂断、拒绝和文字广播，并提交回执和命令确认，记录见 `docs/verification/stage-5/android-http-command-polling-board-test.txt`。
-- H618 已验证前台服务在启动时处理初始无网络快照，Room 保存 `NETWORK_STATUS_CHANGED/UNAVAILABLE`；弱网策略在通话引擎建立前保留，并能在 PeerConnection 上切换低带宽和普通模式。记录见 `docs/verification/stage-5/webrtc-bandwidth-policy-board-test.txt`。该记录不替代真实 4G/5G 弱网、TURN 和双向媒体测试。
-- H618、后台和同源浏览器已完成通话信令闭环。管理端接听后，前台服务通过 Room 状态观察自动创建 Offer，浏览器提交 Answer 和 ICE，H618 应用 Answer；管理端挂断后设备自动关闭会话并恢复 `OFFLINE_READY`。全过程未发送手工通话状态服务指令。记录见 `docs/verification/stage-5/dashboard-webrtc-board-e2e.txt`。开发板无摄像头，ICE 未完成连接，该记录不替代真实物理按键、麦克风、扬声器、视频、TURN 和弱网测试。
-- H618 已验证进程从 Room 持久 `CONNECTED` 呼叫恢复。服务自动生成序号 5 的新 Offer，后台概览返回 `latestOfferSequence=5`，管理端选择该 Offer 并生成序号 6 的新 Answer；设备未重复应用旧 Answer，挂断后落库 `ENDED` 并关闭 WebRTC 会话。记录见 `docs/verification/stage-5/webrtc-connected-recovery-board-test.txt`。该测试使用状态夹具和模拟呼叫，不替代真实媒体和弱网验收。
-- H618 上使用合成输入验证了原始安全样本、Android 检测、稳定告警周期、SET_OUTPUT 命令和样本去重运行路径，记录见 `docs/verification/stage-6/android-safety-runtime-board-test.txt`。该记录不替代真实传感器和执行器测试。
-- H618 已验证模拟近电样本和 `NEAR_ELECTRIC` 告警由生产前台服务自动持久化并上传。开发板 Room 和后台保存相同的样本引用、920 毫伏电场值、`CRITICAL` 级别和模拟来源，记录见 `docs/verification/stage-6/near-electric-alert-board-e2e.txt`。模拟网关直接产生告警且不执行物理本地动作，该记录不替代真实工频电场传感器、标定、连续检测、阈值和累积暴露、本地执行器或移动网络测试。
-- H618 已验证模拟高度样本和 `HEIGHT_LIMIT` 告警由生产前台服务自动持久化并上传。后台保留 2200 毫米高度、101325 帕气压、等级和位置质量，完成只读角色拒绝、确认、处理中、关闭和重启持久化。记录见 `docs/verification/stage-6/height-alert-board-e2e.txt`。模拟网关直接产生告警，该记录不替代真实高度传感器、连续检测、阈值、本地执行器和移动网络测试。
-- H618 已验证外部 HSL RTK_NMEA 经用户态串口服务和定位服务自动生成 6 个有序轨迹点及电子围栏退出、返回事件，由 Room 和 WorkManager 上传后台。记录见 `docs/verification/stage-4/geofence-uart-board-e2e.txt`。输入 NMEA 和坐标由 PTY 夹具合成，该记录不替代真实 GNSS、RTK 精度、移动轨迹、人员越界、移动网络和现场处置测试。
-- 后台已验证资源隔离、轨迹、媒体、呼叫、广播、语音、告警、审计、PostgreSQL 适配、S3 完整性和 MQTT 消息处理。
-- 管理端已验证权限中心、地图、媒体、呼叫、广播、语音和告警处置界面。
-
-## 未完成
-
-以下输入缺失，不能以模拟数据替代：
-
-- 外置摄像头及连续 1080P、帧率、温升和长时间录像测试。
-- GNSS/RTK 接收机、天线、差分服务、基准点和 0.5 米现场测试。
-- 麦克风、扬声器及真实 WebRTC 音视频链路。
-- 专用 LoRa 语音模块及距离、穿透、时延、丢包和可懂度测试。
-- IMU、工频电场、高度、电池和本地 LED/语音/振动执行器。
-- 4G/5G 网络及真实弱网、断网和恢复场景。
-- 后台外部 PostgreSQL、S3、MQTT、TURN、地图和 TLS 环境。
-
-## 下一步
-
-1. 获取外部模块型号、接口和接线资料。
-2. 按 `docs/HARDWARE_INTERFACE.md` 接入真实硬件。
-3. 逐项执行 `docs/TEST_PLAN.md` 的开发板和端到端测试。
-4. 将真实证据写入 `docs/verification/` 并更新需求矩阵。
-5. 仅在 31 项需求全部具备真实验收证据后完成 Goal。
+- 当前没有真实摄像头、有效麦克风、已验证蜂窝网络、MMA8452、RTK 接收机、按键和 LED 模块。
+- 因此只能确认 App 软件路径、协议、恢复和安全降级，不能标记整机硬件验收通过。
+- 硬件按 `hardware-contract/H618_APP_HARDWARE_CONTRACT.md` 实现并关闭确认项后，App 不需要修改源码，只需选择 RTK 模式并完成实物验收。
+- 本轮验收记录位于 `verification/hardware-contract-app-2026-08-20/README.md`。

@@ -1,8 +1,0 @@
-07-29 16:09:41.728 12748 12798 I HelmetRuntime: {"timestamp":1785312581721,"level":"INFO","event":"runtime_status","state":"OFFLINE_READY","pendingOutboxCount":18,"pendingMediaCount":0,"pendingTrackCount":0,"networkState":"UNAVAILABLE","networkTransports":"","locationState":"STOPPED","lastEventType":"RUNTIME_STARTED"}
-07-29 16:09:41.743 12748 12799 I HelmetRuntime: {"timestamp":1785312581741,"level":"INFO","event":"runtime_status","state":"OFFLINE_READY","pendingOutboxCount":18,"pendingMediaCount":0,"pendingTrackCount":0,"networkState":"UNAVAILABLE","networkTransports":"","locationState":"STOPPED","lastEventType":"HARDWARE_STATUS_CHANGED"}
-07-29 16:09:41.821 12748 12806 I HelmetRuntime: {"timestamp":1785312581817,"level":"INFO","event":"runtime_status","state":"OFFLINE_READY","pendingOutboxCount":18,"pendingMediaCount":0,"pendingTrackCount":0,"networkState":"UNAVAILABLE","networkTransports":"","locationState":"WAITING_FOR_FIX","lastEventType":"LOCATION_STATUS_CHANGED"}
-07-29 16:09:45.416 12815 12815 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 0 <<<<<<
-07-29 16:09:45.426 12815 12815 I AndroidRuntime: Using default boot image
-07-29 16:09:45.426 12815 12815 I AndroidRuntime: Leaving lock profiling enabled
-07-29 16:09:45.776 12815 12815 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
-07-29 16:09:47.021 12815 12815 D AndroidRuntime: Shutting down VM

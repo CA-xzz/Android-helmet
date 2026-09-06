@@ -138,4 +138,90 @@ class MediaStoreInstrumentedTest {
         assertTrue(store.add(asset))
         assertEquals(asset, store.find(asset.assetId))
     }
+
+    @Test
+    fun relatedEventAndKindLookupMakesCaptureReplayIdempotent() = runBlocking {
+        val store = MediaStore(database)
+        val original = mediaAsset("stable-photo", MediaTransferState.PENDING).copy(
+            relatedEventId = "hardware-event-7",
+        )
+
+        assertEquals(original, store.addIdempotently(original))
+        assertEquals(original, store.addIdempotently(original))
+        assertEquals(
+            original,
+            store.findByRelatedEventAndKind("device-retention", "hardware-event-7", MediaKind.PHOTO),
+        )
+        assertEquals(1, store.all().size)
+    }
+
+    @Test
+    fun relatedEventLookupIsDeviceScopedAndRejectsConflictingMetadata() = runBlocking {
+        val store = MediaStore(database)
+        val firstDevice = mediaAsset("device-one-photo", MediaTransferState.PENDING).copy(
+            relatedEventId = "shared-event",
+        )
+        val secondDevice = firstDevice.copy(
+            assetId = "device-two-photo",
+            deviceId = "device-2",
+            filePath = "/private/device-two-photo.jpg",
+        )
+        assertEquals(firstDevice, store.addIdempotently(firstDevice))
+        assertEquals(secondDevice, store.addIdempotently(secondDevice))
+        assertEquals(
+            secondDevice,
+            store.findByRelatedEventAndKind("device-2", "shared-event", MediaKind.PHOTO),
+        )
+
+        val conflicting = firstDevice.copy(byteSize = 2, sha256 = "e".repeat(64))
+        assertTrue(runCatching { store.addIdempotently(conflicting) }.isFailure)
+        assertEquals(2, store.all().size)
+    }
+
+    @Test
+    fun retentionDeletionCannotRemovePendingMedia() = runBlocking {
+        val store = MediaStore(database)
+        val pending = mediaAsset("retention-pending", MediaTransferState.PENDING)
+        val delivered = mediaAsset("retention-delivered", MediaTransferState.PENDING)
+        assertTrue(store.add(pending))
+        assertTrue(store.add(delivered))
+        assertTrue(store.markAttempt(delivered.assetId, 1_999))
+        assertTrue(store.markDelivered(delivered.assetId, 2_000))
+
+        assertFalse(store.deleteTerminal(pending.assetId))
+        assertTrue(store.deleteTerminal(delivered.assetId))
+        assertEquals(pending, store.find(pending.assetId))
+        assertEquals(null, store.find(delivered.assetId))
+    }
+
+    @Test
+    fun lateUploadCallbacksCannotResurrectRejectedMedia() = runBlocking {
+        val store = MediaStore(database)
+        val rejected = mediaAsset("rejected-race", MediaTransferState.PENDING)
+        assertTrue(store.add(rejected))
+        assertTrue(store.markAttempt(rejected.assetId, 2_000))
+        assertTrue(store.markRejected(rejected.assetId, "permanent rejection"))
+
+        assertFalse(store.markAttempt(rejected.assetId, 2_001))
+        assertFalse(store.markFailed(rejected.assetId, "late failure"))
+        assertFalse(store.markDelivered(rejected.assetId, 2_002))
+        assertEquals(MediaTransferState.REJECTED, store.find(rejected.assetId)?.transferState)
+    }
+
+    private fun mediaAsset(assetId: String, transferState: MediaTransferState) = MediaAsset(
+        assetId = assetId,
+        kind = MediaKind.PHOTO,
+        filePath = "/private/$assetId.jpg",
+        mimeType = "image/jpeg",
+        byteSize = 1,
+        sha256 = "d".repeat(64),
+        width = 1,
+        height = 1,
+        durationMillis = null,
+        createdAtEpochMillis = 1_000,
+        deviceId = "device-retention",
+        relatedEventId = null,
+        transferState = transferState,
+        attemptCount = 0,
+    )
 }

@@ -52,23 +52,42 @@ class SafetyAlertWorker(
                         ),
                     ).toString(),
                 )
+                if (shouldAnnounceSafetyAlertUploaded(alert.alarmType, alert.active)) {
+                    runCatching {
+                        applicationContext.startService(
+                            HelmetService.safetyAlertDeliveredIntent(applicationContext, alert.messageId),
+                        )
+                    }.onFailure { error ->
+                        StructuredLogger.warn(
+                            event = "safety_alert_delivery_prompt_deferred",
+                            fields = mapOf(
+                                "messageId" to alert.messageId,
+                                "errorType" to error.javaClass.name,
+                            ),
+                        )
+                    }
+                }
             } catch (error: AlertUploadException) {
                 if (error.retryable) {
-                    safetyStore.markFailed(alert.messageId, error.toString())
-                    recordFailure(eventStore, alert.messageId, "SAFETY_ALERT_UPLOAD_RETRY_SCHEDULED", error)
+                    val failure = persistedFailure(error, error.statusCode, REASON_RETRYABLE_FAILURE)
+                    safetyStore.markFailed(alert.messageId, failure.asStorageText())
+                    recordFailure(eventStore, alert.messageId, "SAFETY_ALERT_UPLOAD_RETRY_SCHEDULED", failure)
                     return Result.retry()
                 }
                 if (error.statusCode in PERMANENT_DATA_ERROR_CODES) {
-                    safetyStore.markRejected(alert.messageId, error.toString())
-                    recordFailure(eventStore, alert.messageId, "SAFETY_ALERT_UPLOAD_REJECTED", error)
+                    val failure = persistedFailure(error, error.statusCode, REASON_PERMANENT_DATA_REJECTION)
+                    safetyStore.markRejected(alert.messageId, failure.asStorageText())
+                    recordFailure(eventStore, alert.messageId, "SAFETY_ALERT_UPLOAD_REJECTED", failure)
                     continue
                 }
-                safetyStore.markFailed(alert.messageId, error.toString())
-                recordFailure(eventStore, alert.messageId, "SAFETY_ALERT_UPLOAD_CONFIGURATION_FAILED", error)
+                val failure = persistedFailure(error, error.statusCode, REASON_CONFIGURATION_FAILURE)
+                safetyStore.markFailed(alert.messageId, failure.asStorageText())
+                recordFailure(eventStore, alert.messageId, "SAFETY_ALERT_UPLOAD_CONFIGURATION_FAILED", failure)
                 return Result.failure()
             } catch (error: Throwable) {
-                safetyStore.markFailed(alert.messageId, error.toString())
-                recordFailure(eventStore, alert.messageId, "SAFETY_ALERT_UPLOAD_RETRY_SCHEDULED", error)
+                val failure = persistedFailure(error, null, REASON_UNEXPECTED_FAILURE)
+                safetyStore.markFailed(alert.messageId, failure.asStorageText())
+                recordFailure(eventStore, alert.messageId, "SAFETY_ALERT_UPLOAD_RETRY_SCHEDULED", failure)
                 return Result.retry()
             }
         }
@@ -80,7 +99,7 @@ class SafetyAlertWorker(
         eventStore: EventStore,
         messageId: String,
         eventType: String,
-        error: Throwable,
+        failure: PersistedFailure,
     ) {
         eventStore.record(
             eventType = eventType,
@@ -88,7 +107,7 @@ class SafetyAlertWorker(
             payloadJson = JSONObject(
                 mapOf(
                     "messageId" to messageId,
-                    "error" to error.toString().take(MAX_ERROR_LENGTH),
+                    *failure.toEventFields().toList().toTypedArray(),
                 ),
             ).toString(),
         )
@@ -97,7 +116,10 @@ class SafetyAlertWorker(
     companion object {
         private const val LEGACY_UNIQUE_WORK = "helmet-safety-alert-upload"
         private const val MAX_ALERTS_PER_RUN = 100
-        private const val MAX_ERROR_LENGTH = 1_024
+        private const val REASON_RETRYABLE_FAILURE = "RETRYABLE_TRANSPORT_FAILURE"
+        private const val REASON_PERMANENT_DATA_REJECTION = "PERMANENT_DATA_REJECTION"
+        private const val REASON_CONFIGURATION_FAILURE = "TRANSPORT_CONFIGURATION_FAILURE"
+        private const val REASON_UNEXPECTED_FAILURE = "UNEXPECTED_TRANSPORT_FAILURE"
         private val PERMANENT_DATA_ERROR_CODES = setOf(400, 409, 413, 422)
         private val reconciledWorkName = AtomicReference<String?>()
 

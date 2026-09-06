@@ -20,21 +20,34 @@ interface MediaDao {
     @Query("SELECT * FROM media_assets WHERE assetId = :assetId LIMIT 1")
     suspend fun find(assetId: String): MediaEntity?
 
+    @Query(
+        "SELECT * FROM media_assets WHERE deviceId = :deviceId AND relatedEventId = :relatedEventId " +
+            "AND kind = :kind " +
+            "ORDER BY createdAtEpochMillis ASC, assetId ASC LIMIT 1",
+    )
+    suspend fun findByRelatedEventAndKind(deviceId: String, relatedEventId: String, kind: String): MediaEntity?
+
+    @Query("SELECT * FROM media_assets ORDER BY createdAtEpochMillis, assetId")
+    suspend fun all(): List<MediaEntity>
+
     @Query("SELECT COUNT(*) FROM media_assets WHERE transferState IN ('PENDING', 'IN_FLIGHT', 'FAILED')")
     suspend fun pendingCount(): Int
 
     @Query("SELECT COUNT(*) FROM media_assets")
     suspend fun totalCount(): Int
 
-    @Query("UPDATE media_assets SET transferState = 'IN_FLIGHT', attemptCount = attemptCount + 1, lastAttemptAtEpochMillis = :attemptAt, lastError = NULL WHERE assetId = :assetId AND transferState != 'DELIVERED'")
+    @Query("UPDATE media_assets SET transferState = 'IN_FLIGHT', attemptCount = attemptCount + 1, lastAttemptAtEpochMillis = :attemptAt, lastError = NULL WHERE assetId = :assetId AND transferState IN ('PENDING', 'IN_FLIGHT', 'FAILED')")
     suspend fun markAttempt(assetId: String, attemptAt: Long): Int
 
-    @Query("UPDATE media_assets SET transferState = 'DELIVERED', deliveredAtEpochMillis = :deliveredAt, lastError = NULL WHERE assetId = :assetId")
+    @Query("UPDATE media_assets SET transferState = 'DELIVERED', deliveredAtEpochMillis = :deliveredAt, lastError = NULL WHERE assetId = :assetId AND transferState = 'IN_FLIGHT'")
     suspend fun markDelivered(assetId: String, deliveredAt: Long): Int
 
-    @Query("UPDATE media_assets SET transferState = 'FAILED', lastError = :error WHERE assetId = :assetId AND transferState != 'DELIVERED'")
+    @Query("UPDATE media_assets SET transferState = 'FAILED', lastError = :error WHERE assetId = :assetId AND transferState = 'IN_FLIGHT'")
     suspend fun markFailed(assetId: String, error: String): Int
 
     @Query("UPDATE media_assets SET transferState = 'REJECTED', lastError = :error WHERE assetId = :assetId AND transferState != 'DELIVERED'")
     suspend fun markRejected(assetId: String, error: String): Int
+
+    @Query("DELETE FROM media_assets WHERE assetId = :assetId AND transferState IN ('DELIVERED', 'REJECTED')")
+    suspend fun deleteTerminal(assetId: String): Int
 }

@@ -1,0 +1,244 @@
+captured_host_utc=2026-08-19T14:33:28Z
+adb_serial=2c001031774186e21d3
+uart_i2c_video:
+ls: /dev/video*: No such file or directory
+crw------- 1 root      root          89,   1 1970-01-01 08:00 /dev/i2c-1
+crw-rw-rw- 1 root      root           5,   0 1970-01-01 08:00 /dev/tty
+crw-rw-rw- 1 system    system       247,   0 1970-01-01 08:00 /dev/ttyAS0
+crw-rw---- 1 bluetooth net_bt_admin 247,   1 2026-07-29 12:06 /dev/ttyAS1
+crw-rw-rw- 1 system    system       247,   2 2026-07-29 12:20 /dev/ttyAS2
+crw-rw-rw- 1 system    system       247,   3 1970-01-01 08:00 /dev/ttyAS3
+crw-rw-rw- 1 system    system       247,   4 1970-01-01 08:00 /dev/ttyAS4
+crw-rw-rw- 1 system    system         4,  64 1970-01-01 08:00 /dev/ttyS0
+crw-rw-rw- 1 system    system         4,  65 1970-01-01 08:00 /dev/ttyS1
+crw-rw-rw- 1 system    system         4,  66 1970-01-01 08:00 /dev/ttyS2
+crw-rw-rw- 1 system    system         4,  67 1970-01-01 08:00 /dev/ttyS3
+input:
+/dev/input
+drwxr-xr-x 2 root root 80 1970-01-01 08:00 /dev/input
+/dev/input/event1
+crw-rw---- 1 system input 13,  65 1970-01-01 08:00 /dev/input/event1
+/dev/input/event0
+crw-rw---- 1 system input 13,  64 1970-01-01 08:00 /dev/input/event0
+sound:
+/dev/snd
+drwxr-xr-x 2 root root 180 1970-01-01 08:00 /dev/snd
+/dev/snd/pcmC0D0p
+crw-rw---- 1 system audio 116,  16 1970-01-01 08:00 /dev/snd/pcmC0D0p
+/dev/snd/controlC0
+crw-rw---- 1 system audio 116,   0 1970-01-01 08:00 /dev/snd/controlC0
+/dev/snd/timer
+crw-rw---- 1 system audio 116,  33 1970-01-01 08:00 /dev/snd/timer
+/dev/snd/pcmC2D0c
+crw-rw---- 1 system audio 116,  88 1970-01-01 08:00 /dev/snd/pcmC2D0c
+/dev/snd/controlC2
+crw-rw---- 1 system audio 116,  64 1970-01-01 08:00 /dev/snd/controlC2
+/dev/snd/controlC1
+crw-rw---- 1 system audio 116,  32 1970-01-01 08:00 /dev/snd/controlC1
+/dev/snd/pcmC2D0p
+crw-rw---- 1 system audio 116,  80 1970-01-01 08:00 /dev/snd/pcmC2D0p
+block:
+/dev/block
+drwxr-xr-x 6 root root 1260 1970-01-01 08:00 /dev/block
+/dev/block/vold
+drwx------ 2 root root 40 1970-01-01 08:00 /dev/block/vold
+/dev/block/ram4
+brw------- 1 root root 1,   4 1970-01-01 08:00 /dev/block/ram4
+/dev/block/ram6
+brw------- 1 root root 1,   6 1970-01-01 08:00 /dev/block/ram6
+/dev/block/ram8
+brw------- 1 root root 1,   8 1970-01-01 08:00 /dev/block/ram8
+/dev/block/loop4
+brw------- 1 root root 7,  32 1970-01-01 08:00 /dev/block/loop4
+/dev/block/ram9
+brw------- 1 root root 1,   9 1970-01-01 08:00 /dev/block/ram9
+/dev/block/loop1
+brw------- 1 root root 7,   8 1970-01-01 08:00 /dev/block/loop1
+/dev/block/mmcblk0p16
+brw------- 1 root root 259,   0 1970-01-01 08:00 /dev/block/mmcblk0p16
+/dev/block/mmcblk0p6
+brw------- 1 root root 179,   6 1970-01-01 08:00 /dev/block/mmcblk0p6
+/dev/block/mmcblk0p13
+brw------- 1 root root 179,  13 1970-01-01 08:00 /dev/block/mmcblk0p13
+/dev/block/loop3
+brw------- 1 root root 7,  24 1970-01-01 08:00 /dev/block/loop3
+/dev/block/ram11
+brw------- 1 root root 1,  11 1970-01-01 08:00 /dev/block/ram11
+/dev/block/ram13
+brw------- 1 root root 1,  13 1970-01-01 08:00 /dev/block/ram13
+/dev/block/ram15
+brw------- 1 root root 1,  15 1970-01-01 08:00 /dev/block/ram15
+/dev/block/loop0
+brw------- 1 root root 7,   0 1970-01-01 08:00 /dev/block/loop0
+/dev/block/zram0
+brw------- 1 root root 254,   0 2026-07-29 12:05 /dev/block/zram0
+/dev/block/loop2
+brw------- 1 root root 7,  16 1970-01-01 08:00 /dev/block/loop2
+/dev/block/ram1
+brw------- 1 root root 1,   1 1970-01-01 08:00 /dev/block/ram1
+/dev/block/ram7
+brw------- 1 root root 1,   7 1970-01-01 08:00 /dev/block/ram7
+/dev/block/ram10
+brw------- 1 root root 1,  10 1970-01-01 08:00 /dev/block/ram10
+/dev/block/ram12
+brw------- 1 root root 1,  12 1970-01-01 08:00 /dev/block/ram12
+/dev/block/ram0
+brw------- 1 root root 1,   0 1970-01-01 08:00 /dev/block/ram0
+/dev/block/loop6
+brw------- 1 root root 7,  48 1970-01-01 08:00 /dev/block/loop6
+/dev/block/mmcblk0p3
+brw------- 1 root root 179,   3 1970-01-01 08:00 /dev/block/mmcblk0p3
+/dev/block/loop5
+brw------- 1 root root 7,  40 1970-01-01 08:00 /dev/block/loop5
+/dev/block/loop7
+brw------- 1 root root 7,  56 1970-01-01 08:00 /dev/block/loop7
+/dev/block/ram3
+brw------- 1 root root 1,   3 1970-01-01 08:00 /dev/block/ram3
+/dev/block/ram5
+brw------- 1 root root 1,   5 1970-01-01 08:00 /dev/block/ram5
+/dev/block/mmcblk0p5
+brw------- 1 root root 179,   5 1970-01-01 08:00 /dev/block/mmcblk0p5
+/dev/block/ram14
+brw------- 1 root root 1,  14 1970-01-01 08:00 /dev/block/ram14
+/dev/block/ram2
+brw------- 1 root root 1,   2 1970-01-01 08:00 /dev/block/ram2
+/dev/block/mmcblk0p20
+brw------- 1 root root 259,   4 1970-01-01 08:00 /dev/block/mmcblk0p20
+/dev/block/mmcblk0p14
+brw------- 1 root root 179,  14 1970-01-01 08:00 /dev/block/mmcblk0p14
+/dev/block/mmcblk0p4
+brw------- 1 root root 179,   4 1970-01-01 08:00 /dev/block/mmcblk0p4
+/dev/block/mmcblk0p2
+brw------- 1 root root 179,   2 1970-01-01 08:00 /dev/block/mmcblk0p2
+/dev/block/mmcblk0p8
+brw------- 1 root root 179,   8 1970-01-01 08:00 /dev/block/mmcblk0p8
+/dev/block/mmcblk0p24
+brw------- 1 root root 259,   8 1970-01-01 08:00 /dev/block/mmcblk0p24
+/dev/block/mmcblk0p18
+brw------- 1 root root 259,   2 1970-01-01 08:00 /dev/block/mmcblk0p18
+/dev/block/mmcblk0boot1
+brw------- 1 root root 179,  32 1970-01-01 08:00 /dev/block/mmcblk0boot1
+/dev/block/mmcblk0p1
+brw------- 1 root root 179,   1 1970-01-01 08:00 /dev/block/mmcblk0p1
+/dev/block/mmcblk0
+brw------- 1 root root 179,   0 1970-01-01 08:00 /dev/block/mmcblk0
+/dev/block/mmcblk0p11
+brw------- 1 root root 179,  11 1970-01-01 08:00 /dev/block/mmcblk0p11
+/dev/block/mmcblk0p21
+brw------- 1 root root 259,   5 1970-01-01 08:00 /dev/block/mmcblk0p21
+/dev/block/mmcblk0p25
+brw------- 1 root root 259,   9 1970-01-01 08:00 /dev/block/mmcblk0p25
+/dev/block/mmcblk0p15
+brw------- 1 root root 179,  15 1970-01-01 08:00 /dev/block/mmcblk0p15
+/dev/block/mmcblk0boot0
+brw------- 1 root root 179,  16 1970-01-01 08:00 /dev/block/mmcblk0boot0
+/dev/block/mmcblk0p17
+brw-rw---- 1 system system 259,   1 1970-01-01 08:00 /dev/block/mmcblk0p17
+/dev/block/mmcblk0p7
+brw------- 1 root root 179,   7 1970-01-01 08:00 /dev/block/mmcblk0p7
+/dev/block/mmcblk0p10
+brw-rw---- 1 system root 179,  10 1970-01-01 08:00 /dev/block/mmcblk0p10
+/dev/block/mmcblk0p22
+brw------- 1 root root 259,   6 1970-01-01 08:00 /dev/block/mmcblk0p22
+/dev/block/mmcblk0p12
+brw------- 1 root root 179,  12 1970-01-01 08:00 /dev/block/mmcblk0p12
+/dev/block/dm-2
+brw------- 1 root root 253,   2 1970-01-01 08:00 /dev/block/dm-2
+/dev/block/dm-3
+brw------- 1 root root 253,   3 1970-01-01 08:00 /dev/block/dm-3
+/dev/block/dm-1
+brw------- 1 root root 253,   1 1970-01-01 08:00 /dev/block/dm-1
+/dev/block/mapper
+drwxr-xr-x 3 root root 140 1970-01-01 08:00 /dev/block/mapper
+/dev/block/mapper/product_a
+lrwxrwxrwx 1 root root 15 1970-01-01 08:00 /dev/block/mapper/product_a -> /dev/block/dm-2
+/dev/block/mapper/vendor_dlkm_a
+lrwxrwxrwx 1 root root 15 1970-01-01 08:00 /dev/block/mapper/vendor_dlkm_a -> /dev/block/dm-3
+/dev/block/mapper/vendor_a
+lrwxrwxrwx 1 root root 15 1970-01-01 08:00 /dev/block/mapper/vendor_a -> /dev/block/dm-1
+/dev/block/mapper/by-uuid
+drwxr-xr-x 2 root root 120 1970-01-01 08:00 /dev/block/mapper/by-uuid
+/dev/block/mapper/by-uuid/bc666f2b-6187-422e-b390-d74c2518ce4f
+lrwxrwxrwx 1 root root 15 1970-01-01 08:00 /dev/block/mapper/by-uuid/bc666f2b-6187-422e-b390-d74c2518ce4f -> /dev/block/dm-2
+/dev/block/mapper/by-uuid/a998b791-2ff6-414a-9af5-2410ad158eb3
+lrwxrwxrwx 1 root root 15 1970-01-01 08:00 /dev/block/mapper/by-uuid/a998b791-2ff6-414a-9af5-2410ad158eb3 -> /dev/block/dm-3
+/dev/block/mapper/by-uuid/0a93fbc8-ead3-461a-bb50-3b421e717a7f
+lrwxrwxrwx 1 root root 15 1970-01-01 08:00 /dev/block/mapper/by-uuid/0a93fbc8-ead3-461a-bb50-3b421e717a7f -> /dev/block/dm-1
+/dev/block/mapper/by-uuid/08d32712-9f1f-4f50-8def-59da38676976
+lrwxrwxrwx 1 root root 15 1970-01-01 08:00 /dev/block/mapper/by-uuid/08d32712-9f1f-4f50-8def-59da38676976 -> /dev/block/dm-0
+/dev/block/mapper/system_a
+lrwxrwxrwx 1 root root 15 1970-01-01 08:00 /dev/block/mapper/system_a -> /dev/block/dm-0
+/dev/block/dm-0
+brw------- 1 root root 253,   0 1970-01-01 08:00 /dev/block/dm-0
+/dev/block/mmcblk0p23
+brw------- 1 root root 259,   7 1970-01-01 08:00 /dev/block/mmcblk0p23
+/dev/block/mmcblk0p19
+brw------- 1 root root 259,   3 1970-01-01 08:00 /dev/block/mmcblk0p19
+/dev/block/by-name
+drwxr-xr-x 2 root root 600 1970-01-01 08:00 /dev/block/by-name
+/dev/block/by-name/vbmeta_vendor_b
+lrwxrwxrwx 1 root root 21 1970-01-01 08:00 /dev/block/by-name/vbmeta_vendor_b -> /dev/block/mmcblk0p16
+/dev/block/by-name/boot_b
+lrwxrwxrwx 1 root root 20 1970-01-01 08:00 /dev/block/by-name/boot_b -> /dev/block/mmcblk0p6
+/dev/block/by-name/vbmeta_system_a
+lrwxrwxrwx 1 root root 21 1970-01-01 08:00 /dev/block/by-name/vbmeta_system_a -> /dev/block/mmcblk0p13
+/dev/block/by-name/env_a
+lrwxrwxrwx 1 root root 20 1970-01-01 08:00 /dev/block/by-name/env_a -> /dev/block/mmcblk0p3
+/dev/block/by-name/boot_a
+lrwxrwxrwx 1 root root 20 1970-01-01 08:00 /dev/block/by-name/boot_a -> /dev/block/mmcblk0p5
+/dev/block/by-name/private
+lrwxrwxrwx 1 root root 21 1970-01-01 08:00 /dev/block/by-name/private -> /dev/block/mmcblk0p20
+/dev/block/by-name/vbmeta_system_b
+lrwxrwxrwx 1 root root 21 1970-01-01 08:00 /dev/block/by-name/vbmeta_system_b -> /dev/block/mmcblk0p14
+/dev/block/by-name/env_b
+lrwxrwxrwx 1 root root 20 1970-01-01 08:00 /dev/block/by-name/env_b -> /dev/block/mmcblk0p4
+/dev/block/by-name/bootloader_b
+lrwxrwxrwx 1 root root 20 1970-01-01 08:00 /dev/block/by-name/bootloader_b -> /dev/block/mmcblk0p2
+/dev/block/by-name/vendor_boot_b
+lrwxrwxrwx 1 root root 20 1970-01-01 08:00 /dev/block/by-name/vendor_boot_b -> /dev/block/mmcblk0p8
+/dev/block/by-name/Reserve0
+lrwxrwxrwx 1 root root 21 1970-01-01 08:00 /dev/block/by-name/Reserve0 -> /dev/block/mmcblk0p24
+/dev/block/by-name/empty
+lrwxrwxrwx 1 root root 21 1970-01-01 08:00 /dev/block/by-name/empty -> /dev/block/mmcblk0p18
+/dev/block/by-name/mmcblk0boot1
+lrwxrwxrwx 1 root root 23 1970-01-01 08:00 /dev/block/by-name/mmcblk0boot1 -> /dev/block/mmcblk0boot1
+/dev/block/by-name/bootloader_a
+lrwxrwxrwx 1 root root 20 1970-01-01 08:00 /dev/block/by-name/bootloader_a -> /dev/block/mmcblk0p1
+/dev/block/by-name/mmcblk0
+lrwxrwxrwx 1 root root 18 1970-01-01 08:00 /dev/block/by-name/mmcblk0 -> /dev/block/mmcblk0
+/dev/block/by-name/vbmeta_a
+lrwxrwxrwx 1 root root 21 1970-01-01 08:00 /dev/block/by-name/vbmeta_a -> /dev/block/mmcblk0p11
+/dev/block/by-name/dtbo_a
+lrwxrwxrwx 1 root root 21 1970-01-01 08:00 /dev/block/by-name/dtbo_a -> /dev/block/mmcblk0p21
+/dev/block/by-name/userdata
+lrwxrwxrwx 1 root root 21 1970-01-01 08:00 /dev/block/by-name/userdata -> /dev/block/mmcblk0p25
+/dev/block/by-name/vbmeta_vendor_a
+lrwxrwxrwx 1 root root 21 1970-01-01 08:00 /dev/block/by-name/vbmeta_vendor_a -> /dev/block/mmcblk0p15
+/dev/block/by-name/frp
+lrwxrwxrwx 1 root root 21 1970-01-01 08:00 /dev/block/by-name/frp -> /dev/block/mmcblk0p17
+/dev/block/by-name/mmcblk0boot0
+lrwxrwxrwx 1 root root 23 1970-01-01 08:00 /dev/block/by-name/mmcblk0boot0 -> /dev/block/mmcblk0boot0
+/dev/block/by-name/vendor_boot_a
+lrwxrwxrwx 1 root root 20 1970-01-01 08:00 /dev/block/by-name/vendor_boot_a -> /dev/block/mmcblk0p7
+/dev/block/by-name/misc
+lrwxrwxrwx 1 root root 21 1970-01-01 08:00 /dev/block/by-name/misc -> /dev/block/mmcblk0p10
+/dev/block/by-name/vbmeta_b
+lrwxrwxrwx 1 root root 21 1970-01-01 08:00 /dev/block/by-name/vbmeta_b -> /dev/block/mmcblk0p12
+/dev/block/by-name/dtbo_b
+lrwxrwxrwx 1 root root 21 1970-01-01 08:00 /dev/block/by-name/dtbo_b -> /dev/block/mmcblk0p22
+/dev/block/by-name/media_data
+lrwxrwxrwx 1 root root 21 1970-01-01 08:00 /dev/block/by-name/media_data -> /dev/block/mmcblk0p23
+/dev/block/by-name/metadata
+lrwxrwxrwx 1 root root 21 1970-01-01 08:00 /dev/block/by-name/metadata -> /dev/block/mmcblk0p19
+/dev/block/by-name/super
+lrwxrwxrwx 1 root root 20 1970-01-01 08:00 /dev/block/by-name/super -> /dev/block/mmcblk0p9
+/dev/block/platform
+drwxr-xr-x 3 root root 60 1970-01-01 08:00 /dev/block/platform
+/dev/block/platform/soc@3000000
+drwxr-xr-x 3 root root 60 1970-01-01 08:00 /dev/block/platform/soc@3000000
+/dev/block/platform/soc@3000000/4022000.sdmmc
+drwxr-xr-x 3 root root 620 1970-01-01 08:00 /dev/block/platform/soc@3000000/4022000.sdmmc
+/dev/block/mmcblk0p9
+brw------- 1 root root 179,   9 1970-01-01 08:00 /dev/block/mmcblk0p9
+
+command_exit=0

@@ -1,0 +1,12 @@
+# dataset_id=violent-shake-synthetic-v1
+# sample_rate_hz=10
+# source=synthetic
+# final_hardware_evidence=false
+sample_ref,monotonic_ms,accel_x_mg,accel_y_mg,accel_z_mg,gyro_x_mdps,gyro_y_mdps,gyro_z_mdps,electric_mv,pressure_pa,temperature_centi_c,altitude_mm,label
+1,100,0,0,1000,0,0,0,,,,,NONE
+2,200,1800,0,0,220000,0,0,,,,,NONE
+3,300,-1800,0,0,-220000,0,0,,,,,NONE
+4,400,1800,0,0,220000,0,0,,,,,NONE
+5,500,-1800,0,0,-220000,0,0,,,,,NONE
+6,600,1800,0,0,220000,0,0,,,,,VIOLENT_SHAKE
+7,700,0,0,1000,0,0,0,,,,,NONE

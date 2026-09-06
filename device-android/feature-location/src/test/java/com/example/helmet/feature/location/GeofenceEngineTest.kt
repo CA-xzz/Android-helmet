@@ -62,7 +62,32 @@ class GeofenceEngineTest {
         assertEquals(GeofenceTransitionType.EXIT, engine.evaluate(fix("outside-2", 30.002)).single().type)
     }
 
-    private fun fix(id: String, latitude: Double, mock: Boolean = false) = LocationFix(
+    @Test
+    fun uncertainAccuracyAtBoundaryCannotTriggerTransition() {
+        val engine = GeofenceEngine(
+            listOf(CircleGeofence("yard", 30.0, 114.0, 100.0, confirmationSamples = 2)),
+        )
+
+        assertTrue(engine.evaluate(fix("uncertain-1", 30.0009, accuracy = 30f)).isEmpty())
+        assertTrue(engine.evaluate(fix("uncertain-2", 30.0009, accuracy = 30f)).isEmpty())
+        assertTrue(engine.evaluate(fix("inside-1", 30.0001, accuracy = 2f)).isEmpty())
+        assertEquals(GeofenceTransitionType.ENTER, engine.evaluate(fix("inside-2", 30.0001, accuracy = 2f)).single().type)
+    }
+
+    @Test
+    fun unvalidatedFixWithoutAccuracyCannotDriveSafetyBoundary() {
+        val engine = GeofenceEngine(
+            listOf(CircleGeofence("yard", 30.0, 114.0, 100.0, confirmationSamples = 1)),
+        )
+        val unvalidated = fix("unvalidated", 30.002).copy(
+            quality = FixQuality.UNVALIDATED,
+            horizontalAccuracyMeters = null,
+        )
+
+        assertTrue(engine.evaluate(unvalidated).isEmpty())
+    }
+
+    private fun fix(id: String, latitude: Double, mock: Boolean = false, accuracy: Float = 2f) = LocationFix(
         fixId = id,
         deviceId = "device",
         occurredAtEpochMillis = 1,
@@ -71,7 +96,7 @@ class GeofenceEngineTest {
         quality = FixQuality.STANDARD,
         latitude = latitude,
         longitude = 114.0,
-        horizontalAccuracyMeters = 2f,
+        horizontalAccuracyMeters = accuracy,
         isMock = mock,
     )
 }

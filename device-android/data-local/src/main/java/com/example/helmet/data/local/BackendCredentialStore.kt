@@ -17,18 +17,30 @@ internal class BackendCredentialStore(context: Context) {
     )
 
     @Synchronized
-    fun read(): String {
-        val ciphertext = preferences.getString(KEY_CIPHERTEXT, null) ?: return ""
-        val iv = preferences.getString(KEY_IV, null) ?: return ""
+    fun read(): CredentialReadResult {
+        val stored = runCatching { preferences.all }
+            .getOrElse { return CredentialReadResult.corrupted(it.javaClass.name) }
+        if (KEY_CIPHERTEXT !in stored && KEY_IV !in stored && KEY_VERSION !in stored) {
+            return CredentialReadResult.missing()
+        }
+        val version = stored[KEY_VERSION]
+        val ciphertext = stored[KEY_CIPHERTEXT]
+        val iv = stored[KEY_IV]
+        if (version !is Int || version != FORMAT_VERSION || ciphertext !is String || iv !is String) {
+            return CredentialReadResult.corrupted("INCOMPLETE_OR_INVALID_RECORD")
+        }
         return runCatching {
             val cipher = Cipher.getInstance(TRANSFORMATION)
+            val key = existingKey() ?: error("ANDROID_KEYSTORE_KEY_MISSING")
             cipher.init(
                 Cipher.DECRYPT_MODE,
-                existingKey() ?: return@runCatching "",
+                key,
                 GCMParameterSpec(TAG_LENGTH_BITS, Base64.decode(iv, Base64.NO_WRAP)),
             )
-            cipher.doFinal(Base64.decode(ciphertext, Base64.NO_WRAP)).toString(Charsets.UTF_8)
-        }.getOrDefault("")
+            CredentialReadResult.available(
+                cipher.doFinal(Base64.decode(ciphertext, Base64.NO_WRAP)).toString(Charsets.UTF_8),
+            )
+        }.getOrElse { CredentialReadResult.corrupted(it.javaClass.name) }
     }
 
     @Synchronized
@@ -48,6 +60,12 @@ internal class BackendCredentialStore(context: Context) {
                 .commit(),
         ) { "failed to persist encrypted backend credential" }
     }
+
+    @Synchronized
+    fun snapshot(): SharedPreferencesSnapshot = preferences.snapshot()
+
+    @Synchronized
+    fun restore(snapshot: SharedPreferencesSnapshot) = preferences.restore(snapshot)
 
     private fun existingKey(): SecretKey? {
         val keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER).apply { load(null) }

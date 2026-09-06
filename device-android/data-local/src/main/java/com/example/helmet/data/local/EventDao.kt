@@ -11,9 +11,18 @@ interface EventDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(event: EventEntity): Long
 
+    @Query("SELECT * FROM helmet_events WHERE messageId = :messageId LIMIT 1")
+    suspend fun find(messageId: String): EventEntity?
+
     @Query("SELECT * FROM helmet_events ORDER BY occurredAtEpochMillis DESC LIMIT :limit")
     fun observeRecent(limit: Int): Flow<List<EventEntity>>
 
     @Query("SELECT COUNT(*) FROM helmet_events")
     suspend fun totalCount(): Int
+
+    @Query(
+        "DELETE FROM helmet_events WHERE rowid NOT IN " +
+            "(SELECT rowid FROM helmet_events ORDER BY rowid DESC LIMIT :keep)",
+    )
+    suspend fun pruneOldest(keep: Int): Int
 }

@@ -10,6 +10,14 @@ import com.example.helmet.core.model.SafetySensorTelemetry
     indices = [
         Index(value = ["deviceId", "sampleReference"], unique = true),
         Index(value = ["deviceId", "recordedAtEpochMillis"]),
+        Index(
+            value = [
+                "deviceId",
+                "thresholdConfigVersion",
+                "thresholdConfigFingerprint",
+                "derivationCommitted",
+            ],
+        ),
     ],
 )
 data class SafetySampleEntity(
@@ -30,6 +38,9 @@ data class SafetySampleEntity(
     val altitudeMillimetres: Int?,
     val simulated: Boolean,
     val recordedAtEpochMillis: Long,
+    val thresholdConfigVersion: Int?,
+    val thresholdConfigFingerprint: String?,
+    val derivationCommitted: Boolean,
 ) {
     fun toModel() = SafetySensorTelemetry(
         sampleId = sampleId,
@@ -49,6 +60,8 @@ data class SafetySampleEntity(
         altitudeMillimetres = altitudeMillimetres,
         simulated = simulated,
         recordedAtEpochMillis = recordedAtEpochMillis,
+        thresholdConfigVersion = thresholdConfigVersion,
+        thresholdConfigFingerprint = thresholdConfigFingerprint,
     )
 }
 
@@ -70,4 +83,7 @@ internal fun SafetySensorTelemetry.toEntity() = SafetySampleEntity(
     altitudeMillimetres = altitudeMillimetres,
     simulated = simulated,
     recordedAtEpochMillis = recordedAtEpochMillis,
+    thresholdConfigVersion = thresholdConfigVersion,
+    thresholdConfigFingerprint = thresholdConfigFingerprint,
+    derivationCommitted = false,
 )

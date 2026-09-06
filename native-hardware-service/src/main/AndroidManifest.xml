@@ -6,10 +6,12 @@
     <uses-permission android:name="com.example.helmet.permission.BIND_HARDWARE_SERVICE" />
 
     <application>
-        <service
-            android:name=".HelmetHardwareService"
+        <provider
+            android:name=".HelmetHardwareProvider"
+            android:authorities="com.example.helmet.hardware"
             android:enabled="true"
-            android:exported="true"
+            android:exported="false"
+            android:grantUriPermissions="false"
             android:permission="com.example.helmet.permission.BIND_HARDWARE_SERVICE"
             android:process=":hardware" />
     </application>

@@ -2,20 +2,23 @@ package com.example.helmet.data.local
 
 import androidx.room.Entity
 import androidx.room.Index
-import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 import com.example.helmet.core.model.BroadcastPlaybackState
 import com.example.helmet.core.model.DeliveryState
 import com.example.helmet.core.model.TextBroadcast
 
 @Entity(
     tableName = "text_broadcasts",
+    primaryKeys = ["commandStreamId", "broadcastId"],
     indices = [
-        Index(value = ["deviceId", "serverSequence"], unique = true),
-        Index(value = ["receiptDeliveryState", "serverSequence"]),
+        Index(value = ["commandStreamId", "deviceId", "serverSequence"], unique = true),
+        Index(value = ["commandStreamId", "deviceId", "receiptDeliveryState", "serverSequence"]),
     ],
 )
 data class TextBroadcastEntity(
-    @PrimaryKey val broadcastId: String,
+    val broadcastId: String,
+    @ColumnInfo(defaultValue = "'legacy-v13-unscoped'")
+    val commandStreamId: String,
     val deviceId: String,
     val serverSequence: Long,
     val text: String,
@@ -27,6 +30,7 @@ data class TextBroadcastEntity(
     val playingAtEpochMillis: Long?,
     val playedAtEpochMillis: Long?,
     val lastError: String?,
+    val receiptLastError: String?,
     val receiptDeliveryState: String,
     val receiptAttemptCount: Int,
     val lastReceiptAttemptAtEpochMillis: Long?,

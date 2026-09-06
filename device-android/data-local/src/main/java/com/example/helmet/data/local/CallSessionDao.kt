@@ -20,13 +20,19 @@ interface CallSessionDao {
     @Query("SELECT * FROM call_sessions ORDER BY updatedAtEpochMillis DESC LIMIT 1")
     suspend fun latest(): CallSessionEntity?
 
-    @Query("SELECT * FROM call_sessions WHERE deliveryState IN ('PENDING', 'IN_FLIGHT', 'FAILED') ORDER BY createdAtEpochMillis, stateSequence LIMIT :limit")
-    suspend fun pending(limit: Int): List<CallSessionEntity>
+    @Query("SELECT * FROM call_sessions WHERE state NOT IN ('REJECTED', 'ENDED', 'FAILED') ORDER BY updatedAtEpochMillis DESC LIMIT 1")
+    suspend fun active(): CallSessionEntity?
 
-    @Query("SELECT COUNT(*) FROM call_sessions WHERE deliveryState IN ('PENDING', 'IN_FLIGHT', 'FAILED')")
-    suspend fun pendingCount(): Int
+    @Query("SELECT * FROM call_sessions WHERE state NOT IN ('REJECTED', 'ENDED', 'FAILED') ORDER BY updatedAtEpochMillis DESC LIMIT 1")
+    fun observeActive(): Flow<CallSessionEntity?>
 
-    @Query("UPDATE call_sessions SET state = :state, stateSequence = :newSequence, updatedAtEpochMillis = :updatedAt, lastReason = :reason, deliveryState = 'PENDING' WHERE callId = :callId AND stateSequence = :expectedSequence")
+    @Query(
+        "UPDATE call_sessions SET state = :state, stateSequence = :newSequence, " +
+            "updatedAtEpochMillis = :updatedAt, lastReason = :reason, deliveryState = :deliveryState, " +
+            "attemptCount = :attemptCount, lastAttemptAtEpochMillis = :lastAttemptAt, " +
+            "deliveredAtEpochMillis = :deliveredAt " +
+            "WHERE callId = :callId AND stateSequence = :expectedSequence",
+    )
     suspend fun transition(
         callId: String,
         expectedSequence: Long,
@@ -34,14 +40,25 @@ interface CallSessionDao {
         state: String,
         updatedAt: Long,
         reason: String?,
+        deliveryState: String,
+        attemptCount: Int,
+        lastAttemptAt: Long?,
+        deliveredAt: Long?,
     ): Int
 
-    @Query("UPDATE call_sessions SET deliveryState = 'IN_FLIGHT', attemptCount = attemptCount + 1, lastAttemptAtEpochMillis = :attemptAt WHERE callId = :callId AND deliveryState NOT IN ('DELIVERED', 'REJECTED')")
-    suspend fun markAttempt(callId: String, attemptAt: Long): Int
+    @Query(
+        "UPDATE call_sessions SET deliveryState = 'IN_FLIGHT', " +
+            "attemptCount = attemptCount + 1, lastAttemptAtEpochMillis = :attemptAt, " +
+            "deliveredAtEpochMillis = NULL " +
+            "WHERE callId = :callId AND stateSequence = :stateSequence",
+    )
+    suspend fun markAttemptIfCurrent(callId: String, stateSequence: Long, attemptAt: Long): Int
 
-    @Query("UPDATE call_sessions SET deliveryState = 'DELIVERED', deliveredAtEpochMillis = :deliveredAt WHERE callId = :callId")
-    suspend fun markDelivered(callId: String, deliveredAt: Long): Int
-
-    @Query("UPDATE call_sessions SET deliveryState = 'FAILED', lastReason = :error WHERE callId = :callId AND deliveryState NOT IN ('DELIVERED', 'REJECTED')")
-    suspend fun markFailed(callId: String, error: String): Int
+    @Query("UPDATE call_sessions SET deliveryState = :deliveryState, deliveredAtEpochMillis = :deliveredAt WHERE callId = :callId AND stateSequence = :stateSequence")
+    suspend fun updateDeliveryIfCurrent(
+        callId: String,
+        stateSequence: Long,
+        deliveryState: String,
+        deliveredAt: Long?,
+    ): Int
 }

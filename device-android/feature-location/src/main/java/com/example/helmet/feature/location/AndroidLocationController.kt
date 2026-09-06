@@ -15,13 +15,90 @@ import com.example.helmet.core.model.FixQuality
 import com.example.helmet.core.model.GnssQuality
 import com.example.helmet.core.model.LocationFix
 import com.example.helmet.core.model.LocationSource
+import java.util.concurrent.atomic.AtomicLong
 import java.util.UUID
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+
+internal fun locationFailureCode(error: Throwable): String = error.javaClass.name.take(160)
+
+internal data class AndroidNmeaQualitySnapshot(
+    val fixQuality: FixQuality?,
+    val gnss: GnssQuality,
+)
+
+internal class AndroidNmeaQualityTracker(
+    private val monotonicClockMillis: () -> Long = SystemClock::elapsedRealtime,
+    private val freshnessMillis: Long = 2_000L,
+) {
+    private data class TimedSentence<T : NmeaSentence>(
+        val receivedAtElapsedMillis: Long,
+        val sentence: T,
+    )
+
+    init {
+        require(freshnessMillis > 0)
+    }
+
+    private var latestGga: TimedSentence<NmeaSentence.Gga>? = null
+    private var latestGsa: TimedSentence<NmeaSentence.Gsa>? = null
+    private var latestGsv: TimedSentence<NmeaSentence.Gsv>? = null
+
+    @Synchronized
+    fun accept(sentence: NmeaSentence) {
+        val timed = monotonicClockMillis()
+        when (sentence) {
+            is NmeaSentence.Gga -> latestGga = TimedSentence(timed, sentence)
+            is NmeaSentence.Gsa -> latestGsa = TimedSentence(timed, sentence)
+            is NmeaSentence.Gsv -> latestGsv = TimedSentence(timed, sentence)
+            is NmeaSentence.Rmc -> Unit
+        }
+    }
+
+    @Synchronized
+    fun snapshot(): AndroidNmeaQualitySnapshot {
+        val now = monotonicClockMillis()
+        val gga = latestGga.fresh(now)
+        val gsa = latestGsa.fresh(now)
+        val gsv = latestGsv.fresh(now)
+        val satellitesUsed = gga?.satellitesUsed ?: gsa?.satelliteIds?.size
+        val satellitesVisible = gsv?.satellitesVisible?.let { visible ->
+            maxOf(visible, satellitesUsed ?: 0)
+        }
+        return AndroidNmeaQualitySnapshot(
+            fixQuality = gga?.quality,
+            gnss = GnssQuality(
+                satellitesUsed = satellitesUsed,
+                satellitesVisible = satellitesVisible,
+                pdop = gsa?.pdop,
+                hdop = gga?.hdop ?: gsa?.hdop,
+                vdop = gsa?.vdop,
+                correctionAgeSeconds = gga?.correctionAgeSeconds,
+                correctionStationId = gga?.correctionStationId,
+            ),
+        )
+    }
+
+    private fun <T : NmeaSentence> TimedSentence<T>?.fresh(now: Long): T? =
+        this?.takeIf { now - it.receivedAtElapsedMillis in 0..freshnessMillis }?.sentence
+}
+
+internal fun androidLocationFixQuality(
+    source: LocationSource,
+    isMock: Boolean,
+    nmeaFixQuality: FixQuality?,
+): FixQuality = when {
+    isMock -> FixQuality.UNVALIDATED
+    source != LocationSource.ANDROID_GNSS -> FixQuality.UNVALIDATED
+    nmeaFixQuality == FixQuality.NO_FIX -> FixQuality.UNVALIDATED
+    nmeaFixQuality != null -> nmeaFixQuality
+    else -> FixQuality.STANDARD
+}
 
 enum class LocationControllerState {
     STOPPED,
@@ -39,7 +116,34 @@ data class LocationControllerStatus(
     val lastFixQuality: FixQuality = FixQuality.NO_FIX,
     val lastFixAtEpochMillis: Long? = null,
     val lastError: String? = null,
+    val fixQueueOverflowCount: Long = 0,
 )
+
+internal data class LocationFixQueueOffer(
+    val accepted: Boolean,
+    val overflowCount: Long,
+)
+
+internal class LocationFixQueue(capacity: Int) {
+    private val channel = Channel<LocationFix>(capacity)
+    private val overflows = AtomicLong()
+
+    init {
+        require(capacity > 0)
+    }
+
+    val fixes: Flow<LocationFix> = channel.receiveAsFlow()
+
+    fun offer(fix: LocationFix): LocationFixQueueOffer {
+        val accepted = channel.trySend(fix).isSuccess
+        return LocationFixQueueOffer(
+            accepted = accepted,
+            overflowCount = if (accepted) overflows.get() else overflows.incrementAndGet(),
+        )
+    }
+
+    fun close() = channel.close()
+}
 
 class AndroidLocationController(
     context: Context,
@@ -48,49 +152,43 @@ class AndroidLocationController(
     private val elapsedRealtimeNanosClock: () -> Long = SystemClock::elapsedRealtimeNanos,
     private val idFactory: () -> String = { UUID.randomUUID().toString() },
 ) : AutoCloseable {
-    private data class NmeaQualitySnapshot(
-        val receivedAtElapsedMillis: Long,
-        val fixQuality: FixQuality? = null,
-        val satellitesUsed: Int? = null,
-        val satellitesVisible: Int? = null,
-        val pdop: Double? = null,
-        val hdop: Double? = null,
-        val vdop: Double? = null,
-        val correctionAgeSeconds: Double? = null,
-        val correctionStationId: String? = null,
-    )
-
     private val applicationContext = context.applicationContext
     private val manager = applicationContext.getSystemService(LocationManager::class.java)
     private val inspector = LocationCapabilityInspector(applicationContext)
     private val thread = HandlerThread("helmet-location").apply { start() }
     private val handler = Handler(thread.looper)
     private val operationMutex = Mutex()
-    private val _fixes = MutableSharedFlow<LocationFix>(extraBufferCapacity = 64)
+    private val fixQueue = LocationFixQueue(FIX_QUEUE_CAPACITY)
     private val _status = MutableStateFlow(LocationControllerStatus())
 
     @Volatile
     private var latestGnssStatus = GnssQuality()
 
-    @Volatile
-    private var latestNmea = NmeaQualitySnapshot(0)
+    private val nmeaQualityTracker = AndroidNmeaQualityTracker()
 
     @Volatile
     private var running = false
 
-    val fixes: SharedFlow<LocationFix> = _fixes
+    val fixes: Flow<LocationFix> = fixQueue.fixes
     val status: StateFlow<LocationControllerStatus> = _status
 
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
             val fix = location.toFix()
-            _fixes.tryEmit(fix)
-            _status.value = _status.value.copy(
-                state = LocationControllerState.TRACKING,
-                lastFixQuality = fix.quality,
-                lastFixAtEpochMillis = fix.occurredAtEpochMillis,
-                lastError = null,
-            )
+            val offer = fixQueue.offer(fix)
+            _status.value = if (offer.accepted) {
+                _status.value.copy(
+                    state = LocationControllerState.TRACKING,
+                    lastFixQuality = fix.quality,
+                    lastFixAtEpochMillis = fix.occurredAtEpochMillis,
+                    lastError = null,
+                )
+            } else {
+                _status.value.copy(
+                    lastError = "location fix queue full; rejected fixes=${offer.overflowCount}",
+                    fixQueueOverflowCount = offer.overflowCount,
+                )
+            }
         }
 
         override fun onProviderDisabled(provider: String) {
@@ -115,29 +213,7 @@ class AndroidLocationController(
     }
 
     private val nmeaListener = OnNmeaMessageListener { message, _ ->
-        val now = SystemClock.elapsedRealtime()
-        latestNmea = when (val sentence = NmeaParser.parse(message)) {
-            is NmeaSentence.Gga -> latestNmea.copy(
-                receivedAtElapsedMillis = now,
-                fixQuality = sentence.quality,
-                satellitesUsed = sentence.satellitesUsed,
-                hdop = sentence.hdop,
-                correctionAgeSeconds = sentence.correctionAgeSeconds,
-                correctionStationId = sentence.correctionStationId,
-            )
-            is NmeaSentence.Gsa -> latestNmea.copy(
-                receivedAtElapsedMillis = now,
-                satellitesUsed = sentence.satelliteIds.size,
-                pdop = sentence.pdop,
-                hdop = sentence.hdop,
-                vdop = sentence.vdop,
-            )
-            is NmeaSentence.Gsv -> latestNmea.copy(
-                receivedAtElapsedMillis = now,
-                satellitesVisible = sentence.satellitesVisible,
-            )
-            else -> latestNmea
-        }
+        NmeaParser.parse(message)?.let(nmeaQualityTracker::accept)
     }
 
     @SuppressLint("MissingPermission")
@@ -149,6 +225,7 @@ class AndroidLocationController(
                 state = LocationControllerState.PERMISSION_REQUIRED,
                 hasGnssProvider = capabilities.hasGnssProvider,
                 lastError = "location permission is not granted",
+                fixQueueOverflowCount = _status.value.fixQueueOverflowCount,
             )
             return
         }
@@ -158,6 +235,7 @@ class AndroidLocationController(
                 state = LocationControllerState.NO_PROVIDER,
                 hasGnssProvider = capabilities.hasGnssProvider,
                 lastError = "no enabled GNSS, fused, or network provider",
+                fixQueueOverflowCount = _status.value.fixQueueOverflowCount,
             )
             return
         }
@@ -172,13 +250,15 @@ class AndroidLocationController(
                 state = LocationControllerState.WAITING_FOR_FIX,
                 selectedProvider = provider,
                 hasGnssProvider = capabilities.hasGnssProvider,
+                fixQueueOverflowCount = _status.value.fixQueueOverflowCount,
             )
         } catch (error: Throwable) {
             _status.value = LocationControllerStatus(
                 state = LocationControllerState.ERROR,
                 selectedProvider = provider,
                 hasGnssProvider = capabilities.hasGnssProvider,
-                lastError = error.toString(),
+                lastError = locationFailureCode(error),
+                fixQueueOverflowCount = _status.value.fixQueueOverflowCount,
             )
         }
     }
@@ -201,6 +281,7 @@ class AndroidLocationController(
             runCatching { manager.removeNmeaListener(nmeaListener) }
         }
         running = false
+        fixQueue.close()
         thread.quitSafely()
     }
 
@@ -224,22 +305,20 @@ class AndroidLocationController(
             LocationManager.NETWORK_PROVIDER -> LocationSource.CELL_ASSISTED
             else -> LocationSource.ANDROID_FUSED
         }
-        val nmea = latestNmea.takeIf {
-            SystemClock.elapsedRealtime() - it.receivedAtElapsedMillis <= NMEA_FRESHNESS_MILLIS
-        }
-        val quality = when {
-            isMock -> FixQuality.UNVALIDATED
-            source == LocationSource.ANDROID_GNSS -> nmea?.fixQuality ?: FixQuality.STANDARD
-            else -> FixQuality.UNVALIDATED
-        }
+        val nmea = nmeaQualityTracker.snapshot()
+        val quality = androidLocationFixQuality(source, isMock, nmea.fixQuality)
         val gnss = GnssQuality(
-            satellitesUsed = nmea?.satellitesUsed ?: latestGnssStatus.satellitesUsed,
-            satellitesVisible = nmea?.satellitesVisible ?: latestGnssStatus.satellitesVisible,
-            pdop = nmea?.pdop,
-            hdop = nmea?.hdop,
-            vdop = nmea?.vdop,
-            correctionAgeSeconds = nmea?.correctionAgeSeconds,
-            correctionStationId = nmea?.correctionStationId,
+            satellitesUsed = nmea.gnss.satellitesUsed ?: latestGnssStatus.satellitesUsed,
+            satellitesVisible = maxOf(
+                nmea.gnss.satellitesVisible ?: 0,
+                nmea.gnss.satellitesUsed ?: latestGnssStatus.satellitesUsed ?: 0,
+                latestGnssStatus.satellitesVisible ?: 0,
+            ).takeIf { it > 0 },
+            pdop = nmea.gnss.pdop,
+            hdop = nmea.gnss.hdop,
+            vdop = nmea.gnss.vdop,
+            correctionAgeSeconds = nmea.gnss.correctionAgeSeconds,
+            correctionStationId = nmea.gnss.correctionStationId,
         )
         return LocationFix(
             fixId = idFactory(),
@@ -265,7 +344,7 @@ class AndroidLocationController(
 
     companion object {
         private const val UPDATE_INTERVAL_MILLIS = 1_000L
-        private const val NMEA_FRESHNESS_MILLIS = 2_000L
+        private const val FIX_QUEUE_CAPACITY = 64
     }
 }
 

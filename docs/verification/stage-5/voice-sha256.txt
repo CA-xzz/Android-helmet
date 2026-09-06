@@ -1,2 +1,0 @@
-efe256e8223ca2636f5c8b683ee420bde4e04611549c1c74765ea9822dd66b07  docs/verification/stage-5/voice-message-fixture.wav
-efe256e8223ca2636f5c8b683ee420bde4e04611549c1c74765ea9822dd66b07  /tmp/stage5-voice-downloaded.wav

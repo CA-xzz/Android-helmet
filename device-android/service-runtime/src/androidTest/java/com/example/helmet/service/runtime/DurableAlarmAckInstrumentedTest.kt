@@ -85,7 +85,7 @@ class DurableAlarmAckInstrumentedTest {
         val acknowledgements = mutableListOf<String>()
 
         val result = persistAndAcknowledgeSafetyAlarm(
-            sequence = 91,
+            acknowledgement = 91,
             persist = {
                 assertTrue(store.recordSample(sample))
                 assertTrue(store.recordAlert(alert))

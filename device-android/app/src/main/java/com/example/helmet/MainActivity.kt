@@ -2,441 +2,406 @@ package com.example.helmet
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.hardware.camera2.CameraManager
 import android.location.LocationManager
 import android.os.Bundle
+import android.text.InputType
 import android.view.Gravity
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
-import android.text.InputType
+import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.core.content.ContextCompat
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.example.helmet.data.local.DeviceIdentityStore
-import com.example.helmet.data.local.EventStore
-import com.example.helmet.data.local.HelmetDatabase
 import com.example.helmet.data.local.RuntimeConfigStore
+import com.example.helmet.core.model.RtkRuntimeConfig
+import com.example.helmet.core.model.RtkTransportMode
+import com.example.helmet.core.model.RuntimeConfig
 import com.example.helmet.hardware.api.SimulatedInput
+import com.example.helmet.service.runtime.CommunicationWorkTrigger
+import com.example.helmet.service.runtime.CommunicationWorker
 import com.example.helmet.service.runtime.HelmetService
 import com.example.helmet.service.runtime.MediaUploadWorker
-import com.example.helmet.service.runtime.TrackUploadWorker
-import com.example.helmet.service.runtime.CommunicationWorker
 import com.example.helmet.service.runtime.SafetyAlertWorker
-import com.example.helmet.service.runtime.RuntimeStatus
-import com.example.helmet.service.runtime.NtripEndpoint
-import kotlinx.coroutines.launch
+import com.example.helmet.service.runtime.TrackUploadWorker
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
-    private lateinit var statusView: TextView
-    private lateinit var eventsView: TextView
-    private lateinit var eventStore: EventStore
-    private lateinit var personIdInput: EditText
-    private lateinit var backendUrlInput: EditText
-    private lateinit var backendTokenInput: EditText
-    private lateinit var ntripUrlInput: EditText
-    private lateinit var ntripUsernameInput: EditText
-    private lateinit var ntripPasswordInput: EditText
-    private lateinit var intercomGroupInput: EditText
-    private lateinit var intercomChannelInput: EditText
-    private lateinit var intercomKeySlotInput: EditText
-    private lateinit var geofenceInput: EditText
+class MainActivity : ComponentActivity(), OperatorDashboardView.Actions {
+    private lateinit var dashboard: OperatorDashboardView
+    private lateinit var repository: OperatorUiRepository
+    private lateinit var configStore: RuntimeConfigStore
+    private var selectedPage = DashboardPage.OVERVIEW
+
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) { grants ->
-        if (grants.values.any { granted -> granted }) restartRuntimeService()
+    ) {
+        repository.refresh()
+        startRuntimeService()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestRequiredHardwarePermissions()
-        eventStore = EventStore(HelmetDatabase.get(this))
-        setContentView(buildContent())
-        observeRuntime()
-    }
-
-    private fun buildContent(): ScrollView {
-        val density = resources.displayMetrics.density
-        val padding = (20 * density).toInt()
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(padding, padding, padding, padding)
-            setBackgroundColor(Color.rgb(240, 244, 248))
-        }
-
-        root.addView(TextView(this).apply {
-            text = "Smart Helmet Diagnostics"
-            textSize = 26f
-            setTextColor(Color.rgb(16, 42, 67))
-        })
-        root.addView(TextView(this).apply {
-            text = "deviceId: ${DeviceIdentityStore(this@MainActivity).getOrCreateDeviceId()}"
-            textSize = 14f
-            setPadding(0, padding / 2, 0, padding)
-        })
-
-        statusView = TextView(this).apply {
-            textSize = 17f
-            setTextColor(Color.DKGRAY)
-        }
-        root.addView(statusView, matchWidthWrapHeight())
-
-        root.addView(actionButton("Start HelmetService") {
-            ContextCompat.startForegroundService(this, HelmetService.startIntent(this))
-        })
-        root.addView(actionButton("Use simulated hardware") { switchHardwareMode(simulatorEnabled = true) })
-        root.addView(actionButton("Use UART hardware") { switchHardwareMode(simulatorEnabled = false) })
-        val runtimeConfig = RuntimeConfigStore(this).load()
-        personIdInput = EditText(this).apply {
-            hint = "Assigned person ID; blank means unassigned"
-            setText(runtimeConfig.personId.orEmpty())
-            inputType = InputType.TYPE_CLASS_TEXT
-        }
-        root.addView(personIdInput, matchWidthWrapHeight())
-        root.addView(actionButton("Save person binding") { savePersonBinding() })
-        backendUrlInput = EditText(this).apply {
-            hint = "HTTPS media backend base URL"
-            setText(runtimeConfig.backendBaseUrl)
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
-        }
-        root.addView(backendUrlInput, matchWidthWrapHeight())
-        backendTokenInput = EditText(this).apply {
-            hint = if (runtimeConfig.backendBearerToken.isBlank()) {
-                "Media bearer token"
-            } else {
-                "Media bearer token unchanged when blank"
-            }
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-        root.addView(backendTokenInput, matchWidthWrapHeight())
-        root.addView(actionButton("Save media upload configuration") { saveBackendConfiguration(clear = false) })
-        root.addView(actionButton("Clear media upload configuration") { saveBackendConfiguration(clear = true) })
-        ntripUrlInput = EditText(this).apply {
-            hint = "HTTPS NTRIP mount-point URL"
-            setText(runtimeConfig.rtk.ntripUrl)
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
-        }
-        root.addView(ntripUrlInput, matchWidthWrapHeight())
-        ntripUsernameInput = EditText(this).apply {
-            hint = "NTRIP username"
-            setText(runtimeConfig.rtk.username)
-            inputType = InputType.TYPE_CLASS_TEXT
-        }
-        root.addView(ntripUsernameInput, matchWidthWrapHeight())
-        ntripPasswordInput = EditText(this).apply {
-            hint = if (runtimeConfig.rtk.password.isBlank()) {
-                "NTRIP password"
-            } else {
-                "NTRIP password unchanged when blank"
-            }
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-        root.addView(ntripPasswordInput, matchWidthWrapHeight())
-        root.addView(actionButton("Enable RTK correction") { saveRtkConfiguration(enabled = true) })
-        root.addView(actionButton("Disable and clear RTK correction") { saveRtkConfiguration(enabled = false) })
-        intercomGroupInput = EditText(this).apply {
-            hint = "Local intercom group ID"
-            setText(runtimeConfig.localIntercom.groupId.toString())
-            inputType = InputType.TYPE_CLASS_NUMBER
-        }
-        root.addView(intercomGroupInput, matchWidthWrapHeight())
-        intercomChannelInput = EditText(this).apply {
-            hint = "Local intercom channel"
-            setText(runtimeConfig.localIntercom.channel.toString())
-            inputType = InputType.TYPE_CLASS_NUMBER
-        }
-        root.addView(intercomChannelInput, matchWidthWrapHeight())
-        intercomKeySlotInput = EditText(this).apply {
-            hint = "Provisioned module key slot"
-            setText(runtimeConfig.localIntercom.keySlot.toString())
-            inputType = InputType.TYPE_CLASS_NUMBER
-        }
-        root.addView(intercomKeySlotInput, matchWidthWrapHeight())
-        root.addView(actionButton("Enable offline local intercom fallback") {
-            saveLocalIntercomConfiguration(enabled = true)
-        })
-        root.addView(actionButton("Disable local intercom fallback") {
-            saveLocalIntercomConfiguration(enabled = false)
-        })
-        geofenceInput = EditText(this).apply {
-            hint = "Geofence JSON array"
-            setText(RuntimeConfigStore.geofencesToJson(runtimeConfig.geofences))
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            minLines = 2
-        }
-        root.addView(geofenceInput, matchWidthWrapHeight())
-        root.addView(actionButton("Save geofence configuration") { saveGeofenceConfiguration() })
-        root.addView(actionButton("Simulate photo key") { simulate(SimulatedInput.PHOTO_SHORT) })
-        root.addView(actionButton("Simulate record key") { simulate(SimulatedInput.RECORD_LONG) })
-        root.addView(actionButton("Simulate call key") { simulate(SimulatedInput.CALL) })
-        root.addView(actionButton("Simulate fall alarm") { simulate(SimulatedInput.FALL) })
-        root.addView(actionButton("Simulate near-electric alarm") { simulate(SimulatedInput.NEAR_ELECTRIC) })
-        root.addView(actionButton("Simulate height alarm") { simulate(SimulatedInput.HEIGHT_LIMIT) })
-        root.addView(actionButton("Simulate volume up") { simulate(SimulatedInput.VOLUME_UP) })
-        root.addView(actionButton("Simulate volume down") { simulate(SimulatedInput.VOLUME_DOWN) })
-
-        eventsView = TextView(this).apply {
-            textSize = 14f
-            setTextColor(Color.rgb(36, 59, 83))
-            setPadding(0, padding, 0, 0)
-        }
-        root.addView(eventsView, matchWidthWrapHeight())
-
-        return ScrollView(this).apply { addView(root) }
-    }
-
-    private fun actionButton(label: String, onClick: () -> Unit): Button =
-        Button(this).apply {
-            text = label
-            isAllCaps = false
-            setOnClickListener { onClick() }
-            layoutParams = matchWidthWrapHeight().apply {
-                topMargin = (8 * resources.displayMetrics.density).toInt()
-            }
-        }
-
-    private fun matchWidthWrapHeight() = LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT,
-    )
-
-    private fun simulate(input: SimulatedInput) {
-        ContextCompat.startForegroundService(this, HelmetService.simulateIntent(this, input))
-    }
-
-    private fun switchHardwareMode(simulatorEnabled: Boolean) {
-        val store = RuntimeConfigStore(this)
-        val current = store.load()
-        store.save(
-            current.copy(
-                revision = current.revision + 1,
-                simulatorEnabled = simulatorEnabled,
-            ),
+        selectedPage = savedInstanceState?.getString(STATE_SELECTED_PAGE)
+            ?.let { runCatching { DashboardPage.valueOf(it) }.getOrNull() }
+            ?: DashboardPage.OVERVIEW
+        configStore = RuntimeConfigStore(this)
+        repository = OperatorUiRepository(this)
+        dashboard = OperatorDashboardView(
+            context = this,
+            debugToolsAvailable = VariantDebugUiPolicy.debugToolsAvailable,
+            actions = this,
+            restoredPage = selectedPage,
         )
+        setContentView(dashboard)
+        startRuntimeService()
+        observeDashboard()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(STATE_SELECTED_PAGE, selectedPage.name)
+        super.onSaveInstanceState(outState)
+    }
+
+    override fun onPageChanged(page: DashboardPage) {
+        selectedPage = page
+    }
+
+    override fun onRefreshDetection() {
+        repository.refresh()
+        startRuntimeService()
+        showMessage("已刷新检测结果")
+    }
+
+    override fun onStartService() {
+        startRuntimeService()
+        repository.refresh()
+        showMessage("前台服务启动请求已发送")
+    }
+
+    override fun onRequestPermissions() {
+        requestRequiredHardwarePermissions()
+    }
+
+    override fun onEditSerialConfiguration() {
+        val current = configStore.load()
+        val path = editField(
+            label = "串口设备节点",
+            value = current.hardwareDevicePath,
+            hint = "/dev/ttyAS2",
+        )
+        val baud = editField(
+            label = "波特率",
+            value = current.hardwareBaudRate.toString(),
+            hint = "115200",
+            inputType = InputType.TYPE_CLASS_NUMBER,
+        )
+        val rtkMode = editField(
+            label = "RTK 接入模式",
+            value = current.rtk.transportMode.name,
+            hint = "HSL 或 DIRECT_UART4",
+        )
+        val rtkBaud = editField(
+            label = "UART4 波特率",
+            value = current.rtk.directBaudRate.toString(),
+            hint = "115200",
+            inputType = InputType.TYPE_CLASS_NUMBER,
+        )
+        val content = if (VariantDebugUiPolicy.debugToolsAvailable) {
+            dialogColumn(
+                path.first,
+                path.second,
+                baud.first,
+                baud.second,
+                rtkMode.first,
+                rtkMode.second,
+                rtkBaud.first,
+                rtkBaud.second,
+            )
+        } else {
+            dialogColumn(rtkMode.first, rtkMode.second, rtkBaud.first, rtkBaud.second)
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(if (VariantDebugUiPolicy.debugToolsAvailable) "修改硬件串口配置" else "RTK 接入配置")
+            .setView(content)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("保存", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                runCatching {
+                    val normalizedPath = if (VariantDebugUiPolicy.debugToolsAvailable) {
+                        LocalConfigurationPolicy.normalizeHardwareDevicePath(
+                            path.second.text.toString(),
+                            productionBuild = false,
+                        )
+                    } else {
+                        RuntimeConfig().hardwareDevicePath
+                    }
+                    val normalizedBaud = if (VariantDebugUiPolicy.debugToolsAvailable) {
+                        LocalConfigurationPolicy.validateHardwareBaudRate(baud.second.text.toString().toInt())
+                    } else {
+                        RuntimeConfig().hardwareBaudRate
+                    }
+                    val normalizedRtkMode = RtkTransportMode.valueOf(
+                        rtkMode.second.text.toString().trim().uppercase(),
+                    )
+                    val normalizedRtkBaud = rtkBaud.second.text.toString().toInt().also {
+                        require(it in RtkRuntimeConfig.SUPPORTED_DIRECT_RTK_BAUD_RATES) {
+                            "不支持的 UART4 波特率"
+                        }
+                    }
+                    configStore.update { config ->
+                        config.copy(
+                            simulatorEnabled = false,
+                            hardwareDevicePath = normalizedPath,
+                            hardwareBaudRate = normalizedBaud,
+                            rtk = config.rtk.copy(
+                                transportMode = normalizedRtkMode,
+                                directDevicePath = "/dev/ttyAS4",
+                                directBaudRate = normalizedRtkBaud,
+                            ),
+                        )
+                    }
+                }.onSuccess {
+                    dialog.dismiss()
+                    configurationSaved("RTK 接入配置已保存，已恢复真实 UART 模式")
+                }.onFailure { error ->
+                    rtkMode.second.error = error.message ?: "串口配置无效"
+                }
+            }
+        }
+        dialog.show()
+    }
+
+    override fun onEditBackendConfiguration() {
+        val current = configStore.load()
+        val person = editField(
+            label = "人员编号",
+            value = current.personId.orEmpty(),
+            hint = "可留空",
+        )
+        val url = editField(
+            label = "服务器地址",
+            value = current.backendBaseUrl,
+            hint = "https://helmet.example.com",
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI,
+        )
+        val token = editField(
+            label = "访问凭据",
+            value = "",
+            hint = if (current.backendBearerToken.isBlank()) "请输入访问凭据" else "留空表示不修改",
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
+        )
+        val content = dialogColumn(person.first, person.second, url.first, url.second, token.first, token.second)
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("修改服务器配置")
+            .setView(content)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("保存", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                runCatching {
+                    val normalizedUrl = LocalConfigurationPolicy.normalizeBackendBaseUrl(
+                        url.second.text.toString(),
+                        BuildConfig.PRODUCTION_BUILD,
+                    )
+                    val enteredToken = token.second.text.toString()
+                    configStore.update { config ->
+                        val savedToken = when {
+                            enteredToken.isNotBlank() -> LocalConfigurationPolicy.validateBearerToken(enteredToken)
+                            config.backendBearerToken.isNotBlank() -> config.backendBearerToken
+                            else -> throw IllegalArgumentException("访问凭据不能为空")
+                        }
+                        config.copy(
+                            personId = person.second.text.toString().trim().ifBlank { null },
+                            backendBaseUrl = normalizedUrl,
+                            backendBearerToken = savedToken,
+                        )
+                    }
+                }.onSuccess {
+                    dialog.dismiss()
+                    configurationSaved("服务器配置已保存")
+                    enqueueUploads()
+                }.onFailure { error ->
+                    url.second.error = error.message ?: "服务器配置无效"
+                }
+            }
+        }
+        dialog.show()
+    }
+
+    override fun onClearBackendConfiguration() {
+        AlertDialog.Builder(this)
+            .setTitle("清除服务器配置")
+            .setMessage("清除后，本地数据仍会保留，但不能上传到服务器。")
+            .setNegativeButton("取消", null)
+            .setPositiveButton("确认清除") { _, _ ->
+                runCatching {
+                    configStore.update(LocalConfigurationPolicy::clearBackendAndMqttConfiguration)
+                }.onSuccess {
+                    configurationSaved("服务器配置已清除")
+                }.onFailure { error ->
+                    showMessage(error.message ?: "无法清除服务器配置")
+                }
+            }
+            .show()
+    }
+
+    override fun onUseSimulator() {
+        if (!VariantDebugUiPolicy.debugToolsAvailable) return
+        updateHardwareMode(simulatorEnabled = true)
+    }
+
+    override fun onUseUart() {
+        if (!VariantDebugUiPolicy.debugToolsAvailable) return
+        updateHardwareMode(simulatorEnabled = false)
+    }
+
+    override fun onSimulate(input: SimulatedInput) {
+        if (!VariantDebugUiPolicy.debugToolsAvailable) return
+        if (!configStore.load().simulatorEnabled) {
+            showMessage("请先启用模拟硬件")
+            return
+        }
+        ContextCompat.startForegroundService(this, HelmetService.simulateIntent(this, input))
+        showMessage("调试模拟请求已发送")
+    }
+
+    private fun observeDashboard() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    repository.states.collect(dashboard::render)
+                }
+                launch {
+                    while (isActive) {
+                        dashboard.updateClock(repository.nowEpochMillis())
+                        delay(1_000L)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun updateHardwareMode(simulatorEnabled: Boolean) {
+        val effective = LocalConfigurationPolicy.effectiveSimulatorEnabled(
+            productionBuild = BuildConfig.PRODUCTION_BUILD,
+            requested = simulatorEnabled,
+        )
+        if (simulatorEnabled && !effective) return
+        runCatching {
+            configStore.update { current -> current.copy(simulatorEnabled = effective) }
+        }.onSuccess {
+            configurationSaved(if (effective) "调试模拟硬件已启用" else "已恢复真实 UART 模式")
+        }.onFailure { error ->
+            showMessage(error.message ?: "无法切换硬件模式")
+        }
+    }
+
+    private fun configurationSaved(message: String) {
+        CommunicationWorker.enqueue(this, CommunicationWorkTrigger.CONFIG_REVISION_CHANGED)
+        repository.refresh()
         restartRuntimeService()
+        showMessage(message)
+    }
+
+    private fun startRuntimeService() {
+        ContextCompat.startForegroundService(this, HelmetService.startIntent(this))
     }
 
     private fun restartRuntimeService() {
         lifecycleScope.launch {
             stopService(HelmetService.startIntent(this@MainActivity))
-            delay(300)
-            ContextCompat.startForegroundService(this@MainActivity, HelmetService.startIntent(this@MainActivity))
+            delay(300L)
+            startRuntimeService()
         }
     }
 
-    private fun saveBackendConfiguration(clear: Boolean) {
-        val store = RuntimeConfigStore(this)
-        val current = store.load()
-        val enteredToken = backendTokenInput.text.toString()
-        store.save(
-            current.copy(
-                revision = current.revision + 1,
-                backendBaseUrl = if (clear) "" else backendUrlInput.text.toString().trim(),
-                backendBearerToken = when {
-                    clear -> ""
-                    enteredToken.isNotBlank() -> enteredToken
-                    else -> current.backendBearerToken
-                },
-            ),
-        )
-        backendTokenInput.text.clear()
-        if (clear) backendUrlInput.text.clear()
+    private fun enqueueUploads() {
         MediaUploadWorker.enqueue(this)
         TrackUploadWorker.enqueue(this)
-        CommunicationWorker.enqueue(this)
         SafetyAlertWorker.enqueue(this)
-    }
-
-    private fun savePersonBinding() {
-        val store = RuntimeConfigStore(this)
-        val current = store.load()
-        runCatching {
-            current.copy(
-                revision = current.revision + 1,
-                personId = personIdInput.text.toString().trim().ifBlank { null },
-            )
-        }.onSuccess { updated ->
-            personIdInput.error = null
-            store.save(updated)
-            restartRuntimeService()
-        }.onFailure { error ->
-            personIdInput.error = error.message ?: "Invalid person ID"
-        }
-    }
-
-    private fun saveRtkConfiguration(enabled: Boolean) {
-        val store = RuntimeConfigStore(this)
-        val current = store.load()
-        val enteredPassword = ntripPasswordInput.text.toString()
-        val candidate = runCatching {
-            val url = if (enabled) ntripUrlInput.text.toString().trim() else ""
-            if (enabled) NtripEndpoint.parse(url)
-            current.rtk.copy(
-                enabled = enabled,
-                ntripUrl = url,
-                username = if (enabled) ntripUsernameInput.text.toString().trim() else "",
-                password = when {
-                    !enabled -> ""
-                    enteredPassword.isNotBlank() -> enteredPassword
-                    else -> current.rtk.password
-                },
-            )
-        }
-        candidate.onFailure { error ->
-            ntripUrlInput.error = error.message ?: "Invalid NTRIP configuration"
-        }.onSuccess { rtk ->
-            ntripUrlInput.error = null
-            store.save(current.copy(revision = current.revision + 1, rtk = rtk))
-            ntripPasswordInput.text.clear()
-            if (!enabled) {
-                ntripUrlInput.text.clear()
-                ntripUsernameInput.text.clear()
-            }
-            restartRuntimeService()
-        }
-    }
-
-    private fun saveLocalIntercomConfiguration(enabled: Boolean) {
-        val store = RuntimeConfigStore(this)
-        val current = store.load()
-        runCatching {
-            current.localIntercom.copy(
-                enabled = enabled,
-                fallbackWhenInternetUnavailable = true,
-                groupId = intercomGroupInput.text.toString().toInt(),
-                channel = intercomChannelInput.text.toString().toInt(),
-                keySlot = intercomKeySlotInput.text.toString().toInt(),
-            )
-        }.onSuccess { localIntercom ->
-            intercomGroupInput.error = null
-            intercomChannelInput.error = null
-            intercomKeySlotInput.error = null
-            store.save(current.copy(revision = current.revision + 1, localIntercom = localIntercom))
-            restartRuntimeService()
-        }.onFailure { error ->
-            intercomGroupInput.error = error.message ?: "Invalid local intercom configuration"
-        }
-    }
-
-    private fun observeRuntime() {
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                launch {
-                    RuntimeStatus.snapshot.collect { snapshot ->
-                        statusView.text = buildString {
-                            appendLine("state: ${snapshot.state}")
-                            appendLine("networkAvailable: ${snapshot.networkAvailable}")
-                            appendLine("networkState: ${snapshot.networkState}")
-                            appendLine("networkTransports: ${snapshot.networkTransports}")
-                            appendLine("networkMetered: ${snapshot.networkMetered}")
-                            appendLine("networkInterface: ${snapshot.networkInterface}")
-                            appendLine("persistedEvents: ${snapshot.persistedEventCount}")
-                            appendLine("lastEvent: ${snapshot.lastEventType ?: "none"}")
-                            appendLine("appVersion: ${snapshot.appVersion}")
-                            appendLine("androidVersion: ${snapshot.androidVersion}")
-                            appendLine("configRevision: ${snapshot.configRevision}")
-                            appendLine("hardwareMode: ${snapshot.hardwareMode}")
-                            appendLine("hardwareConnected: ${snapshot.hardwareConnected}")
-                            appendLine("hardwareLinkState: ${snapshot.hardwareLinkState}")
-                            appendLine("cameraCount: ${snapshot.cameraCount}")
-                            appendLine("camera: ${snapshot.cameraSummary}")
-                            appendLine("pendingMedia: ${snapshot.pendingMediaCount}")
-                            appendLine("locationState: ${snapshot.locationState}")
-                            appendLine("locationProvider: ${snapshot.locationProvider}")
-                            appendLine("locationFixQuality: ${snapshot.locationFixQuality}")
-                            appendLine("locationHasPosition: ${snapshot.locationHasPosition}")
-                            appendLine("rtkState: ${snapshot.rtkState}")
-                            appendLine("rtkCorrectionFrames: ${snapshot.rtkCorrectionFrames}")
-                            appendLine("rtkCorrectionBytes: ${snapshot.rtkCorrectionBytes}")
-                            appendLine("rtkLastError: ${snapshot.rtkLastError ?: "none"}")
-                            appendLine("localIntercomState: ${snapshot.localIntercomState}")
-                            appendLine("localIntercomPeers: ${snapshot.localIntercomPeers}")
-                            appendLine("localIntercomRssiDbm: ${snapshot.localIntercomRssiDbm ?: "unknown"}")
-                            appendLine(
-                                "localIntercomPacketLossPermille: " +
-                                    (snapshot.localIntercomPacketLossPermille ?: "unknown"),
-                            )
-                            appendLine(
-                                "localIntercomLatencyMillis: " +
-                                    (snapshot.localIntercomLatencyMillis ?: "unknown"),
-                            )
-                            appendLine(
-                                "localIntercomLastError: ${snapshot.localIntercomLastError ?: "none"}",
-                            )
-                            appendLine("pendingTrack: ${snapshot.pendingTrackCount}")
-                            appendLine("activeGeofences: ${snapshot.activeGeofenceCount}")
-                            appendLine("activeCallId: ${snapshot.activeCallId}")
-                            appendLine("callState: ${snapshot.callState}")
-                            appendLine("pendingCallSync: ${snapshot.pendingCallSyncCount}")
-                            appendLine("pendingBroadcastReceipts: ${snapshot.pendingBroadcastReceiptCount}")
-                            appendLine("pendingSafetyAlerts: ${snapshot.pendingSafetyAlertCount}")
-                            appendLine("retainedSafetySamples: ${snapshot.retainedSafetySampleCount}")
-                            appendLine("batteryPresent: ${snapshot.batteryPresent}")
-                            appendLine("batteryPercent: ${snapshot.batteryPercent ?: "unknown"}")
-                            appendLine("batteryVoltageMillivolts: ${snapshot.batteryVoltageMillivolts ?: "unknown"}")
-                            appendLine("timeSource: ${snapshot.timeSource}")
-                            appendLine("timeSynchronized: ${snapshot.timeSynchronized}")
-                            appendLine("timeUncertaintyMillis: ${snapshot.timeUncertaintyMillis ?: "unknown"}")
-                            append("timeCalibrationAgeMillis: ${snapshot.timeCalibrationAgeMillis ?: "unknown"}")
-                        }
-                    }
-                }
-                launch {
-                    eventStore.observeRecent(20).collect { events ->
-                        eventsView.text = buildString {
-                            appendLine("Recent persisted events")
-                            events.forEach { event ->
-                                appendLine("${event.occurredAtEpochMillis} ${event.eventType} ${event.severity}")
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        CommunicationWorker.enqueue(this, CommunicationWorkTrigger.CONFIG_REVISION_CHANGED)
     }
 
     private fun requestRequiredHardwarePermissions() {
-        val requested = linkedSetOf<String>()
-        val cameraManager = getSystemService(CameraManager::class.java)
-        if (runCatching { cameraManager.cameraIdList.isNotEmpty() }.getOrDefault(false)) {
-            requested += Manifest.permission.CAMERA
-            requested += Manifest.permission.RECORD_AUDIO
-        }
+        val cameraAvailable = runCatching {
+            getSystemService(CameraManager::class.java).cameraIdList.isNotEmpty()
+        }.getOrDefault(false)
         val locationManager = getSystemService(LocationManager::class.java)
         val positionProviders = setOf(
             LocationManager.GPS_PROVIDER,
             LocationManager.FUSED_PROVIDER,
             LocationManager.NETWORK_PROVIDER,
         )
-        if (locationManager.allProviders.any(positionProviders::contains)) {
-            requested += Manifest.permission.ACCESS_FINE_LOCATION
-            requested += Manifest.permission.ACCESS_COARSE_LOCATION
+        val locationProviderAvailable = runCatching {
+            locationManager.allProviders.any(positionProviders::contains)
+        }.getOrDefault(false)
+        val bluetoothAvailable = packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH) ||
+            packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
+        val missing = LocalConfigurationPolicy.requiredRuntimePermissions(
+            cameraAvailable = cameraAvailable,
+            locationProviderAvailable = locationProviderAvailable,
+            bluetoothAvailable = bluetoothAvailable,
+        ).filter { permission ->
+            ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
         }
-        val missing = requested
-            .filter { permission ->
-                ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
-            }
-        if (missing.isNotEmpty()) permissionLauncher.launch(missing.toTypedArray())
+        if (missing.isEmpty()) {
+            showMessage("所需权限已授予")
+            repository.refresh()
+        } else {
+            permissionLauncher.launch(missing.toTypedArray())
+        }
     }
 
-    private fun saveGeofenceConfiguration() {
-        runCatching { RuntimeConfigStore.parseGeofences(geofenceInput.text.toString()) }
-            .onSuccess { geofences ->
-                geofenceInput.error = null
-                val store = RuntimeConfigStore(this)
-                val current = store.load()
-                store.save(current.copy(revision = current.revision + 1, geofences = geofences))
-                restartRuntimeService()
-            }
-            .onFailure { error -> geofenceInput.error = error.message ?: "Invalid geofence JSON" }
+    private fun editField(
+        label: String,
+        value: String,
+        hint: String,
+        inputType: Int = InputType.TYPE_CLASS_TEXT,
+    ): Pair<TextView, EditText> {
+        val labelView = TextView(this).apply {
+            text = label
+            textSize = 15f
+            setPadding(0, dp(10), 0, dp(4))
+        }
+        val input = EditText(this).apply {
+            setText(value)
+            this.hint = hint
+            this.inputType = inputType
+            textSize = 17f
+            minHeight = dp(54)
+            isSingleLine = true
+        }
+        return labelView to input
+    }
+
+    private fun dialogColumn(vararg views: android.view.View): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER_HORIZONTAL
+        setPadding(dp(24), dp(6), dp(24), dp(12))
+        views.forEach { addView(it, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+        )) }
+    }
+
+    private fun showMessage(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density + 0.5f).toInt()
+
+    companion object {
+        private const val STATE_SELECTED_PAGE = "selected_dashboard_page"
     }
 }

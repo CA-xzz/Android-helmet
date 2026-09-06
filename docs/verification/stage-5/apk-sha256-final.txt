@@ -1,1 +1,0 @@
-0708ba64454d801a07c8c16db7f5c3f29dc109da17a62b220216a687a2ec3641  device-android/app/build/outputs/apk/debug/app-debug.apk

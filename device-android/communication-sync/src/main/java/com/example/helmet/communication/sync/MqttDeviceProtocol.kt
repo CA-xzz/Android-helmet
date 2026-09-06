@@ -68,6 +68,9 @@ object MqttDeviceProtocol {
         if (payload.optString("deviceId") != expectedDeviceId) {
             throw MqttProtocolException("command payload device mismatch")
         }
+        if (payload.opt("acknowledged") != false) {
+            throw MqttProtocolException("MQTT must not redeliver an acknowledged command")
+        }
         val sequence = requiredPositiveLong(payload, "sequence")
         val createdAt = requiredPositiveLong(payload, "createdAtEpochMillis")
         if (requiredPositiveLong(envelope, "occurredAtEpochMillis") != createdAt) {
@@ -142,14 +145,17 @@ object MqttDeviceProtocol {
 
     fun commandAcknowledgement(
         deviceId: String,
+        commandStreamId: String,
         command: DeviceCommand,
         status: String,
         error: String?,
     ): MqttUplink {
         require(command.deviceId == deviceId) { "command device mismatch" }
         require(status == "APPLIED" || status == "FAILED") { "command status is invalid" }
+        val safeCommandStreamId = validatedCommandStreamId(commandStreamId)
         val occurredAt = command.appliedAtEpochMillis ?: command.receivedAtEpochMillis
         val payload = JSONObject()
+            .put("commandStreamId", safeCommandStreamId)
             .put("commandId", command.commandId)
             .put("status", status)
             .put("error", error ?: JSONObject.NULL)
@@ -157,7 +163,10 @@ object MqttDeviceProtocol {
         return uplink(
             deviceId,
             "command-ack",
-            stableMessageId("ack", "${command.commandId}|$status|$occurredAt|${error.orEmpty()}"),
+            stableMessageId(
+                "ack",
+                "$safeCommandStreamId|${command.commandId}|$status|$occurredAt|${error.orEmpty()}",
+            ),
             occurredAt,
             payload,
         )
@@ -165,13 +174,16 @@ object MqttDeviceProtocol {
 
     fun broadcastReceipt(
         deviceId: String,
+        commandStreamId: String,
         broadcastId: String,
         state: BroadcastPlaybackState,
         occurredAtEpochMillis: Long,
         error: String?,
     ): MqttUplink {
+        val safeCommandStreamId = validatedCommandStreamId(commandStreamId)
         validatedId(broadcastId, "broadcast ID")
         val payload = JSONObject()
+            .put("commandStreamId", safeCommandStreamId)
             .put("broadcastId", broadcastId)
             .put("state", state.name)
             .put("occurredAtEpochMillis", occurredAtEpochMillis)
@@ -179,7 +191,10 @@ object MqttDeviceProtocol {
         return uplink(
             deviceId,
             "broadcast-receipt",
-            stableMessageId("receipt", "$broadcastId|${state.name}|$occurredAtEpochMillis|${error.orEmpty()}"),
+            stableMessageId(
+                "receipt",
+                "$safeCommandStreamId|$broadcastId|${state.name}|$occurredAtEpochMillis|${error.orEmpty()}",
+            ),
             occurredAtEpochMillis,
             payload,
         )
@@ -237,6 +252,13 @@ object MqttDeviceProtocol {
 
     private fun validatedId(value: String, name: String): String = value.also {
         if (!idPattern.matches(it)) throw MqttProtocolException("$name is invalid")
+    }
+
+    private fun validatedCommandStreamId(value: String): String = value.also {
+        val parsed = runCatching { UUID.fromString(it) }.getOrNull()
+        if (parsed == null || parsed.toString() != it) {
+            throw MqttProtocolException("command stream ID is invalid")
+        }
     }
 
     private fun requiredPositiveLong(value: JSONObject, name: String): Long {
